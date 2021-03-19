@@ -17,23 +17,29 @@ spec:
     matchLabels:
       control-plane: controller-manager
   replicas: 1
+  strategy:
+    type: Recreate
   template:
     metadata:
       labels:
         control-plane: controller-manager
     spec:
+      serviceAccountName: dns-operator-azure
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
       containers:
-      - command:
+      - name: dns-operator-azure
+        image: controller:latest
+        command:
         - /manager
         args:
         - --enable-leader-election
-        image: controller:latest
-        name: manager
         resources:
-          limits:
-            cpu: 100m
-            memory: 30Mi
           requests:
             cpu: 100m
             memory: 20Mi
+          limits:
+            cpu: 100m
+            memory: 30Mi
       terminationGracePeriodSeconds: 10
