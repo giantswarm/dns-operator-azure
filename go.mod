@@ -9,8 +9,6 @@ require (
 	github.com/giantswarm/microerror v0.3.0
 	github.com/giantswarm/micrologger v0.5.0
 	github.com/go-logr/logr v0.1.0
-	github.com/onsi/ginkgo v1.14.2
-	github.com/onsi/gomega v1.10.3
 	k8s.io/api v0.17.17
 	k8s.io/apimachinery v0.17.17
 	k8s.io/client-go v0.17.17
