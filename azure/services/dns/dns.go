@@ -84,7 +84,7 @@ func (s *Service) Reconcile(ctx context.Context) error {
 
 	currentRecordSets, err := s.client.ListRecordSets(ctx, s.Scope.ResourceGroup(), dnsSpec.ZoneName)
 	if err != nil && azure.IsParentResourceNotFound(err) {
-		s.Scope.V(2).Info("DNS zone not found", "dns zone", dnsSpec.ZoneName)
+		s.Scope.V(2).Info("DNS zone not found", "DNSZone", dnsSpec.ZoneName)
 
 		_, rErr := s.reconcileWorkloadClusterDNSZone(ctx)
 		if rErr != nil {
@@ -99,6 +99,7 @@ func (s *Service) Reconcile(ctx context.Context) error {
 		// We've got some records sets, let's fund if we have to create some
 		// more. There shouldn't be many records, so let's do some brute force
 		// search here :)
+		s.Scope.V(2).Info("DNS zone found", "DNSZone", dnsSpec.ZoneName)
 
 		// Finding missing A records
 		for _, a := range dnsSpec.ARecords {
@@ -107,11 +108,19 @@ func (s *Service) Reconcile(ctx context.Context) error {
 				if recordSet.Type != nil && *recordSet.Type == string(dns.A) &&
 					recordSet.Name != nil && *recordSet.Name == a.Hostname {
 					foundRecord = true
+					s.Scope.V(2).Info(
+						fmt.Sprintf("DNS A record '%s' found", a.Hostname),
+						"DNSZone", dnsSpec.ZoneName,
+						"hostname", a.Hostname)
 				}
 			}
 
 			if !foundRecord {
 				aRecordsToCreate = append(aRecordsToCreate, a)
+				s.Scope.V(2).Info(
+					fmt.Sprintf("DNS A record '%s' is missing, it will be created", a.Hostname),
+					"DNSZone", dnsSpec.ZoneName,
+					"hostname", a.Hostname)
 			}
 		}
 
@@ -122,11 +131,21 @@ func (s *Service) Reconcile(ctx context.Context) error {
 				if recordSet.Type != nil && *recordSet.Type == string(dns.CNAME) &&
 					recordSet.Name != nil && *recordSet.Name == cname.Alias {
 					foundRecord = true
+					s.Scope.V(2).Info(
+						fmt.Sprintf("DNS CNAME record '%s' found", cname.Alias),
+						"DNSZone", dnsSpec.ZoneName,
+						"alias", cname.Alias,
+						"cname", cname.CName)
 				}
 			}
 
 			if !foundRecord {
 				cnameRecordsToCreate = append(cnameRecordsToCreate, cname)
+				s.Scope.V(2).Info(
+					fmt.Sprintf("DNS CNAME record '%s' is missing, it will be created", cname.Alias),
+					"DNSZone", dnsSpec.ZoneName,
+					"alias", cname.Alias,
+					"cname", cname.CName)
 			}
 		}
 	}
@@ -148,28 +167,19 @@ func (s *Service) reconcileWorkloadClusterDNSZone(ctx context.Context) (*dns.Zon
 	var dnsZone *dns.Zone
 	var err error
 	dnsSpec := s.Scope.DNSSpec()
-	s.Scope.V(2).Info("reconciling DNS zone", "dns zone", dnsSpec.ZoneName)
+	s.Scope.V(2).Info("Creating DNS zone", "DNSZone", dnsSpec.ZoneName)
 
-	// Try to get existing DNS zone from the workload cluster
-	dnsZone, err = s.client.GetZone(ctx, s.Scope.ResourceGroup(), dnsSpec.ZoneName)
-	if err != nil && !capzazure.ResourceNotFound(err) {
+	// DNS zone not found, let's create it.
+	dnsZoneParams := dns.Zone{
+		Name:     &dnsSpec.ZoneName,
+		Type:     to.StringPtr(string(dns.Public)),
+		Location: to.StringPtr(capzazure.Global),
+	}
+	dnsZone, err = s.client.CreateOrUpdateZone(ctx, s.Scope.ResourceGroup(), dnsSpec.ZoneName, dnsZoneParams)
+	if err != nil {
 		return nil, microerror.Mask(err)
 	}
-
-	if capzazure.ResourceNotFound(err) {
-		s.Scope.V(2).Info("Creating DNS zone", "dns zone", dnsSpec.ZoneName)
-		// DNS zone not found, let's create it.
-		dnsZoneParams := dns.Zone{
-			Name:     &dnsSpec.ZoneName,
-			Type:     to.StringPtr(string(dns.Public)),
-			Location: to.StringPtr(capzazure.Global),
-		}
-		dnsZone, err = s.client.CreateOrUpdateZone(ctx, s.Scope.ResourceGroup(), dnsSpec.ZoneName, dnsZoneParams)
-		if err != nil {
-			return nil, microerror.Mask(err)
-		}
-		s.Scope.V(2).Info("Successfully created DNS zone", "dns zone", dnsSpec.ZoneName)
-	}
+	s.Scope.V(2).Info("Successfully created DNS zone", "DNSZone", dnsSpec.ZoneName)
 
 	return dnsZone, nil
 }
@@ -177,6 +187,12 @@ func (s *Service) reconcileWorkloadClusterDNSZone(ctx context.Context) (*dns.Zon
 func (s *Service) createARecords(ctx context.Context, aRecords []azure.ARecord) error {
 	var err error
 	dnsSpec := s.Scope.DNSSpec()
+	if len(aRecords) == 0 {
+		s.Scope.V(2).Info(
+			"All DNS A records have been created",
+			"DNSZone", dnsSpec.ZoneName)
+		return nil
+	}
 
 	for _, aRecord := range aRecords {
 		var ipAddressObject network.PublicIPAddress
@@ -184,7 +200,7 @@ func (s *Service) createARecords(ctx context.Context, aRecords []azure.ARecord) 
 		if capzazure.ResourceNotFound(err) {
 			s.Scope.V(2).Info(
 				"Cannot create DNS A record, public IP still not deployed",
-				"dns zone", dnsSpec.ZoneName,
+				"DNSZone", dnsSpec.ZoneName,
 				"hostname", aRecord.Hostname,
 				"IP resource name", aRecord.PublicIPName)
 			continue
@@ -195,7 +211,7 @@ func (s *Service) createARecords(ctx context.Context, aRecords []azure.ARecord) 
 		if ipAddressObject.IPAddress == nil {
 			s.Scope.V(2).Info(
 				"Cannot create DNS A record, public Azure IP object does not have IP address set",
-				"dns zone", dnsSpec.ZoneName,
+				"DNSZone", dnsSpec.ZoneName,
 				"hostname", aRecord.Hostname,
 				"IP resource name", aRecord.PublicIPName)
 			continue
@@ -203,7 +219,7 @@ func (s *Service) createARecords(ctx context.Context, aRecords []azure.ARecord) 
 
 		s.Scope.V(2).Info(
 			"Creating DNS A record",
-			"dns zone", dnsSpec.ZoneName,
+			"DNSZone", dnsSpec.ZoneName,
 			"hostname", aRecord.Hostname,
 			"ipv4", *ipAddressObject.IPAddress)
 
@@ -231,7 +247,7 @@ func (s *Service) createARecords(ctx context.Context, aRecords []azure.ARecord) 
 
 		s.Scope.V(2).Info(
 			"Successfully created DNS A record",
-			"dns zone", dnsSpec.ZoneName,
+			"DNSZone", dnsSpec.ZoneName,
 			"hostname", aRecord.Hostname,
 			"ipv4", aRecord.PublicIPName)
 	}
@@ -241,10 +257,17 @@ func (s *Service) createARecords(ctx context.Context, aRecords []azure.ARecord) 
 
 func (s *Service) createCNameRecords(ctx context.Context, cnameRecords []azure.CNameRecord) error {
 	dnsSpec := s.Scope.DNSSpec()
+	if len(cnameRecords) == 0 {
+		s.Scope.V(2).Info(
+			"All DNS CNAME records have been created",
+			"DNSZone", dnsSpec.ZoneName)
+		return nil
+	}
+
 	for _, cnameRecord := range cnameRecords {
 		s.Scope.V(2).Info(
 			"Creating DNS CNAME record",
-			"dns zone", dnsSpec.ZoneName,
+			"DNSZone", dnsSpec.ZoneName,
 			"alias", cnameRecord.Alias,
 			"cname", cnameRecord.CName)
 
@@ -270,7 +293,7 @@ func (s *Service) createCNameRecords(ctx context.Context, cnameRecords []azure.C
 
 		s.Scope.V(2).Info(
 			"Successfully created DNS CNAME record",
-			"dns zone", dnsSpec.ZoneName,
+			"DNSZone", dnsSpec.ZoneName,
 			"alias", cnameRecord.Alias,
 			"cname", cnameRecord.CName)
 	}
