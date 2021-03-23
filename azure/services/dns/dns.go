@@ -16,6 +16,11 @@ import (
 	"github.com/giantswarm/dns-operator-azure/azure"
 )
 
+const (
+	RecordSetTypeA     string = "Microsoft.Network/dnszones/" + string(dns.A)
+	RecordSetTypeCNAME string = "Microsoft.Network/dnszones/" + string(dns.CNAME)
+)
+
 type Scope interface {
 	logr.Logger
 	capzazure.ClusterDescriber
@@ -105,7 +110,7 @@ func (s *Service) Reconcile(ctx context.Context) error {
 		for _, a := range dnsSpec.ARecords {
 			foundRecord := false
 			for _, recordSet := range currentRecordSets {
-				if recordSet.Type != nil && *recordSet.Type == string(dns.A) &&
+				if recordSet.Type != nil && *recordSet.Type == RecordSetTypeA &&
 					recordSet.Name != nil && *recordSet.Name == a.Hostname {
 					foundRecord = true
 					s.Scope.V(2).Info(
@@ -128,7 +133,7 @@ func (s *Service) Reconcile(ctx context.Context) error {
 		for _, cname := range dnsSpec.CNameRecords {
 			foundRecord := false
 			for _, recordSet := range currentRecordSets {
-				if recordSet.Type != nil && *recordSet.Type == string(dns.CNAME) &&
+				if recordSet.Type != nil && *recordSet.Type == RecordSetTypeCNAME &&
 					recordSet.Name != nil && *recordSet.Name == cname.Alias {
 					foundRecord = true
 					s.Scope.V(2).Info(
