@@ -29,6 +29,32 @@ spec:
         image: "{{ .Values.Installation.V1.Registry.Domain }}/{{ .Values.image.name }}:{{ .Values.image.tag }}"
         command:
         - /manager
+        env:
+        - name: AZURE_ENVIRONMENT
+          valueFrom:
+            configMapKeyRef:
+              key: cloud-env
+              name: "{{ include "resource.default.name" . }}-bootstrap-cloud-env"
+        - name: AZURE_SUBSCRIPTION_ID
+          valueFrom:
+            secretKeyRef:
+              key: "azure.azureoperator.subscriptionid"
+              name: credential-default
+        - name: AZURE_TENANT_ID
+          valueFrom:
+            secretKeyRef:
+              key: "azure.azureoperator.tenantid"
+              name: credential-default
+        - name: AZURE_CLIENT_ID
+          valueFrom:
+            secretKeyRef:
+              key: "azure.azureoperator.clientid"
+              name: credential-default
+        - name: AZURE_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              key: "azure.azureoperator.clientsecret"
+              name: credential-default
         resources:
           requests:
             cpu: 100m
