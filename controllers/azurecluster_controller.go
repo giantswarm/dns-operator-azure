@@ -26,6 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 	capz "sigs.k8s.io/cluster-api-provider-azure/api/v1alpha3"
+	capzazure "sigs.k8s.io/cluster-api-provider-azure/cloud"
 	capzscope "sigs.k8s.io/cluster-api-provider-azure/cloud/scope"
 	"sigs.k8s.io/cluster-api-provider-azure/cloud/services/publicips"
 	"sigs.k8s.io/cluster-api-provider-azure/util/reconciler"
@@ -204,7 +205,9 @@ func (r *AzureClusterReconciler) reconcileDelete(ctx context.Context, clusterSco
 	scope := dns.NewClusterScopeWrapper(*clusterScope)
 	dnsService := dns.New(scope, publicIPsService)
 	err := dnsService.DeleteZone(ctx, clusterScope.ResourceGroup(), scope.DNSSpec().ZoneName)
-	if err != nil {
+	if capzazure.ResourceNotFound(err) {
+		clusterScope.Info("Azure resource has already been deleted")
+	} else if err != nil {
 		return reconcile.Result{}, microerror.Mask(err)
 	}
 
