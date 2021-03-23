@@ -4,13 +4,13 @@ metadata:
   name: {{ include "resource.default.name"  . }}
   namespace: {{ include "resource.default.namespace"  . }}
   labels:
-  {{- include "labels.common" . | nindent 4 }}
+    {{- include "labels.common" . | nindent 4 }}
 spec:
   replicas: 1
   revisionHistoryLimit: 3
   selector:
     matchLabels:
-  {{- include "labels.selector" . | nindent 6 }}
+      {{- include "labels.selector" . | nindent 6 }}
   strategy:
     type: Recreate
   template:
@@ -18,7 +18,7 @@ spec:
       annotations:
         releaseRevision: {{ .Release.Revision | quote }}
       labels:
-    {{- include "labels.selector" . | nindent 8 }}
+        {{- include "labels.selector" . | nindent 8 }}
     spec:
       serviceAccountName: {{ include "resource.default.name"  . }}
       securityContext:

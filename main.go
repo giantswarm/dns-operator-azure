@@ -26,10 +26,12 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
+	"sigs.k8s.io/cluster-api-provider-azure/util/reconciler"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	capz "sigs.k8s.io/cluster-api-provider-azure/api/v1alpha3"
+	"sigs.k8s.io/cluster-api/util/record"
 
 	"github.com/giantswarm/dns-operator-azure/controllers"
 	"github.com/giantswarm/dns-operator-azure/pkg/errors"
@@ -83,14 +85,29 @@ func mainError() error {
 		return microerror.Mask(err)
 	}
 
-	if err = (&controllers.AzureClusterReconciler{
-		Client:      mgr.GetClient(),
-		Micrologger: logger.With("controllers", "AzureCluster"),
-		Scheme:      mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
-		logger.Errorf(ctx, errors.FatalError, "unable to create controller AzureCluster")
+	// Initialize event recorder.
+	record.InitFromRecorder(mgr.GetEventRecorderFor("dns-operator-azure"))
+
+	// if err = (&controllers.AzureClusterReconciler{
+	// 	Client:      mgr.GetClient(),
+	// 	Micrologger: logger.With("controllers", "AzureCluster"),
+	// 	Scheme:      mgr.GetScheme(),
+	// }).SetupWithManager(mgr); err != nil {
+	// 	logger.Errorf(ctx, errors.FatalError, "unable to create controller AzureCluster")
+	// 	return microerror.Mask(err)
+	// }
+	azureClusterReconcliler := controllers.NewAzureClusterReconciler(
+		mgr.GetClient(),
+		logger,
+		mgr.GetEventRecorderFor("azurecluster-reconciler"),
+		reconciler.DefaultLoopTimeout)
+
+	if err = azureClusterReconcliler.SetupWithManager(mgr); err != nil {
+		logger.Errorf(ctx, errors.FatalError, "unable to start manager")
+		setupLog.Error(err, "unable to create controller", "controller", "AzureCluster")
 		return microerror.Mask(err)
 	}
+
 	// +kubebuilder:scaffold:builder
 
 	setupLog.Info("starting manager")
