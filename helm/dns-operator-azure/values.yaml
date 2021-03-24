@@ -13,3 +13,17 @@ pod:
     id: 1000
   group:
     id: 1000
+
+#
+# These values are injected by the config-controller
+#
+managementCluster:
+  name: ""
+  azure:
+    environment: ""
+    region: ""
+    tenantID: ""
+    subscriptionID: ""
+    servicePrincipal:
+      clientID: ""
+      clientSecret: ""

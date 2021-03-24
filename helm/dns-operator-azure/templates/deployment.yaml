@@ -31,10 +31,7 @@ spec:
         - /manager
         env:
         - name: AZURE_ENVIRONMENT
-          valueFrom:
-            configMapKeyRef:
-              key: cloud-env
-              name: "{{ include "resource.default.name" . }}-bootstrap-cloud-env"
+          value: {{ .Values.managementCluster.azure.environment }}
         - name: AZURE_SUBSCRIPTION_ID
           valueFrom:
             secretKeyRef:
@@ -55,6 +52,18 @@ spec:
             secretKeyRef:
               key: "azure.azureoperator.clientsecret"
               name: credential-default
+        - name: MANAGEMENT_CLUSTER_NAME
+          value: {{ .Values.managementCluster.name }}
+        - name: MANAGEMENT_CLUSTER_AZURE_REGION
+          value: {{ .Values.managementCluster.azure.region }}
+        - name: MANAGEMENT_CLUSTER_AZURE_TENANT_ID
+          value: {{ .Values.managementCluster.azure.tenantID }}
+        - name: MANAGEMENT_CLUSTER_AZURE_SUBSCRIPTION_ID
+          value: {{ .Values.managementCluster.azure.subscriptionID }}
+        - name: MANAGEMENT_CLUSTER_AZURE_CLIENT_ID
+          value: {{ .Values.managementCluster.azure.servicePrincipal.clientID }}
+        - name: MANAGEMENT_CLUSTER_AZURE_CLIENT_SECRET
+          value: {{ .Values.managementCluster.azure.servicePrincipal.clientSecret }}
         resources:
           requests:
             cpu: 100m
