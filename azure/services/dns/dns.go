@@ -194,7 +194,7 @@ func (s *Service) createARecords(ctx context.Context, aRecords []azure.ARecord) 
 	dnsSpec := s.Scope.DNSSpec()
 	if len(aRecords) == 0 {
 		s.Scope.V(2).Info(
-			"All DNS A records have been created",
+			"All DNS A records have already been created",
 			"DNSZone", dnsSpec.ZoneName)
 		return nil
 	}
@@ -264,7 +264,7 @@ func (s *Service) createCNameRecords(ctx context.Context, cnameRecords []azure.C
 	dnsSpec := s.Scope.DNSSpec()
 	if len(cnameRecords) == 0 {
 		s.Scope.V(2).Info(
-			"All DNS CNAME records have been created",
+			"All DNS CNAME records have already been created",
 			"DNSZone", dnsSpec.ZoneName)
 		return nil
 	}
