@@ -55,4 +55,3 @@ func NewClusterScopeWrapper(clusterScope scope.ClusterScope) (dns.Scope, error) 
 		managementClusterName: managementClusterName,
 	}, nil
 }
-
