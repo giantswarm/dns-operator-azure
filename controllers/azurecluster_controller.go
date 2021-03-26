@@ -234,7 +234,6 @@ func (r *AzureClusterReconciler) reconcileNormalWorkloadCluster(ctx context.Cont
 					continue
 				}
 
-				var nsDomainNames []azure.NSDomainNameSpec
 				for _, nsRecord := range *recordSet.NsRecords {
 					if nsRecord.Nsdname == nil {
 						continue
