@@ -16,8 +16,10 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"time"
 
+	azuredns "github.com/Azure/azure-sdk-for-go/services/dns/mgmt/2018-05-01/dns"
 	"github.com/giantswarm/microerror"
 	"github.com/giantswarm/micrologger"
 	"github.com/go-logr/logr"
@@ -40,6 +42,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"github.com/giantswarm/dns-operator-azure/azure"
+	"github.com/giantswarm/dns-operator-azure/azure/scope"
 	"github.com/giantswarm/dns-operator-azure/azure/services/dns"
 	"github.com/giantswarm/dns-operator-azure/pkg/micrologr"
 )
@@ -175,18 +179,25 @@ func (r *AzureClusterReconciler) getLogger(ctx context.Context, keysAndValues ..
 func (r *AzureClusterReconciler) reconcileNormal(ctx context.Context, clusterScope *capzscope.ClusterScope) (reconcile.Result, error) {
 	clusterScope.Info("Reconciling AzureCluster DNS zones")
 	azureCluster := clusterScope.AzureCluster
+	var err error
+	var nsDomainNames []azure.NSDomainNameSpec
 
 	// If the AzureCluster doesn't have our finalizer, add it.
 	controllerutil.AddFinalizer(azureCluster, AzureClusterControllerFinalizer)
 
-	publicIPsService := publicips.New(clusterScope)
-	scope := dns.NewClusterScopeWrapper(*clusterScope)
-	dnsService := dns.New(scope, publicIPsService)
-	err := dnsService.Reconcile(ctx)
+	// Reconcile workload cluster DNS records
+	nsDomainNames, err = r.reconcileNormalWorkloadCluster(ctx, clusterScope)
 	if err != nil {
 		return reconcile.Result{}, microerror.Mask(err)
 	}
 
+	// Reconcile management cluster DNS records
+	err = r.reconcileNormalManagementCluster(ctx, clusterScope, nsDomainNames)
+	if err != nil {
+		return reconcile.Result{}, microerror.Mask(err)
+	}
+
+	// Update DNSZoneReady condition in AzureCluster
 	conditions.MarkTrue(azureCluster, DNSZoneReady)
 	err = r.Client.Status().Update(ctx, azureCluster)
 	if err != nil {
@@ -197,21 +208,155 @@ func (r *AzureClusterReconciler) reconcileNormal(ctx context.Context, clusterSco
 	return reconcile.Result{}, nil
 }
 
+func (r *AzureClusterReconciler) reconcileNormalWorkloadCluster(ctx context.Context, clusterScope *capzscope.ClusterScope) ([]azure.NSDomainNameSpec, error) {
+	publicIPsService := publicips.New(clusterScope)
+	clusterScopeWrapper, err := scope.NewClusterScopeWrapper(*clusterScope)
+	if err != nil {
+		return nil, microerror.Mask(err)
+	}
+	dnsService := dns.New(clusterScopeWrapper, publicIPsService)
+
+	currentRecordSets, err := dnsService.Reconcile(ctx)
+	if err != nil {
+		return nil, microerror.Mask(err)
+	}
+
+	var nsDomainNames []azure.NSDomainNameSpec
+	{
+		for _, recordSet := range currentRecordSets {
+			// get only NS records
+			if recordSet.Type != nil &&
+				*recordSet.Type == dns.RecordSetTypeNS &&
+				recordSet.Name != nil &&
+				*recordSet.Name == "@" {
+
+				if recordSet.NsRecords == nil {
+					continue
+				}
+
+				var nsDomainNames []azure.NSDomainNameSpec
+				for _, nsRecord := range *recordSet.NsRecords {
+					if nsRecord.Nsdname == nil {
+						continue
+					}
+
+					nsDomainName := azure.NSDomainNameSpec{
+						NSDomainName: *nsRecord.Nsdname,
+					}
+					nsDomainNames = append(nsDomainNames, nsDomainName)
+				}
+
+				break
+			}
+		}
+	}
+
+	return nsDomainNames, nil
+}
+
+func (r *AzureClusterReconciler) reconcileNormalManagementCluster(ctx context.Context, clusterScope *capzscope.ClusterScope, nsDomainNames []azure.NSDomainNameSpec) error {
+	var err error
+	var managementClusterDNSService *dns.Service
+	{
+		var managementClusterScope *scope.ManagementClusterScope
+		{
+			params := scope.ManagementClusterScopeParams{
+				Client:                       clusterScope.Client,
+				Logger:                       clusterScope.Logger,
+				WorkloadClusterName:          clusterScope.ClusterName(),
+				WorkloadClusterNSDomainNames: nsDomainNames,
+			}
+			managementClusterScope, err = scope.NewManagementClusterScope(ctx, params)
+			if err != nil {
+				return microerror.Mask(err)
+			}
+		}
+
+		managementClusterDNSService = dns.New(managementClusterScope, nil)
+	}
+
+	// Reconcile management cluster DNS records
+	_, err = managementClusterDNSService.Reconcile(ctx)
+	if err != nil {
+		return microerror.Mask(err)
+	}
+
+	return nil
+}
+
 func (r *AzureClusterReconciler) reconcileDelete(ctx context.Context, clusterScope *capzscope.ClusterScope) (reconcile.Result, error) {
 	clusterScope.Info("Reconciling AzureCluster DNS zones delete")
-	azureCluster := clusterScope.AzureCluster
 
-	publicIPsService := publicips.New(clusterScope)
-	scope := dns.NewClusterScopeWrapper(*clusterScope)
-	dnsService := dns.New(scope, publicIPsService)
-	err := dnsService.DeleteZone(ctx, clusterScope.ResourceGroup(), scope.DNSSpec().ZoneName)
-	if capzazure.ResourceNotFound(err) {
-		clusterScope.Info("Azure resource has already been deleted")
-	} else if err != nil {
+	err := r.reconcileDeleteWorkloadCluster(ctx, clusterScope)
+	if err != nil {
 		return reconcile.Result{}, microerror.Mask(err)
 	}
 
-	controllerutil.RemoveFinalizer(azureCluster, AzureClusterControllerFinalizer)
+	err = r.reconcileDeleteManagementCluster(ctx, clusterScope)
+	if err != nil {
+		return reconcile.Result{}, microerror.Mask(err)
+	}
+
+	controllerutil.RemoveFinalizer(clusterScope.AzureCluster, AzureClusterControllerFinalizer)
 	clusterScope.Info("Successfully reconciled AzureCluster DNS zones delete")
 	return reconcile.Result{}, nil
+}
+
+func (r *AzureClusterReconciler) reconcileDeleteWorkloadCluster(ctx context.Context, clusterScope *capzscope.ClusterScope) error {
+	clusterScopeWrapper, err := scope.NewClusterScopeWrapper(*clusterScope)
+	if err != nil {
+		return microerror.Mask(err)
+	}
+
+	dnsZoneName := clusterScopeWrapper.DNSSpec().ZoneName
+	clusterScope.Info("Deleting DNS zone", "DNSZone", dnsZoneName)
+
+	dnsService := dns.New(clusterScopeWrapper, nil)
+	err = dnsService.DeleteZone(ctx, clusterScope.ResourceGroup(), dnsZoneName)
+	if capzazure.ResourceNotFound(err) {
+		clusterScope.Info("Azure DNS zone resource has already been deleted")
+	} else if err != nil {
+		return microerror.Mask(err)
+	}
+
+	clusterScope.Info("Successfully deleted DNS zone", "DNSZone", dnsZoneName)
+	return nil
+}
+
+func (r *AzureClusterReconciler) reconcileDeleteManagementCluster(ctx context.Context, clusterScope *capzscope.ClusterScope) error {
+	nsRecordSetName := fmt.Sprintf("%s.k8s", clusterScope.ClusterName())
+	clusterScope.Info("Deleting DNS NS record", "NSRecord", nsRecordSetName)
+
+	var err error
+	var managementClusterDNSService *dns.Service
+	var zoneName string
+	{
+		var managementClusterScope *scope.ManagementClusterScope
+		{
+			params := scope.ManagementClusterScopeParams{
+				Client:                       clusterScope.Client,
+				Logger:                       clusterScope.Logger,
+				WorkloadClusterName:          clusterScope.ClusterName(),
+				WorkloadClusterNSDomainNames: []azure.NSDomainNameSpec{},
+			}
+			managementClusterScope, err = scope.NewManagementClusterScope(ctx, params)
+			if err != nil {
+				return microerror.Mask(err)
+			}
+		}
+
+		managementClusterDNSService = dns.New(managementClusterScope, nil)
+		zoneName = managementClusterScope.DNSSpec().ZoneName
+	}
+
+	// Reconcile management cluster DNS records
+	err = managementClusterDNSService.DeleteRecordSet(ctx, clusterScope.ResourceGroup(), zoneName, azuredns.NS, nsRecordSetName)
+	if capzazure.ResourceNotFound(err) {
+		clusterScope.Info("Azure DNS record set has already been deleted")
+	} else if err != nil {
+		return microerror.Mask(err)
+	}
+
+	clusterScope.Info("Successfully deleted DNS NS record", "NSRecord", nsRecordSetName)
+	return nil
 }
