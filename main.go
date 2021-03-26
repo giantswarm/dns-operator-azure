@@ -21,18 +21,20 @@ import (
 	"flag"
 	"fmt"
 
+	aadpodv1 "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	"github.com/giantswarm/microerror"
 	"github.com/giantswarm/micrologger"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
+	capz "sigs.k8s.io/cluster-api-provider-azure/api/v1alpha3"
 	"sigs.k8s.io/cluster-api-provider-azure/util/reconciler"
 	capi "sigs.k8s.io/cluster-api/api/v1alpha3"
+	"sigs.k8s.io/cluster-api/util/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-
-	capz "sigs.k8s.io/cluster-api-provider-azure/api/v1alpha3"
-	"sigs.k8s.io/cluster-api/util/record"
 
 	"github.com/giantswarm/dns-operator-azure/controllers"
 	"github.com/giantswarm/dns-operator-azure/pkg/errors"
@@ -50,6 +52,18 @@ func init() {
 	_ = capi.AddToScheme(scheme)
 	_ = capz.AddToScheme(scheme)
 	// +kubebuilder:scaffold:scheme
+
+	// Add aadpodidentity v1 to the scheme.
+	aadPodIdentityGroupVersion := schema.GroupVersion{Group: aadpodv1.CRDGroup, Version: aadpodv1.CRDVersion}
+	scheme.AddKnownTypes(aadPodIdentityGroupVersion,
+		&aadpodv1.AzureIdentity{},
+		&aadpodv1.AzureIdentityList{},
+		&aadpodv1.AzureIdentityBinding{},
+		&aadpodv1.AzureIdentityBindingList{},
+		&aadpodv1.AzurePodIdentityException{},
+		&aadpodv1.AzurePodIdentityExceptionList{},
+	)
+	metav1.AddToGroupVersion(scheme, aadPodIdentityGroupVersion)
 }
 
 func main() {
