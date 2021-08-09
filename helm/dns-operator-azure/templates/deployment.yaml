@@ -4,13 +4,13 @@ metadata:
   name: {{ include "resource.default.name"  . }}
   namespace: {{ include "resource.default.namespace"  . }}
   labels:
-  {{- include "labels.common" . | nindent 4 }}
+    {{- include "labels.common" . | nindent 4 }}
 spec:
   replicas: 1
   revisionHistoryLimit: 3
   selector:
     matchLabels:
-  {{- include "labels.selector" . | nindent 6 }}
+      {{- include "labels.selector" . | nindent 6 }}
   strategy:
     type: Recreate
   template:
@@ -18,7 +18,7 @@ spec:
       annotations:
         releaseRevision: {{ .Release.Revision | quote }}
       labels:
-    {{- include "labels.selector" . | nindent 8 }}
+        {{- include "labels.common" . | nindent 8 }}
     spec:
       serviceAccountName: {{ include "resource.default.name"  . }}
       securityContext:
@@ -29,8 +29,41 @@ spec:
         image: "{{ .Values.Installation.V1.Registry.Domain }}/{{ .Values.image.name }}:{{ .Values.image.tag }}"
         command:
         - /manager
-        args:
-        - --enable-leader-election
+        env:
+        - name: AZURE_ENVIRONMENT
+          value: {{ .Values.managementCluster.azure.environment }}
+        - name: AZURE_SUBSCRIPTION_ID
+          valueFrom:
+            secretKeyRef:
+              key: "azure.azureoperator.subscriptionid"
+              name: credential-default
+        - name: AZURE_TENANT_ID
+          valueFrom:
+            secretKeyRef:
+              key: "azure.azureoperator.tenantid"
+              name: credential-default
+        - name: AZURE_CLIENT_ID
+          valueFrom:
+            secretKeyRef:
+              key: "azure.azureoperator.clientid"
+              name: credential-default
+        - name: AZURE_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              key: "azure.azureoperator.clientsecret"
+              name: credential-default
+        - name: MANAGEMENT_CLUSTER_NAME
+          value: {{ .Values.managementCluster.name }}
+        - name: MANAGEMENT_CLUSTER_AZURE_REGION
+          value: {{ .Values.managementCluster.azure.region }}
+        - name: MANAGEMENT_CLUSTER_AZURE_TENANT_ID
+          value: {{ .Values.managementCluster.azure.tenantID }}
+        - name: MANAGEMENT_CLUSTER_AZURE_SUBSCRIPTION_ID
+          value: {{ .Values.managementCluster.azure.subscriptionID }}
+        - name: MANAGEMENT_CLUSTER_AZURE_CLIENT_ID
+          value: {{ .Values.managementCluster.azure.servicePrincipal.clientID }}
+        - name: MANAGEMENT_CLUSTER_AZURE_CLIENT_SECRET
+          value: {{ .Values.managementCluster.azure.servicePrincipal.clientSecret }}
         resources:
           requests:
             cpu: 100m
