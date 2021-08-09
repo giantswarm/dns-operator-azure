@@ -180,19 +180,19 @@ func (r *AzureClusterReconciler) reconcileNormal(ctx context.Context, clusterSco
 	clusterScope.Info("Reconciling AzureCluster DNS zones")
 	azureCluster := clusterScope.AzureCluster
 	var err error
-	var nsDomainNames []azure.NSDomainNameSpec
+	var nsRecordSetSpecs []azure.NSRecordSetSpec
 
 	// If the AzureCluster doesn't have our finalizer, add it.
 	controllerutil.AddFinalizer(azureCluster, AzureClusterControllerFinalizer)
 
 	// Reconcile workload cluster DNS records
-	nsDomainNames, err = r.reconcileNormalWorkloadCluster(ctx, clusterScope)
+	nsRecordSetSpecs, err = r.reconcileNormalWorkloadCluster(ctx, clusterScope)
 	if err != nil {
 		return reconcile.Result{}, microerror.Mask(err)
 	}
 
 	// Reconcile management cluster DNS records
-	err = r.reconcileNormalManagementCluster(ctx, clusterScope, nsDomainNames)
+	err = r.reconcileNormalManagementCluster(ctx, clusterScope, nsRecordSetSpecs)
 	if err != nil {
 		return reconcile.Result{}, microerror.Mask(err)
 	}
@@ -208,7 +208,7 @@ func (r *AzureClusterReconciler) reconcileNormal(ctx context.Context, clusterSco
 	return reconcile.Result{}, nil
 }
 
-func (r *AzureClusterReconciler) reconcileNormalWorkloadCluster(ctx context.Context, clusterScope *capzscope.ClusterScope) ([]azure.NSDomainNameSpec, error) {
+func (r *AzureClusterReconciler) reconcileNormalWorkloadCluster(ctx context.Context, clusterScope *capzscope.ClusterScope) ([]azure.NSRecordSetSpec, error) {
 	publicIPsService := publicips.New(clusterScope)
 	clusterScopeWrapper, err := scope.NewClusterScopeWrapper(*clusterScope)
 	if err != nil {
@@ -216,54 +216,25 @@ func (r *AzureClusterReconciler) reconcileNormalWorkloadCluster(ctx context.Cont
 	}
 	dnsService := dns.New(clusterScopeWrapper, publicIPsService)
 
-	currentRecordSets, err := dnsService.Reconcile(ctx)
+	err = dnsService.Reconcile(ctx)
 	if err != nil {
 		return nil, microerror.Mask(err)
 	}
 
-	var nsDomainNames []azure.NSDomainNameSpec
-	{
-		for _, recordSet := range currentRecordSets {
-			// get only NS records
-			if recordSet.Type != nil &&
-				*recordSet.Type == dns.RecordSetTypeNS &&
-				recordSet.Name != nil &&
-				*recordSet.Name == "@" {
-
-				if recordSet.NsRecords == nil {
-					continue
-				}
-
-				for _, nsRecord := range *recordSet.NsRecords {
-					if nsRecord.Nsdname == nil {
-						continue
-					}
-
-					nsDomainName := azure.NSDomainNameSpec{
-						NSDomainName: *nsRecord.Nsdname,
-					}
-					nsDomainNames = append(nsDomainNames, nsDomainName)
-				}
-
-				break
-			}
-		}
-	}
-
-	return nsDomainNames, nil
+	return clusterScopeWrapper.DNSSpec().NSRecordSets, nil
 }
 
-func (r *AzureClusterReconciler) reconcileNormalManagementCluster(ctx context.Context, clusterScope *capzscope.ClusterScope, nsDomainNames []azure.NSDomainNameSpec) error {
+func (r *AzureClusterReconciler) reconcileNormalManagementCluster(ctx context.Context, clusterScope *capzscope.ClusterScope, nsRecordSetSpecs []azure.NSRecordSetSpec) error {
 	var err error
 	var managementClusterDNSService *dns.Service
 	{
 		var managementClusterScope *scope.ManagementClusterScope
 		{
 			params := scope.ManagementClusterScopeParams{
-				Client:                       clusterScope.Client,
-				Logger:                       clusterScope.Logger,
-				WorkloadClusterName:          clusterScope.ClusterName(),
-				WorkloadClusterNSDomainNames: nsDomainNames,
+				Client:                          clusterScope.Client,
+				Logger:                          clusterScope.Logger,
+				WorkloadClusterName:             clusterScope.ClusterName(),
+				WorkloadClusterNSRecordSetSpecs: nsRecordSetSpecs,
 			}
 			managementClusterScope, err = scope.NewManagementClusterScope(ctx, params)
 			if err != nil {
@@ -275,7 +246,7 @@ func (r *AzureClusterReconciler) reconcileNormalManagementCluster(ctx context.Co
 	}
 
 	// Reconcile management cluster DNS records
-	_, err = managementClusterDNSService.Reconcile(ctx)
+	err = managementClusterDNSService.Reconcile(ctx)
 	if err != nil {
 		return microerror.Mask(err)
 	}
@@ -333,10 +304,10 @@ func (r *AzureClusterReconciler) reconcileDeleteManagementCluster(ctx context.Co
 		var managementClusterScope *scope.ManagementClusterScope
 		{
 			params := scope.ManagementClusterScopeParams{
-				Client:                       clusterScope.Client,
-				Logger:                       clusterScope.Logger,
-				WorkloadClusterName:          clusterScope.ClusterName(),
-				WorkloadClusterNSDomainNames: []azure.NSDomainNameSpec{},
+				Client:                          clusterScope.Client,
+				Logger:                          clusterScope.Logger,
+				WorkloadClusterName:             clusterScope.ClusterName(),
+				WorkloadClusterNSRecordSetSpecs: []azure.NSRecordSetSpec{},
 			}
 			managementClusterScope, err = scope.NewManagementClusterScope(ctx, params)
 			if err != nil {

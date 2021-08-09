@@ -14,34 +14,9 @@ import (
 
 type clusterScopeWrapper struct {
 	scope.ClusterScope
+	nsRecordSetSpecs []azure.NSRecordSetSpec
+
 	managementClusterName string
-}
-
-func (csw *clusterScopeWrapper) DNSSpec() azure.DNSSpec {
-	zoneName := fmt.Sprintf("%s.k8s.%s.%s.azure.gigantic.io",
-		csw.ClusterScope.ClusterName(),
-		csw.managementClusterName,
-		csw.ClusterScope.Location())
-
-	dnsSpec := azure.DNSSpec{
-		ZoneName: zoneName,
-		ARecordSets: []azure.ARecordSetSpec{
-			{
-				Hostname:     "api",
-				PublicIPName: csw.ClusterScope.APIServerPublicIP().Name,
-				TTL:          3600,
-			},
-		},
-		CNameRecordSets: []azure.CNameRecordSetSpec{
-			{
-				Alias: "*",
-				CName: fmt.Sprintf("ingress.%s", zoneName),
-				TTL:   3600,
-			},
-		},
-	}
-
-	return dnsSpec
 }
 
 func NewClusterScopeWrapper(clusterScope scope.ClusterScope) (dns.Scope, error) {
@@ -54,4 +29,36 @@ func NewClusterScopeWrapper(clusterScope scope.ClusterScope) (dns.Scope, error) 
 		ClusterScope:          clusterScope,
 		managementClusterName: managementClusterName,
 	}, nil
+}
+
+func (s *clusterScopeWrapper) SetNSRecordSetSpecs(nsRecordSetSpecs []azure.NSRecordSetSpec) {
+	s.nsRecordSetSpecs = nsRecordSetSpecs
+}
+
+func (s *clusterScopeWrapper) DNSSpec() azure.DNSSpec {
+	zoneName := fmt.Sprintf("%s.k8s.%s.%s.azure.gigantic.io",
+		s.ClusterName(),
+		s.managementClusterName,
+		s.Location())
+
+	dnsSpec := azure.DNSSpec{
+		ZoneName: zoneName,
+		ARecordSets: []azure.ARecordSetSpec{
+			{
+				Hostname:     "api",
+				PublicIPName: s.APIServerPublicIP().Name,
+				TTL:          3600,
+			},
+		},
+		CNameRecordSets: []azure.CNameRecordSetSpec{
+			{
+				Alias: "*",
+				CName: fmt.Sprintf("ingress.%s", zoneName),
+				TTL:   3600,
+			},
+		},
+		NSRecordSets: s.nsRecordSetSpecs,
+	}
+
+	return dnsSpec
 }

@@ -89,7 +89,9 @@ func mainError() error {
 		return microerror.Mask(err)
 	}
 
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+	restConfig := ctrl.GetConfigOrDie()
+	restConfig.UserAgent = "dns-operator-azure"
+	mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
 		Scheme:             scheme,
 		MetricsBindAddress: metricsAddr,
 		Port:               9443,
@@ -112,13 +114,13 @@ func mainError() error {
 	// 	logger.Errorf(ctx, errors.FatalError, "unable to create controller AzureCluster")
 	// 	return microerror.Mask(err)
 	// }
-	azureClusterReconcliler := controllers.NewAzureClusterReconciler(
+	azureClusterReconciler := controllers.NewAzureClusterReconciler(
 		mgr.GetClient(),
 		logger,
 		mgr.GetEventRecorderFor("azurecluster-reconciler"),
 		reconciler.DefaultLoopTimeout)
 
-	if err = azureClusterReconcliler.SetupWithManager(mgr); err != nil {
+	if err = azureClusterReconciler.SetupWithManager(mgr); err != nil {
 		logger.Errorf(ctx, errors.FatalError, "unable to start manager")
 		setupLog.Error(err, "unable to create controller", "controller", "AzureCluster")
 		return microerror.Mask(err)
