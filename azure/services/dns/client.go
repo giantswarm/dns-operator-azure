@@ -6,7 +6,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/services/dns/mgmt/2018-05-01/dns"
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/giantswarm/microerror"
-	capzazure "sigs.k8s.io/cluster-api-provider-azure/cloud"
+	capzazure "sigs.k8s.io/cluster-api-provider-azure/azure"
 )
 
 type client interface {

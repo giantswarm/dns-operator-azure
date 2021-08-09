@@ -1,7 +1,7 @@
 package azure
 
 import (
-	capzazure "sigs.k8s.io/cluster-api-provider-azure/cloud"
+	capzazure "sigs.k8s.io/cluster-api-provider-azure/azure"
 )
 
 type ResourceGroupDescriber interface {

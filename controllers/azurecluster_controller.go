@@ -27,12 +27,12 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
-	capz "sigs.k8s.io/cluster-api-provider-azure/api/v1alpha3"
-	capzazure "sigs.k8s.io/cluster-api-provider-azure/cloud"
-	capzscope "sigs.k8s.io/cluster-api-provider-azure/cloud/scope"
-	"sigs.k8s.io/cluster-api-provider-azure/cloud/services/publicips"
+	capz "sigs.k8s.io/cluster-api-provider-azure/api/v1alpha4"
+	capzazure "sigs.k8s.io/cluster-api-provider-azure/azure"
+	capzscope "sigs.k8s.io/cluster-api-provider-azure/azure/scope"
+	"sigs.k8s.io/cluster-api-provider-azure/azure/services/publicips"
 	"sigs.k8s.io/cluster-api-provider-azure/util/reconciler"
-	capi "sigs.k8s.io/cluster-api/api/v1alpha3"
+	capi "sigs.k8s.io/cluster-api/api/v1alpha4"
 	"sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/annotations"
 	"sigs.k8s.io/cluster-api/util/conditions"
@@ -74,9 +74,9 @@ func NewAzureClusterReconciler(client client.Client, micrologger micrologger.Log
 	return acr
 }
 
-func (r *AzureClusterReconciler) Reconcile(req ctrl.Request) (_ ctrl.Result, reterr error) {
+func (r *AzureClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_ ctrl.Result, reterr error) {
 	var err error
-	ctx, cancel := context.WithTimeout(context.Background(), reconciler.DefaultedLoopTimeout(r.ReconcileTimeout))
+	ctx, cancel := context.WithTimeout(ctx, reconciler.DefaultedLoopTimeout(r.ReconcileTimeout))
 	defer cancel()
 
 	log, err := r.getLogger(ctx, "namespace", req.Namespace, "azureCluster", req.Name)

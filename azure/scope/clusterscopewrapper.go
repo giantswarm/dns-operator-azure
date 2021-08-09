@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/giantswarm/microerror"
-	"sigs.k8s.io/cluster-api-provider-azure/cloud/scope"
+	"sigs.k8s.io/cluster-api-provider-azure/azure/scope"
 
 	"github.com/giantswarm/dns-operator-azure/azure"
 	"github.com/giantswarm/dns-operator-azure/azure/services/dns"

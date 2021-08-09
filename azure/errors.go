@@ -5,7 +5,7 @@ import (
 
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/azure"
-	capzazure "sigs.k8s.io/cluster-api-provider-azure/cloud"
+	capzazure "sigs.k8s.io/cluster-api-provider-azure/azure"
 )
 
 const (

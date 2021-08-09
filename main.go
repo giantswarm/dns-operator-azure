@@ -26,7 +26,6 @@ import (
 	"github.com/giantswarm/micrologger"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	capz "sigs.k8s.io/cluster-api-provider-azure/api/v1alpha3"
@@ -54,8 +53,7 @@ func init() {
 	// +kubebuilder:scaffold:scheme
 
 	// Add aadpodidentity v1 to the scheme.
-	aadPodIdentityGroupVersion := schema.GroupVersion{Group: aadpodv1.CRDGroup, Version: aadpodv1.CRDVersion}
-	scheme.AddKnownTypes(aadPodIdentityGroupVersion,
+	scheme.AddKnownTypes(aadpodv1.SchemeGroupVersion,
 		&aadpodv1.AzureIdentity{},
 		&aadpodv1.AzureIdentityList{},
 		&aadpodv1.AzureIdentityBinding{},
@@ -63,7 +61,7 @@ func init() {
 		&aadpodv1.AzurePodIdentityException{},
 		&aadpodv1.AzurePodIdentityExceptionList{},
 	)
-	metav1.AddToGroupVersion(scheme, aadPodIdentityGroupVersion)
+	metav1.AddToGroupVersion(scheme, aadpodv1.SchemeGroupVersion)
 }
 
 func main() {

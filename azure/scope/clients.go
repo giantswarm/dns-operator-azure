@@ -6,7 +6,7 @@ import (
 
 	"github.com/Azure/go-autorest/autorest/azure/auth"
 	"github.com/giantswarm/microerror"
-	capzscope "sigs.k8s.io/cluster-api-provider-azure/cloud/scope"
+	capzscope "sigs.k8s.io/cluster-api-provider-azure/azure/scope"
 )
 
 const (

@@ -8,7 +8,7 @@ import (
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/giantswarm/microerror"
 	"github.com/go-logr/logr"
-	capzscope "sigs.k8s.io/cluster-api-provider-azure/cloud/scope"
+	capzscope "sigs.k8s.io/cluster-api-provider-azure/azure/scope"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/giantswarm/dns-operator-azure/azure"

@@ -8,8 +8,8 @@ import (
 	"github.com/Azure/go-autorest/autorest/to"
 	"github.com/giantswarm/microerror"
 	"github.com/go-logr/logr"
-	capzazure "sigs.k8s.io/cluster-api-provider-azure/cloud"
-	capzpublicips "sigs.k8s.io/cluster-api-provider-azure/cloud/services/publicips"
+	capzazure "sigs.k8s.io/cluster-api-provider-azure/azure"
+	capzpublicips "sigs.k8s.io/cluster-api-provider-azure/azure/services/publicips"
 
 	"github.com/giantswarm/dns-operator-azure/azure"
 )
