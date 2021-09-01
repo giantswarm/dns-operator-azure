@@ -1,29 +1,28 @@
 project:
   branch: "[[ .Branch ]]"
   commit: "[[ .SHA ]]"
+registry:
+  domain: ""
 image:
   name: "giantswarm/dns-operator-azure"
   tag: "[[ .Version ]]"
-Installation:
-  V1:
-    Registry:
-      Domain: quay.io
 pod:
   user:
     id: 1000
   group:
     id: 1000
 
-#
-# These values are injected by the config-controller
-#
+# Config
 managementCluster:
   name: ""
   azure:
-    environment: ""
+    environmentName: ""
     region: ""
+
+# Secrets
+azureSecret:
+  defaultCredential:
     tenantID: ""
     subscriptionID: ""
-    servicePrincipal:
-      clientID: ""
-      clientSecret: ""
+    clientID: ""
+    clientSecret: ""

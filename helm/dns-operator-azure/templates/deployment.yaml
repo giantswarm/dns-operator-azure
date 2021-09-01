@@ -26,44 +26,32 @@ spec:
         runAsGroup: {{ .Values.pod.group.id }}
       containers:
       - name: {{ .Chart.Name }}
-        image: "{{ .Values.Installation.V1.Registry.Domain }}/{{ .Values.image.name }}:{{ .Values.image.tag }}"
+        image: "{{ .Values.registry.domain }}/{{ .Values.image.name }}:{{ .Values.image.tag }}"
         command:
         - /manager
         env:
         - name: AZURE_ENVIRONMENT
-          value: {{ .Values.managementCluster.azure.environment }}
+          value: {{ .Values.managementCluster.azure.environmentName }}
         - name: AZURE_SUBSCRIPTION_ID
-          valueFrom:
-            secretKeyRef:
-              key: "azure.azureoperator.subscriptionid"
-              name: credential-default
+          value: {{ .Values.azureSecret.defaultCredential.subscriptionID }}
         - name: AZURE_TENANT_ID
-          valueFrom:
-            secretKeyRef:
-              key: "azure.azureoperator.tenantid"
-              name: credential-default
+          value: {{ .Values.azureSecret.defaultCredential.tenantID }}
         - name: AZURE_CLIENT_ID
-          valueFrom:
-            secretKeyRef:
-              key: "azure.azureoperator.clientid"
-              name: credential-default
+          value: {{ .Values.azureSecret.defaultCredential.clientID }}
         - name: AZURE_CLIENT_SECRET
-          valueFrom:
-            secretKeyRef:
-              key: "azure.azureoperator.clientsecret"
-              name: credential-default
+          value: {{ .Values.azureSecret.defaultCredential.clientSecret }}
         - name: MANAGEMENT_CLUSTER_NAME
           value: {{ .Values.managementCluster.name }}
         - name: MANAGEMENT_CLUSTER_AZURE_REGION
           value: {{ .Values.managementCluster.azure.region }}
         - name: MANAGEMENT_CLUSTER_AZURE_TENANT_ID
-          value: {{ .Values.managementCluster.azure.tenantID }}
+          value: {{ .Values.azureSecret.defaultCredential.tenantID }}
         - name: MANAGEMENT_CLUSTER_AZURE_SUBSCRIPTION_ID
-          value: {{ .Values.managementCluster.azure.subscriptionID }}
+          value: {{ .Values.azureSecret.defaultCredential.subscriptionID }}
         - name: MANAGEMENT_CLUSTER_AZURE_CLIENT_ID
-          value: {{ .Values.managementCluster.azure.servicePrincipal.clientID }}
+          value: {{ .Values.azureSecret.defaultCredential.clientID }}
         - name: MANAGEMENT_CLUSTER_AZURE_CLIENT_SECRET
-          value: {{ .Values.managementCluster.azure.servicePrincipal.clientSecret }}
+          value: {{ .Values.azureSecret.defaultCredential.clientSecret }}
         resources:
           requests:
             cpu: 100m
