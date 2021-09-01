@@ -82,4 +82,3 @@ func (s *Service) createARecords(ctx context.Context, aRecords []azure.ARecordSe
 
 	return nil
 }
-

@@ -55,4 +55,3 @@ func (s *Service) createCNameRecords(ctx context.Context, cnameRecords []azure.C
 
 	return nil
 }
-
