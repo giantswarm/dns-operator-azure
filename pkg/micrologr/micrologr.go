@@ -64,7 +64,7 @@ func (l *Logger) Error(err error, msg string, keysAndValues ...interface{}) {
 	l.micrologger.Errorf(l.context, err, msg)
 }
 
-func (l *Logger) V(_ int) logr.InfoLogger {
+func (l *Logger) V(_ int) logr.Logger {
 	return l
 }
 
