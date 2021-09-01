@@ -11,12 +11,12 @@ require (
 	github.com/giantswarm/microerror v0.3.0
 	github.com/giantswarm/micrologger v0.5.0
 	github.com/go-logr/logr v0.4.0
-	k8s.io/api v0.21.2
-	k8s.io/apimachinery v0.21.2
-	k8s.io/client-go v0.21.2
-	sigs.k8s.io/cluster-api v0.4.0
-	sigs.k8s.io/cluster-api-provider-azure v0.5.1
-	sigs.k8s.io/controller-runtime v0.9.1
+	k8s.io/api v0.21.3
+	k8s.io/apimachinery v0.21.3
+	k8s.io/client-go v0.21.3
+	sigs.k8s.io/cluster-api v0.4.2
+	sigs.k8s.io/cluster-api-provider-azure v0.5.2
+	sigs.k8s.io/controller-runtime v0.9.6
 )
 
-replace sigs.k8s.io/cluster-api => sigs.k8s.io/cluster-api v0.4.0
+replace sigs.k8s.io/cluster-api => sigs.k8s.io/cluster-api v0.4.2
