@@ -4,7 +4,7 @@ go 1.13
 
 require (
 	github.com/Azure/aad-pod-identity v1.8.0
-	github.com/Azure/azure-sdk-for-go v55.2.0+incompatible
+	github.com/Azure/azure-sdk-for-go v55.8.0+incompatible
 	github.com/Azure/go-autorest/autorest v0.11.18
 	github.com/Azure/go-autorest/autorest/azure/auth v0.5.3
 	github.com/Azure/go-autorest/autorest/to v0.4.0
@@ -20,6 +20,7 @@ require (
 )
 
 replace (
+	github.com/Microsoft/hcsshim v0.8.7 => github.com/Microsoft/hcsshim v0.8.21
 	github.com/coreos/etcd v3.3.13+incompatible => github.com/coreos/etcd v3.3.24+incompatible
 	github.com/dgrijalva/jwt-go => github.com/dgrijalva/jwt-go/v4 v4.0.0-preview1
 	sigs.k8s.io/cluster-api => sigs.k8s.io/cluster-api v0.4.2
