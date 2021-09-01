@@ -19,4 +19,8 @@ require (
 	sigs.k8s.io/controller-runtime v0.9.6
 )
 
-replace sigs.k8s.io/cluster-api => sigs.k8s.io/cluster-api v0.4.2
+replace (
+	github.com/coreos/etcd v3.3.13+incompatible => github.com/coreos/etcd v3.3.24+incompatible
+	github.com/dgrijalva/jwt-go => github.com/dgrijalva/jwt-go/v4 v4.0.0-preview1
+	sigs.k8s.io/cluster-api => sigs.k8s.io/cluster-api v0.4.2
+)
