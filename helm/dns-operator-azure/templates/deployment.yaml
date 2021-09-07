@@ -33,25 +33,25 @@ spec:
         - name: AZURE_ENVIRONMENT
           value: {{ .Values.managementCluster.azure.environmentName }}
         - name: AZURE_SUBSCRIPTION_ID
-          value: {{ .Values.azureSecret.defaultCredential.subscriptionID }}
+          value: {{ .Values.workloadCluster.azure.defaultCredentials.subscriptionID }}
         - name: AZURE_TENANT_ID
-          value: {{ .Values.azureSecret.defaultCredential.tenantID }}
+          value: {{ .Values.workloadCluster.azure.defaultCredentials.tenantID }}
         - name: AZURE_CLIENT_ID
-          value: {{ .Values.azureSecret.defaultCredential.clientID }}
+          value: {{ .Values.workloadCluster.azure.defaultCredentials.clientID }}
         - name: AZURE_CLIENT_SECRET
-          value: {{ .Values.azureSecret.defaultCredential.clientSecret }}
+          value: {{ .Values.workloadCluster.azure.defaultCredentials.clientSecret }}
         - name: MANAGEMENT_CLUSTER_NAME
           value: {{ .Values.managementCluster.name }}
         - name: MANAGEMENT_CLUSTER_AZURE_REGION
           value: {{ .Values.managementCluster.azure.region }}
         - name: MANAGEMENT_CLUSTER_AZURE_TENANT_ID
-          value: {{ .Values.azureSecret.defaultCredential.tenantID }}
+          value: {{ .Values.managementCluster.azure.credentials.tenantID }}
         - name: MANAGEMENT_CLUSTER_AZURE_SUBSCRIPTION_ID
-          value: {{ .Values.azureSecret.defaultCredential.subscriptionID }}
+          value: {{ .Values.managementCluster.azure.credentials.subscriptionID }}
         - name: MANAGEMENT_CLUSTER_AZURE_CLIENT_ID
-          value: {{ .Values.azureSecret.defaultCredential.clientID }}
+          value: {{ .Values.managementCluster.azure.credentials.clientID }}
         - name: MANAGEMENT_CLUSTER_AZURE_CLIENT_SECRET
-          value: {{ .Values.azureSecret.defaultCredential.clientSecret }}
+          value: {{ .Values.managementCluster.azure.credentials.clientSecret }}
         resources:
           requests:
             cpu: 100m
