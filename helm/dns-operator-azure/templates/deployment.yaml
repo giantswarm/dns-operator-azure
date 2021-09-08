@@ -54,9 +54,9 @@ spec:
           value: {{ .Values.managementCluster.azure.credentials.clientSecret }}
         resources:
           requests:
-            cpu: 100m
-            memory: 20Mi
+            cpu: 50m
+            memory: 150Mi
           limits:
-            cpu: 100m
-            memory: 30Mi
+            cpu: 250m
+            memory: 250Mi
       terminationGracePeriodSeconds: 10
