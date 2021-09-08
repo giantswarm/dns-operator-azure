@@ -74,10 +74,21 @@ func main() {
 func mainError() error {
 	var metricsAddr string
 	var enableLeaderElection bool
+	var watchFilterValue string
+
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
+
 	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
+
+	flag.StringVar(
+		&watchFilterValue,
+		"watch-filter",
+		"",
+		fmt.Sprintf("Label value that the controller watches to reconcile cluster-api objects. Label key is always %s. If unspecified, the controller watches for all cluster-api objects.", capi.WatchLabel),
+	)
+
 	flag.Parse()
 
 	ctx := context.Background()
@@ -116,7 +127,8 @@ func mainError() error {
 		mgr.GetClient(),
 		logger,
 		mgr.GetEventRecorderFor("azurecluster-reconciler"),
-		reconciler.DefaultLoopTimeout)
+		reconciler.DefaultLoopTimeout,
+		watchFilterValue)
 
 	if err = azureClusterReconciler.SetupWithManager(mgr); err != nil {
 		logger.Errorf(ctx, errors.FatalError, "unable to start manager")

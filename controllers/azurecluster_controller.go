@@ -60,15 +60,17 @@ type AzureClusterReconciler struct {
 	Recorder         record.EventRecorder
 	ReconcileTimeout time.Duration
 	Scheme           *runtime.Scheme
+	WatchFilterValue string
 }
 
 // NewAzureClusterReconciler returns a new AzureClusterReconciler instance
-func NewAzureClusterReconciler(client client.Client, micrologger micrologger.Logger, recorder record.EventRecorder, reconcileTimeout time.Duration) *AzureClusterReconciler {
+func NewAzureClusterReconciler(client client.Client, micrologger micrologger.Logger, recorder record.EventRecorder, reconcileTimeout time.Duration, watchFilterValue string) *AzureClusterReconciler {
 	acr := &AzureClusterReconciler{
 		Client:           client,
 		Micrologger:      micrologger,
 		Recorder:         recorder,
 		ReconcileTimeout: reconcileTimeout,
+		WatchFilterValue: watchFilterValue,
 	}
 
 	return acr
@@ -153,7 +155,7 @@ func (r *AzureClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&capz.AzureCluster{}).
-		WithEventFilter(predicates.ResourceNotPaused(logger)).
+		WithEventFilter(predicates.ResourceNotPausedAndHasFilterLabel(logger, r.WatchFilterValue)).
 		Complete(r)
 }
 

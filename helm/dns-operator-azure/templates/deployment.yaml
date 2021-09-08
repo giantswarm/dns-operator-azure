@@ -29,6 +29,8 @@ spec:
         image: "{{ .Values.registry.domain }}/{{ .Values.image.name }}:{{ .Values.image.tag }}"
         command:
         - /manager
+        args:
+        - --watch-filter={{ .Values.watchfilter }}
         env:
         - name: AZURE_ENVIRONMENT
           value: {{ .Values.managementCluster.azure.environmentName }}
