@@ -17,14 +17,26 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"flag"
-	"os"
+	"fmt"
 
+	aadpodv1 "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
+	"github.com/giantswarm/microerror"
+	"github.com/giantswarm/micrologger"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
+	capz "sigs.k8s.io/cluster-api-provider-azure/api/v1alpha4"
+	"sigs.k8s.io/cluster-api-provider-azure/util/reconciler"
+	capi "sigs.k8s.io/cluster-api/api/v1alpha4"
+	"sigs.k8s.io/cluster-api/util/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+
+	"github.com/giantswarm/dns-operator-azure/controllers"
+	"github.com/giantswarm/dns-operator-azure/pkg/errors"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -36,21 +48,59 @@ var (
 func init() {
 	_ = clientgoscheme.AddToScheme(scheme)
 
+	_ = capi.AddToScheme(scheme)
+	_ = capz.AddToScheme(scheme)
 	// +kubebuilder:scaffold:scheme
+
+	// Add aadpodidentity v1 to the scheme.
+	scheme.AddKnownTypes(aadpodv1.SchemeGroupVersion,
+		&aadpodv1.AzureIdentity{},
+		&aadpodv1.AzureIdentityList{},
+		&aadpodv1.AzureIdentityBinding{},
+		&aadpodv1.AzureIdentityBindingList{},
+		&aadpodv1.AzurePodIdentityException{},
+		&aadpodv1.AzurePodIdentityExceptionList{},
+	)
+	metav1.AddToGroupVersion(scheme, aadpodv1.SchemeGroupVersion)
 }
 
 func main() {
+	err := mainError()
+	if err != nil {
+		panic(fmt.Sprintf("%#v\n", err))
+	}
+}
+
+func mainError() error {
 	var metricsAddr string
 	var enableLeaderElection bool
+	var watchFilterValue string
+
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
+
 	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
+
+	flag.StringVar(
+		&watchFilterValue,
+		"watch-filter",
+		"",
+		fmt.Sprintf("Label value that the controller watches to reconcile cluster-api objects. Label key is always %s. If unspecified, the controller watches for all cluster-api objects.", capi.WatchLabel),
+	)
+
 	flag.Parse()
 
+	ctx := context.Background()
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
+	logger, err := micrologger.New(micrologger.Config{})
+	if err != nil {
+		return microerror.Mask(err)
+	}
 
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+	restConfig := ctrl.GetConfigOrDie()
+	restConfig.UserAgent = "dns-operator-azure"
+	mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
 		Scheme:             scheme,
 		MetricsBindAddress: metricsAddr,
 		Port:               9443,
@@ -58,15 +108,41 @@ func main() {
 		LeaderElectionID:   "2af49e02.giantswarm.io",
 	})
 	if err != nil {
-		setupLog.Error(err, "unable to start manager")
-		os.Exit(1)
+		logger.Errorf(ctx, errors.FatalError, "unable to start manager")
+		return microerror.Mask(err)
+	}
+
+	// Initialize event recorder.
+	record.InitFromRecorder(mgr.GetEventRecorderFor("dns-operator-azure"))
+
+	// if err = (&controllers.AzureClusterReconciler{
+	// 	Client:      mgr.GetClient(),
+	// 	Micrologger: logger.With("controllers", "AzureCluster"),
+	// 	Scheme:      mgr.GetScheme(),
+	// }).SetupWithManager(mgr); err != nil {
+	// 	logger.Errorf(ctx, errors.FatalError, "unable to create controller AzureCluster")
+	// 	return microerror.Mask(err)
+	// }
+	azureClusterReconciler := controllers.NewAzureClusterReconciler(
+		mgr.GetClient(),
+		logger,
+		mgr.GetEventRecorderFor("azurecluster-reconciler"),
+		reconciler.DefaultLoopTimeout,
+		watchFilterValue)
+
+	if err = azureClusterReconciler.SetupWithManager(mgr); err != nil {
+		logger.Errorf(ctx, errors.FatalError, "unable to start manager")
+		setupLog.Error(err, "unable to create controller", "controller", "AzureCluster")
+		return microerror.Mask(err)
 	}
 
 	// +kubebuilder:scaffold:builder
 
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
-		setupLog.Error(err, "problem running manager")
-		os.Exit(1)
+		logger.Errorf(ctx, errors.FatalError, "problem running manager")
+		return microerror.Mask(err)
 	}
+
+	return nil
 }
