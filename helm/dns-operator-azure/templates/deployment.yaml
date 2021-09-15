@@ -4,13 +4,13 @@ metadata:
   name: {{ include "resource.default.name"  . }}
   namespace: {{ include "resource.default.namespace"  . }}
   labels:
-  {{- include "labels.common" . | nindent 4 }}
+    {{- include "labels.common" . | nindent 4 }}
 spec:
   replicas: 1
   revisionHistoryLimit: 3
   selector:
     matchLabels:
-  {{- include "labels.selector" . | nindent 6 }}
+      {{- include "labels.selector" . | nindent 6 }}
   strategy:
     type: Recreate
   template:
@@ -18,7 +18,7 @@ spec:
       annotations:
         releaseRevision: {{ .Release.Revision | quote }}
       labels:
-    {{- include "labels.selector" . | nindent 8 }}
+        {{- include "labels.common" . | nindent 8 }}
     spec:
       serviceAccountName: {{ include "resource.default.name"  . }}
       securityContext:
@@ -26,16 +26,51 @@ spec:
         runAsGroup: {{ .Values.pod.group.id }}
       containers:
       - name: {{ .Chart.Name }}
-        image: "{{ .Values.Installation.V1.Registry.Domain }}/{{ .Values.image.name }}:{{ .Values.image.tag }}"
+        image: "{{ .Values.registry.domain }}/{{ .Values.image.name }}:{{ .Values.image.tag }}"
         command:
         - /manager
         args:
-        - --enable-leader-election
+        - --watch-filter={{ .Values.watchfilter }}
+        env:
+        - name: AZURE_ENVIRONMENT
+          value: {{ .Values.managementCluster.azure.environmentName }}
+        - name: AZURE_SUBSCRIPTION_ID
+          value: {{ .Values.workloadCluster.azure.defaultCredentials.subscriptionID }}
+        - name: AZURE_TENANT_ID
+          value: {{ .Values.workloadCluster.azure.defaultCredentials.tenantID }}
+        - name: AZURE_CLIENT_ID
+          value: {{ .Values.workloadCluster.azure.defaultCredentials.clientID }}
+        - name: AZURE_CLIENT_SECRET
+          value: {{ .Values.workloadCluster.azure.defaultCredentials.clientSecret }}
+        - name: MANAGEMENT_CLUSTER_NAME
+          value: {{ .Values.managementCluster.name }}
+        - name: MANAGEMENT_CLUSTER_AZURE_REGION
+          value: {{ .Values.managementCluster.azure.region }}
+        - name: MANAGEMENT_CLUSTER_AZURE_TENANT_ID
+          value: {{ .Values.managementCluster.azure.credentials.tenantID }}
+        - name: MANAGEMENT_CLUSTER_AZURE_SUBSCRIPTION_ID
+          value: {{ .Values.managementCluster.azure.credentials.subscriptionID }}
+        - name: MANAGEMENT_CLUSTER_AZURE_CLIENT_ID
+          value: {{ .Values.managementCluster.azure.credentials.clientID }}
+        - name: MANAGEMENT_CLUSTER_AZURE_CLIENT_SECRET
+          value: {{ .Values.managementCluster.azure.credentials.clientSecret }}
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
         resources:
           requests:
-            cpu: 100m
-            memory: 20Mi
+            cpu: 50m
+            memory: 150Mi
           limits:
-            cpu: 100m
-            memory: 30Mi
+            cpu: 250m
+            memory: 250Mi
       terminationGracePeriodSeconds: 10
