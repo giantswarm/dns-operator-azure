@@ -25,12 +25,3 @@ managementCluster:
       subscriptionID: ""
       clientID: ""
       clientSecret: ""
-
-# Secrets
-workloadCluster:
-  azure:
-    defaultCredentials:
-      tenantID: ""
-      subscriptionID: ""
-      clientID: ""
-      clientSecret: ""

@@ -32,16 +32,6 @@ spec:
         args:
         - --watch-filter={{ .Values.watchfilter }}
         env:
-        - name: AZURE_ENVIRONMENT
-          value: {{ .Values.managementCluster.azure.environmentName }}
-        - name: AZURE_SUBSCRIPTION_ID
-          value: {{ .Values.workloadCluster.azure.defaultCredentials.subscriptionID }}
-        - name: AZURE_TENANT_ID
-          value: {{ .Values.workloadCluster.azure.defaultCredentials.tenantID }}
-        - name: AZURE_CLIENT_ID
-          value: {{ .Values.workloadCluster.azure.defaultCredentials.clientID }}
-        - name: AZURE_CLIENT_SECRET
-          value: {{ .Values.workloadCluster.azure.defaultCredentials.clientSecret }}
         - name: MANAGEMENT_CLUSTER_NAME
           value: {{ .Values.managementCluster.name }}
         - name: MANAGEMENT_CLUSTER_AZURE_REGION
