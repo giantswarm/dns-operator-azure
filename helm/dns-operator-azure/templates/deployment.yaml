@@ -34,7 +34,7 @@ spec:
         env:
         - name: MANAGEMENT_CLUSTER_NAME
           value: {{ .Values.managementCluster.name }}
-        - name: AZURE_REGION
+        - name: MANAGEMENT_CLUSTER_AZURE_REGION
           value: {{ .Values.managementCluster.azure.region }}
         - name: AZURE_TENANT_ID
           value: {{ .Values.managementCluster.azure.credentials.tenantID }}
