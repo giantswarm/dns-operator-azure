@@ -34,15 +34,15 @@ spec:
         env:
         - name: MANAGEMENT_CLUSTER_NAME
           value: {{ .Values.managementCluster.name }}
-        - name: MANAGEMENT_CLUSTER_AZURE_REGION
+        - name: AZURE_REGION
           value: {{ .Values.managementCluster.azure.region }}
-        - name: MANAGEMENT_CLUSTER_AZURE_TENANT_ID
+        - name: AZURE_TENANT_ID
           value: {{ .Values.managementCluster.azure.credentials.tenantID }}
-        - name: MANAGEMENT_CLUSTER_AZURE_SUBSCRIPTION_ID
+        - name: AZURE_SUBSCRIPTION_ID
           value: {{ .Values.managementCluster.azure.credentials.subscriptionID }}
-        - name: MANAGEMENT_CLUSTER_AZURE_CLIENT_ID
+        - name: AZURE_CLIENT_ID
           value: {{ .Values.managementCluster.azure.credentials.clientID }}
-        - name: MANAGEMENT_CLUSTER_AZURE_CLIENT_SECRET
+        - name: AZURE_CLIENT_SECRET
           value: {{ .Values.managementCluster.azure.credentials.clientSecret }}
         - name: NODE_NAME
           valueFrom:

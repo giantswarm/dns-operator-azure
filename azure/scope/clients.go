@@ -10,11 +10,7 @@ import (
 )
 
 const (
-	ManagementClusterRegion         = "MANAGEMENT_CLUSTER_AZURE_REGION"
-	ManagementClusterTenantID       = "MANAGEMENT_CLUSTER_AZURE_TENANT_ID"
-	ManagementClusterSubscriptionID = "MANAGEMENT_CLUSTER_AZURE_SUBSCRIPTION_ID"
-	ManagementClusterClientID       = "MANAGEMENT_CLUSTER_AZURE_CLIENT_ID"
-	ManagementClusterClientSecret   = "MANAGEMENT_CLUSTER_AZURE_CLIENT_SECRET"
+	ManagementClusterRegion = "MANAGEMENT_CLUSTER_AZURE_REGION"
 )
 
 func NewManagementClusterAzureClients() (*capzscope.AzureClients, error) {
@@ -22,7 +18,10 @@ func NewManagementClusterAzureClients() (*capzscope.AzureClients, error) {
 	if err != nil {
 		return nil, microerror.Mask(err)
 	}
-	settings = overwriteWithManagementClusterEnvVars(settings)
+
+	if v := os.Getenv(ManagementClusterRegion); v != "" {
+		settings.Values[ManagementClusterRegion] = v
+	}
 
 	c := &capzscope.AzureClients{}
 	c.EnvironmentSettings = settings
@@ -40,24 +39,4 @@ func NewManagementClusterAzureClients() (*capzscope.AzureClients, error) {
 	}
 
 	return c, nil
-}
-
-func overwriteWithManagementClusterEnvVars(settings auth.EnvironmentSettings) auth.EnvironmentSettings {
-	if v := os.Getenv(ManagementClusterRegion); v != "" {
-		settings.Values[ManagementClusterRegion] = v
-	}
-	if v := os.Getenv(ManagementClusterTenantID); v != "" {
-		settings.Values[auth.TenantID] = v
-	}
-	if v := os.Getenv(ManagementClusterSubscriptionID); v != "" {
-		settings.Values[auth.SubscriptionID] = v
-	}
-	if v := os.Getenv(ManagementClusterClientID); v != "" {
-		settings.Values[auth.ClientID] = v
-	}
-	if v := os.Getenv(ManagementClusterClientSecret); v != "" {
-		settings.Values[auth.ClientSecret] = v
-	}
-
-	return settings
 }
