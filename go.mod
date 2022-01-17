@@ -8,7 +8,7 @@ require (
 	github.com/Azure/go-autorest/autorest v0.11.18
 	github.com/Azure/go-autorest/autorest/azure/auth v0.5.3
 	github.com/Azure/go-autorest/autorest/to v0.4.0
-	github.com/giantswarm/microerror v0.3.0
+	github.com/giantswarm/microerror v0.4.0
 	github.com/giantswarm/micrologger v0.5.0
 	github.com/go-logr/logr v0.4.0
 	k8s.io/api v0.21.3
