@@ -2,9 +2,9 @@ package dns
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/Azure/azure-sdk-for-go/services/dns/mgmt/2018-05-01/dns"
-	"github.com/Azure/azure-sdk-for-go/services/network/mgmt/2021-02-01/network"
 	"github.com/Azure/go-autorest/autorest/to"
 	"github.com/giantswarm/microerror"
 	capzazure "sigs.k8s.io/cluster-api-provider-azure/azure"
@@ -12,23 +12,54 @@ import (
 	"github.com/giantswarm/dns-operator-azure/azure"
 )
 
-func (s *Service) createARecords(ctx context.Context, aRecords []azure.ARecordSetSpec) error {
-	var err error
-	dnsSpec := s.Scope.DNSSpec()
-	if len(aRecords) == 0 {
-		s.Scope.V(2).Info(
+func (s *Service) calculateMissingARecords(ctx context.Context, currentRecordSets []dns.RecordSet) []azure.ARecordSetSpec {
+	desiredRecordSet := s.getDesiredARecords()
+
+	var aRecordsToCreate []azure.ARecordSetSpec
+
+	for _, desiredARecordSet := range desiredRecordSet {
+		for _, recordSet := range currentRecordSets {
+			if recordSet.Type != nil && *recordSet.Type == RecordSetTypeA &&
+				recordSet.Name != nil && *recordSet.Name == desiredARecordSet.Hostname {
+				s.scope.V(2).Info(
+					fmt.Sprintf("DNS A record '%s' found", desiredARecordSet.Hostname),
+					"DNSZone", s.scope.ClusterDomain(),
+					"hostname", desiredARecordSet.Hostname,
+				)
+				continue
+			}
+
+			aRecordsToCreate = append(aRecordsToCreate, desiredARecordSet)
+			s.scope.V(2).Info(
+				fmt.Sprintf("DNS A record '%s' is missing, it will be created", desiredARecordSet.Hostname),
+				"DNSZone", "",
+				"hostname", desiredARecordSet.Hostname)
+		}
+
+	}
+
+	return aRecordsToCreate
+
+}
+
+func (s *Service) updateARecords(ctx context.Context, currentRecordSets []dns.RecordSet) error {
+	recordsToCreate := s.calculateMissingARecords(ctx, currentRecordSets)
+
+	zoneName := s.scope.ClusterZoneName()
+
+	if len(recordsToCreate) == 0 {
+		s.scope.V(2).Info(
 			"All DNS A records have already been created",
-			"DNSZone", dnsSpec.ZoneName)
+			"DNSZone", zoneName)
 		return nil
 	}
 
-	for _, aRecord := range aRecords {
-		var ipAddressObject network.PublicIPAddress
-		ipAddressObject, err = s.publicIPsService.Get(ctx, s.Scope.ResourceGroup(), aRecord.PublicIPName)
+	for _, aRecord := range recordsToCreate {
+		ipAddressObject, err := s.publicIPsService.Get(ctx, s.scope.ResourceGroup(), aRecord.PublicIPName)
 		if capzazure.ResourceNotFound(err) {
-			s.Scope.V(2).Info(
+			s.scope.V(2).Info(
 				"Cannot create DNS A record, public IP still not deployed",
-				"DNSZone", dnsSpec.ZoneName,
+				"DNSZone", zoneName,
 				"hostname", aRecord.Hostname,
 				"IP resource name", aRecord.PublicIPName)
 			continue
@@ -37,17 +68,17 @@ func (s *Service) createARecords(ctx context.Context, aRecords []azure.ARecordSe
 		}
 
 		if ipAddressObject.IPAddress == nil {
-			s.Scope.V(2).Info(
+			s.scope.V(2).Info(
 				"Cannot create DNS A record, public Azure IP object does not have IP address set",
-				"DNSZone", dnsSpec.ZoneName,
+				"DNSZone", zoneName,
 				"hostname", aRecord.Hostname,
 				"IP resource name", aRecord.PublicIPName)
 			continue
 		}
 
-		s.Scope.V(2).Info(
+		s.scope.V(2).Info(
 			"Creating DNS A record",
-			"DNSZone", dnsSpec.ZoneName,
+			"DNSZone", zoneName,
 			"hostname", aRecord.Hostname,
 			"ipv4", *ipAddressObject.IPAddress)
 
@@ -64,8 +95,8 @@ func (s *Service) createARecords(ctx context.Context, aRecords []azure.ARecordSe
 		}
 		_, err := s.client.CreateOrUpdateRecordSet(
 			ctx,
-			s.Scope.ResourceGroup(),
-			dnsSpec.ZoneName,
+			s.scope.ResourceGroup(),
+			s.scope.ClusterZoneName(),
 			dns.A,
 			aRecord.Hostname,
 			recordSet)
@@ -73,12 +104,22 @@ func (s *Service) createARecords(ctx context.Context, aRecords []azure.ARecordSe
 			return microerror.Mask(err)
 		}
 
-		s.Scope.V(2).Info(
+		s.scope.V(2).Info(
 			"Successfully created DNS A record",
-			"DNSZone", dnsSpec.ZoneName,
+			"DNSZone", zoneName,
 			"hostname", aRecord.Hostname,
 			"ipv4", aRecord.PublicIPName)
 	}
 
 	return nil
+}
+
+func (s *Service) getDesiredARecords() []azure.ARecordSetSpec {
+	return []azure.ARecordSetSpec{
+		{
+			Hostname:     "api",
+			PublicIPName: s.scope.APIServerPublicIP().Name,
+			TTL:          3600,
+		},
+	}
 }

@@ -2,6 +2,7 @@ package dns
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/Azure/azure-sdk-for-go/services/dns/mgmt/2018-05-01/dns"
 	"github.com/Azure/go-autorest/autorest/to"
@@ -10,19 +11,54 @@ import (
 	"github.com/giantswarm/dns-operator-azure/azure"
 )
 
-func (s *Service) createCNameRecords(ctx context.Context, cnameRecords []azure.CNameRecordSetSpec) error {
-	dnsSpec := s.Scope.DNSSpec()
-	if len(cnameRecords) == 0 {
-		s.Scope.V(2).Info(
+func (s *Service) calculateMissingCNameRecords(ctx context.Context, currentRecordSets []dns.RecordSet) []azure.CNameRecordSetSpec {
+	desiredRecordSet := s.getDesiredCNameRecords()
+
+	var cnameRecordsToCreate []azure.CNameRecordSetSpec
+
+	for _, desiredCName := range desiredRecordSet {
+		for _, recordSet := range currentRecordSets {
+			if recordSet.Type != nil && *recordSet.Type == RecordSetTypeCNAME &&
+				recordSet.Name != nil && *recordSet.Name == desiredCName.Alias {
+				s.scope.V(2).Info(
+					fmt.Sprintf("DNS CNAME record '%s' found", desiredCName.Alias),
+					"DNSZone", s.scope.ClusterZoneName(),
+					"alias", desiredCName.Alias,
+					"cname", desiredCName.CName,
+				)
+				continue
+			}
+
+			cnameRecordsToCreate = append(cnameRecordsToCreate, desiredCName)
+			s.scope.V(2).Info(
+				fmt.Sprintf("DNS CNAME record '%s' is missing, it will be created", desiredCName.Alias),
+				"DNSZone", s.scope.ClusterZoneName(),
+				"alias", desiredCName.Alias,
+				"cname", desiredCName.CName)
+		}
+	}
+
+	return cnameRecordsToCreate
+
+}
+
+func (s *Service) updateCNameRecords(ctx context.Context, currentRecordSets []dns.RecordSet) error {
+	recordsToCreate := s.calculateMissingCNameRecords(ctx, currentRecordSets)
+
+	var err error
+	zoneName := s.scope.ClusterZoneName()
+
+	if len(recordsToCreate) == 0 {
+		s.scope.V(2).Info(
 			"All DNS CNAME records have already been created",
-			"DNSZone", dnsSpec.ZoneName)
+			"DNSZone", zoneName)
 		return nil
 	}
 
-	for _, cnameRecord := range cnameRecords {
-		s.Scope.V(2).Info(
+	for _, cnameRecord := range recordsToCreate {
+		s.scope.V(2).Info(
 			"Creating DNS CNAME record",
-			"DNSZone", dnsSpec.ZoneName,
+			"DNSZone", zoneName,
 			"alias", cnameRecord.Alias,
 			"cname", cnameRecord.CName)
 
@@ -37,8 +73,8 @@ func (s *Service) createCNameRecords(ctx context.Context, cnameRecords []azure.C
 		}
 		_, err := s.client.CreateOrUpdateRecordSet(
 			ctx,
-			s.Scope.ResourceGroup(),
-			dnsSpec.ZoneName,
+			s.scope.ResourceGroup(),
+			zoneName,
 			dns.CNAME,
 			cnameRecord.Alias,
 			recordSet)
@@ -46,12 +82,22 @@ func (s *Service) createCNameRecords(ctx context.Context, cnameRecords []azure.C
 			return microerror.Mask(err)
 		}
 
-		s.Scope.V(2).Info(
+		s.scope.V(2).Info(
 			"Successfully created DNS CNAME record",
-			"DNSZone", dnsSpec.ZoneName,
+			"DNSZone", zoneName,
 			"alias", cnameRecord.Alias,
 			"cname", cnameRecord.CName)
 	}
 
 	return nil
+}
+
+func (s *Service) getDesiredCNameRecords() []azure.CNameRecordSetSpec {
+	return []azure.CNameRecordSetSpec{
+		{
+			Alias: "*",
+			CName: fmt.Sprintf("ingress.%s", s.scope.ClusterZoneName()),
+			TTL:   3600,
+		},
+	}
 }

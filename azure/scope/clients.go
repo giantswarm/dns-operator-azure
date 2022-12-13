@@ -10,24 +10,24 @@ import (
 )
 
 const (
-	ManagementClusterRegion = "MANAGEMENT_CLUSTER_AZURE_REGION"
+	ClusterRegion = "CLUSTER_AZURE_REGION"
 )
 
-func NewManagementClusterAzureClients() (*capzscope.AzureClients, error) {
+func NewClusterAzureClients() (*capzscope.AzureClients, error) {
 	settings, err := auth.GetSettingsFromEnvironment()
 	if err != nil {
 		return nil, microerror.Mask(err)
 	}
 
-	if v := os.Getenv(ManagementClusterRegion); v != "" {
-		settings.Values[ManagementClusterRegion] = v
+	if v := os.Getenv(ClusterRegion); v != "" {
+		settings.Values[ClusterRegion] = v
 	}
 
 	c := &capzscope.AzureClients{}
 	c.EnvironmentSettings = settings
 	c.ResourceManagerEndpoint = settings.Environment.ResourceManagerEndpoint
 	c.ResourceManagerVMDNSSuffix = settings.Environment.ResourceManagerVMDNSSuffix
-	c.Values[ManagementClusterRegion] = strings.TrimSuffix(c.Values[ManagementClusterRegion], "\n")
+	c.Values[ClusterRegion] = strings.TrimSuffix(c.Values[ClusterRegion], "\n")
 	c.Values[auth.TenantID] = strings.TrimSuffix(c.Values[auth.TenantID], "\n")
 	c.Values[auth.SubscriptionID] = strings.TrimSuffix(c.Values[auth.SubscriptionID], "\n")
 	c.Values[auth.ClientID] = strings.TrimSuffix(c.Values[auth.ClientID], "\n")

@@ -29,7 +29,6 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	capz "sigs.k8s.io/cluster-api-provider-azure/api/v1alpha4"
-	"sigs.k8s.io/cluster-api-provider-azure/util/reconciler"
 	capi "sigs.k8s.io/cluster-api/api/v1alpha4"
 	"sigs.k8s.io/cluster-api/util/record"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -72,15 +71,22 @@ func main() {
 }
 
 func mainError() error {
-	var metricsAddr string
-	var enableLeaderElection bool
-	var watchFilterValue string
+	var (
+		metricsAddr          string
+		enableLeaderElection bool
+		watchFilterValue     string
+		baseDomain           string
+		managementCluster    string
+	)
 
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
 
 	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
+
+	flag.StringVar(&baseDomain, "base-domain", "", "Domain for which to create the DNS entries, e.g. customer.gigantic.io.")
+	flag.StringVar(&managementCluster, "management-cluster", "", "Name of the management cluster.")
 
 	flag.StringVar(
 		&watchFilterValue,
@@ -115,24 +121,15 @@ func mainError() error {
 	// Initialize event recorder.
 	record.InitFromRecorder(mgr.GetEventRecorderFor("dns-operator-azure"))
 
-	// if err = (&controllers.AzureClusterReconciler{
-	// 	Client:      mgr.GetClient(),
-	// 	Micrologger: logger.With("controllers", "AzureCluster"),
-	// 	Scheme:      mgr.GetScheme(),
-	// }).SetupWithManager(mgr); err != nil {
-	// 	logger.Errorf(ctx, errors.FatalError, "unable to create controller AzureCluster")
-	// 	return microerror.Mask(err)
-	// }
-	azureClusterReconciler := controllers.NewAzureClusterReconciler(
-		mgr.GetClient(),
-		logger,
-		mgr.GetEventRecorderFor("azurecluster-reconciler"),
-		reconciler.DefaultLoopTimeout,
-		watchFilterValue)
-
-	if err = azureClusterReconciler.SetupWithManager(mgr); err != nil {
-		logger.Errorf(ctx, errors.FatalError, "unable to start manager")
-		setupLog.Error(err, "unable to create controller", "controller", "AzureCluster")
+	if err = (&controllers.AzureClusterReconciler{
+		Client:            mgr.GetClient(),
+		BaseDomain:        baseDomain,
+		ManagementCluster: managementCluster,
+		Micrologger:       logger.With("controllers", "AzureCluster"),
+		Recorder:          mgr.GetEventRecorderFor("azurecluster-reconciler"),
+		WatchFilterValue:  watchFilterValue,
+	}).SetupWithManager(mgr); err != nil {
+		logger.Errorf(ctx, errors.FatalError, "unable to create controller AzureCluster")
 		return microerror.Mask(err)
 	}
 
