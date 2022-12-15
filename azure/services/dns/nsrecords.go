@@ -5,8 +5,10 @@ import (
 	"fmt"
 
 	"github.com/Azure/azure-sdk-for-go/services/dns/mgmt/2018-05-01/dns"
+	azuredns "github.com/Azure/azure-sdk-for-go/services/dns/mgmt/2018-05-01/dns"
 	"github.com/Azure/go-autorest/autorest/to"
 	"github.com/giantswarm/microerror"
+	capzazure "sigs.k8s.io/cluster-api-provider-azure/azure"
 
 	"github.com/giantswarm/dns-operator-azure/azure"
 )
@@ -106,4 +108,40 @@ func (s *Service) updateNSRecords(ctx context.Context, currentRecordSets []dns.R
 func (s *Service) getDesiredNSRecords(currentRecordSets []dns.RecordSet) []azure.NSRecordSetSpec {
 	// We update only NS records, since NS records from workload cluster are required to create
 	return filterAndGetNSRecordSetSpecs(currentRecordSets)
+}
+
+func (s *Service) deleteNSRecords(ctx context.Context, currentRecordSets []dns.RecordSet) error {
+	recordsToDelete := filterAndGetNSRecordSetSpecs(currentRecordSets)
+	zoneName := s.scope.BaseDomain()
+
+	for _, nsRecord := range recordsToDelete {
+		s.scope.V(2).Info(
+			"Delete DNS NS record",
+			"DNSZone", zoneName,
+			"name", nsRecord.Name,
+		)
+
+		if err := s.client.DeleteRecordSet(ctx, s.scope.ResourceGroup(), zoneName, azuredns.NS, nsRecord.Name); err != nil {
+			s.scope.V(2).Info("DNS zone not found",
+				"DNSZone", zoneName,
+				"error", err.Error(),
+			)
+		} else if capzazure.ResourceNotFound(err) {
+			s.scope.V(2).Info("Azure NS record not found",
+				"DNSZone", zoneName,
+				"NSRecord", nsRecord.Name,
+				"error", err.Error(),
+			)
+		} else if err != nil {
+			return microerror.Mask(err)
+		}
+
+		s.scope.V(2).Info(
+			"Successfully deleted DNS NS record",
+			"DNSZone", zoneName,
+			"name", nsRecord.Name,
+		)
+	}
+
+	return nil
 }

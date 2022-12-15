@@ -83,6 +83,27 @@ func (s *Service) Reconcile(ctx context.Context) error {
 }
 
 func (s *Service) ReconcileDelete(ctx context.Context) error {
+	clusterZoneName := s.scope.ClusterDomain()
+	s.scope.Info("Reconcile DNS deletion", "DNSZone", clusterZoneName)
+
+	currentRecordSets, err := s.client.ListRecordSets(ctx, s.scope.ResourceGroup(), clusterZoneName)
+	if err != nil && azure.IsParentResourceNotFound(err) {
+		// Zone doesn't exist already, nothing to do
+		s.scope.V(2).Info("DNS zone not found", "DNSZone", clusterZoneName)
+		return nil
+	} else if err != nil {
+		return microerror.Mask(err)
+	}
+
+	nsRecords := filterAndGetNSRecordSetSpecs(currentRecordSets)
+	// Create required NS records.
+	err = s.deleteNSRecords(ctx, currentRecordSets)
+	if err != nil {
+		return microerror.Mask(err)
+	}
+
+	s.scope.Info("Successfully reconciled DNS", "DNSZone", clusterZoneName)
+	return nil
 	return nil
 }
 
@@ -109,22 +130,66 @@ func (s *Service) createClusterDNSZone(ctx context.Context) (*azuredns.Zone, err
 
 // func (s *Service) deleteClusterRecords(ctx context.Context, hostedZoneID string) error
 
-// func (s *Service) describeHostedZone(ctx context.Context) (string, error) {
-// 	// input := &route53.ListHostedZonesByNameInput{
-// 	// 	DNSName: aws.String(s.scope.BaseDomain()),
-// 	// }
-// 	// out, err := s.Route53Client.ListHostedZonesByNameWithContext(ctx, input)
-// 	// if err != nil {
-// 	// 	return "", wrapRoute53Error(err)
-// 	// }
-// 	// if len(out.HostedZones) == 0 {
-// 	// 	return "", microerror.Mask(hostedZoneNotFoundError)
-// 	// }
+// func (r *AzureClusterReconciler) reconcileDeleteWorkloadClusterRecords(ctx context.Context, clusterScope *capzscope.ClusterScope) error {
+// 	clusterScopeWrapper, err := scope.NewClusterScopeWrapper(*clusterScope)
+// 	if err != nil {
+// 		return microerror.Mask(err)
+// 	}
 
-// 	// if *out.HostedZones[0].Name != fmt.Sprintf("%s.", s.scope.BaseDomain()) {
-// 	// 	return "", microerror.Mask(hostedZoneNotFoundError)
-// 	// }
+// 	zoneName := clusterScopeWrapper.ClusterName()
+// 	clusterScope.Info("Deleting DNS zone in workload cluster", "DNSZone", zoneName)
 
-// 	// return *out.HostedZones[0].Id, nil
-// 	return "", nil
+// 	dnsService := dns.New(clusterScopeWrapper, nil)
+// 	err = dnsService.DeleteZone(ctx, clusterScope.ResourceGroup(), zoneName)
+// 	if azure.IsParentResourceNotFound(err) {
+// 		clusterScope.Info("Cannot delete DNS zone in workload cluster, resource group not found", "resourceGroup", clusterScope.ResourceGroup(), "DNSZone", zoneName, "error", err.Error())
+// 	} else if capzazure.ResourceNotFound(err) {
+// 		clusterScope.Info("Azure DNS zone resource has already been deleted")
+// 	} else if err != nil {
+// 		return microerror.Mask(err)
+// 	}
+
+// 	clusterScope.Info("Successfully deleted DNS zone in workload cluster", "DNSZone", zoneName)
+// 	return nil
+// }
+
+// func (r *AzureClusterReconciler) reconcileDeleteManagementClusterRecords(ctx context.Context, clusterScope *capzscope.ClusterScope) error {
+// 	nsRecordSetName := fmt.Sprintf("%s.k8s", clusterScope.ClusterName())
+
+// 	var err error
+// 	var managementClusterScope *scope.ManagementClusterScope
+// 	var managementClusterDNSService *dns.Service
+// 	var zoneName string
+// 	{
+// 		{
+// 			params := scope.ManagementClusterScopeParams{
+// 				Client:                          clusterScope.Client,
+// 				Logger:                          clusterScope.Logger,
+// 				WorkloadClusterName:             clusterScope.ClusterName(),
+// 				WorkloadClusterNSRecordSetSpecs: []azure.NSRecordSetSpec{},
+// 			}
+// 			managementClusterScope, err = scope.NewManagementClusterScope(ctx, params)
+// 			if err != nil {
+// 				return microerror.Mask(err)
+// 			}
+// 		}
+
+// 		managementClusterDNSService = dns.New(managementClusterScope, nil)
+// 		zoneName = managementClusterScope.DNSSpec().ZoneName
+// 	}
+
+// 	clusterScope.Info("Deleting DNS NS record in management cluster", "DNSZone", zoneName, "NSRecord", nsRecordSetName)
+
+// 	// Reconcile management cluster DNS records
+// 	err = managementClusterDNSService.DeleteRecordSet(ctx, managementClusterScope.ResourceGroup(), zoneName, azuredns.NS, nsRecordSetName)
+// 	if azure.IsParentResourceNotFound(err) {
+// 		clusterScope.Info("DNS zone not found", "DNSZone", zoneName, "error", err.Error())
+// 	} else if capzazure.ResourceNotFound(err) {
+// 		clusterScope.Info("Azure NS record not found", "DNSZone", zoneName, "NSRecord", nsRecordSetName, "error", err.Error())
+// 	} else if err != nil {
+// 		return microerror.Mask(err)
+// 	}
+
+// 	clusterScope.Info("Successfully deleted DNS NS record in management cluster", "DNSZone", zoneName, "NSRecord", nsRecordSetName)
+// 	return nil
 // }

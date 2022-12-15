@@ -52,11 +52,10 @@ const (
 type AzureClusterReconciler struct {
 	client.Client
 
-	BaseDomain        string
-	ManagementCluster string
-	Micrologger       micrologger.Logger
-	Recorder          record.EventRecorder
-	WatchFilterValue  string
+	BaseDomain       string
+	Micrologger      micrologger.Logger
+	Recorder         record.EventRecorder
+	WatchFilterValue string
 }
 
 func (r *AzureClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_ ctrl.Result, reterr error) {
@@ -218,8 +217,6 @@ func (r *AzureClusterReconciler) reconcileNormal(ctx context.Context, clusterSco
 func (r *AzureClusterReconciler) reconcileDelete(ctx context.Context, clusterScope *capzscope.ClusterScope) (reconcile.Result, error) {
 	clusterScope.Info("Reconciling AzureCluster DNS zones delete")
 
-	publicIPsService := publicips.New(clusterScope)
-
 	var err error
 	var dnsScope *scope.DNSScope
 	{
@@ -234,7 +231,7 @@ func (r *AzureClusterReconciler) reconcileDelete(ctx context.Context, clusterSco
 		}
 	}
 
-	dnsService := dns.New(*dnsScope, publicIPsService)
+	dnsService := dns.New(*dnsScope, nil)
 
 	err = dnsService.ReconcileDelete(ctx)
 	if err != nil {

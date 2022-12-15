@@ -14,6 +14,16 @@ pod:
 
 watchfilter: capi
 
+azure:
+  region: ""
+  clientID: ""
+  clientSecret: ""
+  tenantID: ""
+  subscriptionID: ""
+  baseDNSZone:
+    name: ""
+    subscriptionID: ""
+
 # Config
 managementCluster:
   name: ""

@@ -27,7 +27,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	capz "sigs.k8s.io/cluster-api-provider-azure/api/v1alpha4"
 	capi "sigs.k8s.io/cluster-api/api/v1alpha4"
 	"sigs.k8s.io/cluster-api/util/record"
@@ -76,7 +75,6 @@ func mainError() error {
 		enableLeaderElection bool
 		watchFilterValue     string
 		baseDomain           string
-		managementCluster    string
 	)
 
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
@@ -86,7 +84,6 @@ func mainError() error {
 			"Enabling this will ensure there is only one active controller manager.")
 
 	flag.StringVar(&baseDomain, "base-domain", "", "Domain for which to create the DNS entries, e.g. customer.gigantic.io.")
-	flag.StringVar(&managementCluster, "management-cluster", "", "Name of the management cluster.")
 
 	flag.StringVar(
 		&watchFilterValue,
@@ -122,12 +119,11 @@ func mainError() error {
 	record.InitFromRecorder(mgr.GetEventRecorderFor("dns-operator-azure"))
 
 	if err = (&controllers.AzureClusterReconciler{
-		Client:            mgr.GetClient(),
-		BaseDomain:        baseDomain,
-		ManagementCluster: managementCluster,
-		Micrologger:       logger.With("controllers", "AzureCluster"),
-		Recorder:          mgr.GetEventRecorderFor("azurecluster-reconciler"),
-		WatchFilterValue:  watchFilterValue,
+		Client:           mgr.GetClient(),
+		BaseDomain:       baseDomain,
+		Micrologger:      logger.With("controllers", "AzureCluster"),
+		Recorder:         mgr.GetEventRecorderFor("azurecluster-reconciler"),
+		WatchFilterValue: watchFilterValue,
 	}).SetupWithManager(mgr); err != nil {
 		logger.Errorf(ctx, errors.FatalError, "unable to create controller AzureCluster")
 		return microerror.Mask(err)
