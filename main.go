@@ -71,10 +71,14 @@ func main() {
 
 func mainError() error {
 	var (
-		metricsAddr          string
-		enableLeaderElection bool
-		watchFilterValue     string
-		baseDomain           string
+		metricsAddr            string
+		enableLeaderElection   bool
+		watchFilterValue       string
+		baseDomain             string
+		baseZoneClientID       string
+		baseZoneClientSecret   string
+		baseZoneSubscriptionID string
+		baseZoneTenantID       string
 	)
 
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
@@ -84,6 +88,10 @@ func mainError() error {
 			"Enabling this will ensure there is only one active controller manager.")
 
 	flag.StringVar(&baseDomain, "base-domain", "", "Domain for which to create the DNS entries, e.g. customer.gigantic.io.")
+	flag.StringVar(&baseZoneClientID, "base-zone-client-id", "", "Client ID to access the base DNS domain.")
+	flag.StringVar(&baseZoneClientSecret, "base-zone-client-secret", "", "Client secret to access the base DNS domain.")
+	flag.StringVar(&baseZoneSubscriptionID, "base-zone-subscription-id", "", "Subscription ID of the base DNS domain.")
+	flag.StringVar(&baseZoneTenantID, "base-zone-tenant-id", "", "Tenant ID of the base DNS domain.")
 
 	flag.StringVar(
 		&watchFilterValue,
@@ -119,11 +127,15 @@ func mainError() error {
 	record.InitFromRecorder(mgr.GetEventRecorderFor("dns-operator-azure"))
 
 	if err = (&controllers.AzureClusterReconciler{
-		Client:           mgr.GetClient(),
-		BaseDomain:       baseDomain,
-		Micrologger:      logger.With("controllers", "AzureCluster"),
-		Recorder:         mgr.GetEventRecorderFor("azurecluster-reconciler"),
-		WatchFilterValue: watchFilterValue,
+		Client:                 mgr.GetClient(),
+		BaseDomain:             baseDomain,
+		BaseZoneClientID:       baseZoneClientID,
+		BaseZoneClientSecret:   baseZoneClientSecret,
+		BaseZoneSubscriptionID: baseZoneSubscriptionID,
+		BaseZoneTenantID:       baseZoneTenantID,
+		Micrologger:            logger.With("controllers", "AzureCluster"),
+		Recorder:               mgr.GetEventRecorderFor("azurecluster-reconciler"),
+		WatchFilterValue:       watchFilterValue,
 	}).SetupWithManager(mgr); err != nil {
 		logger.Errorf(ctx, errors.FatalError, "unable to create controller AzureCluster")
 		return microerror.Mask(err)

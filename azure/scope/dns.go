@@ -15,10 +15,10 @@ const (
 )
 
 type BaseZoneCredentials struct {
-	SubscriptionID string
-	TenantID       string
 	ClientID       string
 	ClientSecret   string
+	SubscriptionID string
+	TenantID       string
 }
 
 // ClusterScopeParams defines the input parameters used to create a new ClusterScope.
@@ -47,8 +47,9 @@ func NewDNSScope(_ context.Context, params DNSScopeParams) (*DNSScope, error) {
 	}
 
 	scope := &DNSScope{
-		ClusterScope: params.ClusterScope,
-		baseDomain:   params.BaseDomain,
+		ClusterScope:        params.ClusterScope,
+		baseDomain:          params.BaseDomain,
+		baseZoneCredentials: params.BaseZoneCredentials,
 	}
 
 	return scope, nil

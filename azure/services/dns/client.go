@@ -63,7 +63,7 @@ func newBaseZoneClient(credentials scope.BaseZoneCredentials) (*azureClient, err
 		return nil, microerror.Mask(err)
 	}
 
-	recordSetsClient, err := newRecordSetsClient("subID", cred)
+	recordSetsClient, err := newRecordSetsClient(credentials.SubscriptionID, cred)
 	if err != nil {
 		return nil, microerror.Mask(err)
 	}

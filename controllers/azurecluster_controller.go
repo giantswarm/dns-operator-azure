@@ -52,10 +52,14 @@ const (
 type AzureClusterReconciler struct {
 	client.Client
 
-	BaseDomain       string
-	Micrologger      micrologger.Logger
-	Recorder         record.EventRecorder
-	WatchFilterValue string
+	BaseDomain             string
+	BaseZoneClientID       string
+	BaseZoneClientSecret   string
+	BaseZoneSubscriptionID string
+	BaseZoneTenantID       string
+	Micrologger            micrologger.Logger
+	Recorder               record.EventRecorder
+	WatchFilterValue       string
 }
 
 func (r *AzureClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_ ctrl.Result, reterr error) {
@@ -188,6 +192,12 @@ func (r *AzureClusterReconciler) reconcileNormal(ctx context.Context, clusterSco
 		params := scope.DNSScopeParams{
 			ClusterScope: *clusterScope,
 			BaseDomain:   r.BaseDomain,
+			BaseZoneCredentials: scope.BaseZoneCredentials{
+				ClientID:       r.BaseZoneClientID,
+				ClientSecret:   r.BaseZoneClientSecret,
+				SubscriptionID: r.BaseZoneSubscriptionID,
+				TenantID:       r.BaseZoneTenantID,
+			},
 		}
 
 		dnsScope, err = scope.NewDNSScope(ctx, params)
@@ -226,6 +236,12 @@ func (r *AzureClusterReconciler) reconcileDelete(ctx context.Context, clusterSco
 		params := scope.DNSScopeParams{
 			ClusterScope: *clusterScope,
 			BaseDomain:   r.BaseDomain,
+			BaseZoneCredentials: scope.BaseZoneCredentials{
+				ClientID:       r.BaseZoneClientID,
+				ClientSecret:   r.BaseZoneClientSecret,
+				SubscriptionID: r.BaseZoneSubscriptionID,
+				TenantID:       r.BaseZoneTenantID,
+			},
 		}
 
 		dnsScope, err = scope.NewDNSScope(ctx, params)
