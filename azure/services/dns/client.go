@@ -7,8 +7,9 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/dns/armdns"
-	"github.com/giantswarm/dns-operator-azure/azure/scope"
 	"github.com/giantswarm/microerror"
+
+	"github.com/giantswarm/dns-operator-azure/azure/scope"
 )
 
 const SubscriptionIdEnv = "AZURE_SUBSCRIPTION_ID"
