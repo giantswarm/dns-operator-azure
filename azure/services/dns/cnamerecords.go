@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/dns/armdns"
 	"github.com/Azure/azure-sdk-for-go/services/dns/mgmt/2018-05-01/dns"
 	"github.com/Azure/go-autorest/autorest/to"
 	"github.com/giantswarm/microerror"
@@ -11,7 +12,7 @@ import (
 	"github.com/giantswarm/dns-operator-azure/azure"
 )
 
-func (s *Service) calculateMissingCNameRecords(ctx context.Context, currentRecordSets []dns.RecordSet) []azure.CNameRecordSetSpec {
+func (s *Service) calculateMissingCNameRecords(ctx context.Context, currentRecordSets []*armdns.RecordSet) []azure.CNameRecordSetSpec {
 	desiredRecordSet := s.getDesiredCNameRecords()
 
 	var cnameRecordsToCreate []azure.CNameRecordSetSpec
@@ -42,10 +43,9 @@ func (s *Service) calculateMissingCNameRecords(ctx context.Context, currentRecor
 
 }
 
-func (s *Service) updateCNameRecords(ctx context.Context, currentRecordSets []dns.RecordSet) error {
+func (s *Service) updateCNameRecords(ctx context.Context, currentRecordSets []*armdns.RecordSet) error {
 	recordsToCreate := s.calculateMissingCNameRecords(ctx, currentRecordSets)
 
-	var err error
 	zoneName := s.scope.ClusterZoneName()
 
 	if len(recordsToCreate) == 0 {
@@ -62,20 +62,20 @@ func (s *Service) updateCNameRecords(ctx context.Context, currentRecordSets []dn
 			"alias", cnameRecord.Alias,
 			"cname", cnameRecord.CName)
 
-		recordSet := dns.RecordSet{
+		recordSet := armdns.RecordSet{
 			Type: to.StringPtr(string(dns.CNAME)),
-			RecordSetProperties: &dns.RecordSetProperties{
-				CnameRecord: &dns.CnameRecord{
+			Properties: &armdns.RecordSetProperties{
+				CnameRecord: &armdns.CnameRecord{
 					Cname: to.StringPtr(cnameRecord.CName),
 				},
 				TTL: to.Int64Ptr(cnameRecord.TTL),
 			},
 		}
-		_, err := s.client.CreateOrUpdateRecordSet(
+		_, err := s.azureClient.CreateOrUpdateRecordSet(
 			ctx,
 			s.scope.ResourceGroup(),
 			zoneName,
-			dns.CNAME,
+			armdns.RecordTypeCNAME,
 			cnameRecord.Alias,
 			recordSet)
 		if err != nil {

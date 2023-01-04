@@ -196,7 +196,10 @@ func (r *AzureClusterReconciler) reconcileNormal(ctx context.Context, clusterSco
 		}
 	}
 
-	dnsService := dns.New(*dnsScope, publicIPsService)
+	dnsService, err := dns.New(*dnsScope, publicIPsService)
+	if err != nil {
+		return reconcile.Result{}, microerror.Mask(err)
+	}
 
 	err = dnsService.Reconcile(ctx)
 	if err != nil {
@@ -231,7 +234,10 @@ func (r *AzureClusterReconciler) reconcileDelete(ctx context.Context, clusterSco
 		}
 	}
 
-	dnsService := dns.New(*dnsScope, nil)
+	dnsService, err := dns.New(*dnsScope, nil)
+	if err != nil {
+		return reconcile.Result{}, microerror.Mask(err)
+	}
 
 	err = dnsService.ReconcileDelete(ctx)
 	if err != nil {

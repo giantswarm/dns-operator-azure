@@ -4,10 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/Azure/go-autorest/autorest"
 	"github.com/giantswarm/microerror"
 	"sigs.k8s.io/cluster-api-provider-azure/azure/scope"
-	capzscope "sigs.k8s.io/cluster-api-provider-azure/azure/scope"
 
 	"github.com/giantswarm/dns-operator-azure/pkg/errors"
 )
@@ -16,21 +14,27 @@ const (
 	ManagementClusterName = "MANAGEMENT_CLUSTER_NAME"
 )
 
+type BaseZoneCredentials struct {
+	SubscriptionID string
+	TenantID       string
+	ClientID       string
+	ClientSecret   string
+}
+
 // ClusterScopeParams defines the input parameters used to create a new ClusterScope.
 type DNSScopeParams struct {
-	// Client client.Client
-	// Logger logr.Logger
 	ClusterScope scope.ClusterScope
 
-	BaseDomain string
+	BaseDomain          string
+	BaseZoneCredentials BaseZoneCredentials
 }
 
 // DNSScope defines the basic context for an actuator to operate upon.
 type DNSScope struct {
-	capzscope.AzureClients
 	scope.ClusterScope
 
-	baseDomain string
+	baseDomain          string
+	baseZoneCredentials BaseZoneCredentials
 }
 
 func NewDNSScope(_ context.Context, params DNSScopeParams) (*DNSScope, error) {
@@ -38,13 +42,11 @@ func NewDNSScope(_ context.Context, params DNSScopeParams) (*DNSScope, error) {
 		return nil, microerror.Maskf(errors.InvalidConfigError, "%T.BaseDomain must not be nil", params)
 	}
 
-	azureClients, err := NewClusterAzureClients()
-	if err != nil {
-		return nil, microerror.Mask(err)
+	if (params.BaseZoneCredentials == BaseZoneCredentials{}) {
+		return nil, microerror.Maskf(errors.InvalidConfigError, "%T.BaseZoneCredentials must not be nil", params)
 	}
 
 	scope := &DNSScope{
-		AzureClients: *azureClients,
 		ClusterScope: params.ClusterScope,
 		baseDomain:   params.BaseDomain,
 	}
@@ -72,7 +74,6 @@ func (s *DNSScope) ResourceGroup() string {
 	return s.ClusterName()
 }
 
-// Authorizer returns the Azure client Authorizer.
-func (s *DNSScope) Authorizer() autorest.Authorizer {
-	return s.AzureClients.Authorizer
+func (s *DNSScope) BaseZoneCredentials() BaseZoneCredentials {
+	return s.baseZoneCredentials
 }

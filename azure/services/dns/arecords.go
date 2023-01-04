@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/dns/armdns"
 	"github.com/Azure/azure-sdk-for-go/services/dns/mgmt/2018-05-01/dns"
 	"github.com/Azure/go-autorest/autorest/to"
 	"github.com/giantswarm/microerror"
@@ -12,7 +13,7 @@ import (
 	"github.com/giantswarm/dns-operator-azure/azure"
 )
 
-func (s *Service) calculateMissingARecords(ctx context.Context, currentRecordSets []dns.RecordSet) []azure.ARecordSetSpec {
+func (s *Service) calculateMissingARecords(ctx context.Context, currentRecordSets []*armdns.RecordSet) []azure.ARecordSetSpec {
 	desiredRecordSet := s.getDesiredARecords()
 
 	var aRecordsToCreate []azure.ARecordSetSpec
@@ -42,7 +43,7 @@ func (s *Service) calculateMissingARecords(ctx context.Context, currentRecordSet
 
 }
 
-func (s *Service) updateARecords(ctx context.Context, currentRecordSets []dns.RecordSet) error {
+func (s *Service) updateARecords(ctx context.Context, currentRecordSets []*armdns.RecordSet) error {
 	recordsToCreate := s.calculateMissingARecords(ctx, currentRecordSets)
 
 	zoneName := s.scope.ClusterZoneName()
@@ -82,22 +83,22 @@ func (s *Service) updateARecords(ctx context.Context, currentRecordSets []dns.Re
 			"hostname", aRecord.Hostname,
 			"ipv4", *ipAddressObject.IPAddress)
 
-		recordSet := dns.RecordSet{
+		recordSet := armdns.RecordSet{
 			Type: to.StringPtr(string(dns.A)),
-			RecordSetProperties: &dns.RecordSetProperties{
-				ARecords: &[]dns.ARecord{
+			Properties: &armdns.RecordSetProperties{
+				ARecords: []*armdns.ARecord{
 					{
-						Ipv4Address: ipAddressObject.IPAddress,
+						IPv4Address: ipAddressObject.IPAddress,
 					},
 				},
 				TTL: to.Int64Ptr(aRecord.TTL),
 			},
 		}
-		_, err := s.client.CreateOrUpdateRecordSet(
+		_, err = s.azureClient.CreateOrUpdateRecordSet(
 			ctx,
 			s.scope.ResourceGroup(),
 			s.scope.ClusterZoneName(),
-			dns.A,
+			armdns.RecordTypeA,
 			aRecord.Hostname,
 			recordSet)
 		if err != nil {

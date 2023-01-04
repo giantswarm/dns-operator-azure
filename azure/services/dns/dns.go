@@ -3,6 +3,7 @@ package dns
 import (
 	"context"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/dns/armdns"
 	azuredns "github.com/Azure/azure-sdk-for-go/services/dns/mgmt/2018-05-01/dns"
 	"github.com/Azure/go-autorest/autorest/to"
 	"github.com/giantswarm/microerror"
@@ -22,19 +23,32 @@ const (
 
 // Service provides operations on Azure resources.
 type Service struct {
-	scope scope.DNSScope
-	client
+	scope               scope.DNSScope
+	azureClient         client
+	azureBaseZoneClient client
 
 	publicIPsService *capzpublicips.Service
 }
 
 // New creates a new dns service.
-func New(scope scope.DNSScope, publicIPsService *capzpublicips.Service) *Service {
-	return &Service{
-		Scope:            scope,
-		client:           newClient(scope),
-		publicIPsService: publicIPsService,
+func New(scope scope.DNSScope, publicIPsService *capzpublicips.Service) (*Service, error) {
+	azureClient, err := newAzureClient()
+
+	if err != nil {
+		return nil, microerror.Mask(err)
 	}
+
+	azureBaseZoneClient, err := newBaseZoneClient(scope.BaseZoneCredentials())
+	if err != nil {
+		return nil, microerror.Mask(err)
+	}
+
+	return &Service{
+		scope:               scope,
+		azureClient:         azureClient,
+		azureBaseZoneClient: azureBaseZoneClient,
+		publicIPsService:    publicIPsService,
+	}, nil
 }
 
 // Reconcile creates or updates the DNS zone, and creates DNS A and CNAME records.
@@ -42,7 +56,7 @@ func (s *Service) Reconcile(ctx context.Context) error {
 	clusterZoneName := s.scope.ClusterDomain()
 	s.scope.Info("Reconcile DNS", "DNSZone", clusterZoneName)
 
-	currentRecordSets, err := s.client.ListRecordSets(ctx, s.scope.ResourceGroup(), clusterZoneName)
+	currentRecordSets, err := s.azureClient.ListRecordSets(ctx, s.scope.ResourceGroup(), clusterZoneName)
 	if err != nil && azure.IsParentResourceNotFound(err) {
 		s.scope.V(2).Info("DNS zone not found", "DNSZone", clusterZoneName)
 
@@ -51,7 +65,7 @@ func (s *Service) Reconcile(ctx context.Context) error {
 			return microerror.Mask(err)
 		}
 
-		currentRecordSets, err = s.client.ListRecordSets(ctx, s.scope.ResourceGroup(), clusterZoneName)
+		currentRecordSets, err = s.azureClient.ListRecordSets(ctx, s.scope.ResourceGroup(), clusterZoneName)
 		if err != nil {
 			return microerror.Mask(err)
 		}
@@ -86,7 +100,7 @@ func (s *Service) ReconcileDelete(ctx context.Context) error {
 	clusterZoneName := s.scope.ClusterDomain()
 	s.scope.Info("Reconcile DNS deletion", "DNSZone", clusterZoneName)
 
-	currentRecordSets, err := s.client.ListRecordSets(ctx, s.scope.ResourceGroup(), clusterZoneName)
+	currentRecordSets, err := s.azureClient.ListRecordSets(ctx, s.scope.ResourceGroup(), clusterZoneName)
 	if err != nil && azure.IsParentResourceNotFound(err) {
 		// Zone doesn't exist already, nothing to do
 		s.scope.V(2).Info("DNS zone not found", "DNSZone", clusterZoneName)
@@ -95,9 +109,9 @@ func (s *Service) ReconcileDelete(ctx context.Context) error {
 		return microerror.Mask(err)
 	}
 
-	nsRecords := filterAndGetNSRecordSetSpecs(currentRecordSets)
+	nsRecords := filterAndGetNSRecords(currentRecordSets)
 	// Create required NS records.
-	err = s.deleteNSRecords(ctx, currentRecordSets)
+	err = s.deleteNSRecords(ctx, nsRecords)
 	if err != nil {
 		return microerror.Mask(err)
 	}
@@ -107,21 +121,21 @@ func (s *Service) ReconcileDelete(ctx context.Context) error {
 	return nil
 }
 
-func (s *Service) createClusterDNSZone(ctx context.Context) (*azuredns.Zone, error) {
-	var dnsZone *azuredns.Zone
+func (s *Service) createClusterDNSZone(ctx context.Context) (armdns.Zone, error) {
+	var dnsZone armdns.Zone
 	var err error
 	zoneName := s.scope.ClusterDomain()
 	s.scope.V(2).Info("Creating DNS zone", "DNSZone", zoneName)
 
 	// DNS zone not found, let's create it.
-	dnsZoneParams := azuredns.Zone{
+	dnsZoneParams := armdns.Zone{
 		Name:     &zoneName,
 		Type:     to.StringPtr(string(azuredns.Public)),
 		Location: to.StringPtr(capzazure.Global),
 	}
-	dnsZone, err = s.client.CreateOrUpdateZone(ctx, s.scope.ResourceGroup(), zoneName, dnsZoneParams)
+	dnsZone, err = s.azureClient.CreateOrUpdateZone(ctx, s.scope.ResourceGroup(), zoneName, dnsZoneParams)
 	if err != nil {
-		return nil, microerror.Mask(err)
+		return armdns.Zone{}, microerror.Mask(err)
 	}
 	s.scope.V(2).Info("Successfully created DNS zone", "DNSZone", zoneName)
 

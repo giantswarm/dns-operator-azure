@@ -2,48 +2,46 @@ package dns
 
 import (
 	"context"
-	"fmt"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/dns/armdns"
 	"github.com/Azure/azure-sdk-for-go/services/dns/mgmt/2018-05-01/dns"
-	azuredns "github.com/Azure/azure-sdk-for-go/services/dns/mgmt/2018-05-01/dns"
 	"github.com/Azure/go-autorest/autorest/to"
 	"github.com/giantswarm/microerror"
 	capzazure "sigs.k8s.io/cluster-api-provider-azure/azure"
-
-	"github.com/giantswarm/dns-operator-azure/azure"
 )
 
-func (s *Service) calculateMissingNSRecords(ctx context.Context, currentRecordSets []dns.RecordSet) []azure.NSRecordSetSpec {
-	desiredRecordSet := s.getDesiredNSRecords(currentRecordSets)
+// func (s *Service) calculateMissingNSRecords(ctx context.Context, currentRecordSets []dns.RecordSet) []azure.NSRecordSetSpec {
+// 	desiredRecordSet := s.getDesiredNSRecords(currentRecordSets)
 
-	var nsRecordsToCreate []azure.NSRecordSetSpec
+// 	var nsRecordsToCreate []azure.NSRecordSetSpec
 
-	for _, nsRecordSet := range desiredRecordSet {
-		for _, recordSet := range currentRecordSets {
-			if recordSet.Type != nil && *recordSet.Type == RecordSetTypeNS &&
-				recordSet.Name != nil && *recordSet.Name == nsRecordSet.Name {
-				s.scope.V(2).Info(
-					fmt.Sprintf("DNS NS record '%s' found", nsRecordSet.Name),
-					"DNSZone", s.scope.ClusterZoneName,
-					"name", nsRecordSet.Name,
-				)
-				continue
-			}
+// 	for _, nsRecordSet := range desiredRecordSet {
+// 		for _, recordSet := range currentRecordSets {
+// 			if recordSet.Type != nil && *recordSet.Type == RecordSetTypeNS &&
+// 				recordSet.Name != nil && *recordSet.Name == nsRecordSet.Name {
+// 				s.scope.V(2).Info(
+// 					fmt.Sprintf("DNS NS record '%s' found", nsRecordSet.Name),
+// 					"DNSZone", s.scope.ClusterZoneName,
+// 					"name", nsRecordSet.Name,
+// 				)
+// 				continue
+// 			}
 
-			nsRecordsToCreate = append(nsRecordsToCreate, nsRecordSet)
-			s.scope.V(2).Info(
-				fmt.Sprintf("DNS NS record '%s' is missing, it will be created", nsRecordSet.Name),
-				"DNSZone", s.scope.ClusterZoneName,
-				"name", nsRecordSet.Name)
-		}
-	}
+// 			nsRecordsToCreate = append(nsRecordsToCreate, nsRecordSet)
+// 			s.scope.V(2).Info(
+// 				fmt.Sprintf("DNS NS record '%s' is missing, it will be created", nsRecordSet.Name),
+// 				"DNSZone", s.scope.ClusterZoneName,
+// 				"name", nsRecordSet.Name)
+// 		}
+// 	}
 
-	return nsRecordsToCreate
+// 	return nsRecordsToCreate
 
-}
+// }
 
-func (s *Service) updateNSRecords(ctx context.Context, currentRecordSets []dns.RecordSet) error {
-	recordsToCreate := s.calculateMissingNSRecords(ctx, currentRecordSets)
+func (s *Service) updateNSRecords(ctx context.Context, currentRecordSets []*armdns.RecordSet) error {
+	recordsToCreate := filterAndGetNSRecords(currentRecordSets)
+	// recordsToCreate := s.calculateMissingNSRecords(ctx, currentRecordSets)
 
 	zoneName := s.scope.BaseDomain()
 
@@ -56,16 +54,16 @@ func (s *Service) updateNSRecords(ctx context.Context, currentRecordSets []dns.R
 
 	for _, nsRecord := range recordsToCreate {
 		var allNSDomainNames string
-		var nsRecords []dns.NsRecord
-		for i, nsdn := range nsRecord.NSDomainNames {
+		var nsRecords []*armdns.NsRecord
+		for i, nsdn := range nsRecord.Properties.NsRecords {
 			if i > 0 {
-				allNSDomainNames += ", " + nsdn.NSDomainName
+				allNSDomainNames += ", " + *nsdn.Nsdname
 			} else {
-				allNSDomainNames += nsdn.NSDomainName
+				allNSDomainNames += *nsdn.Nsdname
 			}
 
-			nsDomainName := nsdn.NSDomainName
-			nsRecord := dns.NsRecord{
+			nsDomainName := *nsdn.Nsdname
+			nsRecord := &armdns.NsRecord{
 				Nsdname: &nsDomainName,
 			}
 			nsRecords = append(nsRecords, nsRecord)
@@ -77,19 +75,19 @@ func (s *Service) updateNSRecords(ctx context.Context, currentRecordSets []dns.R
 			"name", nsRecord.Name,
 			"NSDomainNames", allNSDomainNames)
 
-		recordSet := dns.RecordSet{
+		recordSet := armdns.RecordSet{
 			Type: to.StringPtr(string(dns.NS)),
-			RecordSetProperties: &dns.RecordSetProperties{
-				NsRecords: &nsRecords,
-				TTL:       to.Int64Ptr(nsRecord.TTL),
+			Properties: &armdns.RecordSetProperties{
+				NsRecords: nsRecords,
+				TTL:       nsRecord.Properties.TTL,
 			},
 		}
-		_, err := s.client.CreateOrUpdateRecordSet(
+		_, err := s.azureBaseZoneClient.CreateOrUpdateRecordSet(
 			ctx,
 			s.scope.ResourceGroup(),
 			zoneName,
-			dns.NS,
-			nsRecord.Name,
+			armdns.RecordTypeNS,
+			*nsRecord.Name,
 			recordSet)
 		if err != nil {
 			return microerror.Mask(err)
@@ -105,13 +103,13 @@ func (s *Service) updateNSRecords(ctx context.Context, currentRecordSets []dns.R
 	return nil
 }
 
-func (s *Service) getDesiredNSRecords(currentRecordSets []dns.RecordSet) []azure.NSRecordSetSpec {
-	// We update only NS records, since NS records from workload cluster are required to create
-	return filterAndGetNSRecordSetSpecs(currentRecordSets)
-}
+// func (s *Service) getDesiredNSRecords(currentRecordSets []dns.RecordSet) []azure.NSRecordSetSpec {
+// 	// We update only NS records, since NS records from workload cluster are required to create
+// 	return filterAndGetNSRecordSetSpecs(currentRecordSets)
+// }
 
-func (s *Service) deleteNSRecords(ctx context.Context, currentRecordSets []dns.RecordSet) error {
-	recordsToDelete := filterAndGetNSRecordSetSpecs(currentRecordSets)
+func (s *Service) deleteNSRecords(ctx context.Context, currentRecordSets []*armdns.RecordSet) error {
+	recordsToDelete := filterAndGetNSRecords(currentRecordSets)
 	zoneName := s.scope.BaseDomain()
 
 	for _, nsRecord := range recordsToDelete {
@@ -121,7 +119,7 @@ func (s *Service) deleteNSRecords(ctx context.Context, currentRecordSets []dns.R
 			"name", nsRecord.Name,
 		)
 
-		if err := s.client.DeleteRecordSet(ctx, s.scope.ResourceGroup(), zoneName, azuredns.NS, nsRecord.Name); err != nil {
+		if err := s.azureBaseZoneClient.DeleteRecordSet(ctx, s.scope.ResourceGroup(), zoneName, armdns.RecordTypeNS, *nsRecord.Name); err != nil {
 			s.scope.V(2).Info("DNS zone not found",
 				"DNSZone", zoneName,
 				"error", err.Error(),
