@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/dns/armdns"
-	azuredns "github.com/Azure/azure-sdk-for-go/services/dns/mgmt/2018-05-01/dns"
 	"github.com/Azure/go-autorest/autorest/to"
 	"github.com/giantswarm/microerror"
 	capzazure "sigs.k8s.io/cluster-api-provider-azure/azure"
@@ -16,9 +15,9 @@ import (
 
 const (
 	RecordSetTypePrefix = "Microsoft.Network/dnszones/"
-	RecordSetTypeA      = RecordSetTypePrefix + string(azuredns.A)
-	RecordSetTypeCNAME  = RecordSetTypePrefix + string(azuredns.CNAME)
-	RecordSetTypeNS     = RecordSetTypePrefix + string(azuredns.NS)
+	RecordSetTypeA      = RecordSetTypePrefix + string(armdns.RecordTypeA)
+	RecordSetTypeCNAME  = RecordSetTypePrefix + string(armdns.RecordTypeCNAME)
+	RecordSetTypeNS     = RecordSetTypePrefix + string(armdns.RecordTypeNS)
 )
 
 // Service provides operations on Azure resources.
@@ -141,7 +140,7 @@ func (s *Service) createClusterDNSZone(ctx context.Context) (armdns.Zone, error)
 	// DNS zone not found, let's create it.
 	dnsZoneParams := armdns.Zone{
 		Name:     &zoneName,
-		Type:     to.StringPtr(string(azuredns.Public)),
+		Type:     to.StringPtr(string(armdns.ZoneTypePublic)),
 		Location: to.StringPtr(capzazure.Global),
 	}
 	dnsZone, err = s.azureClient.CreateOrUpdateZone(ctx, s.scope.ResourceGroup(), zoneName, dnsZoneParams)

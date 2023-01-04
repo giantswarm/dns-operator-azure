@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/dns/armdns"
-	"github.com/Azure/azure-sdk-for-go/services/dns/mgmt/2018-05-01/dns"
 	"github.com/Azure/go-autorest/autorest/to"
 	"github.com/giantswarm/microerror"
 	capzazure "sigs.k8s.io/cluster-api-provider-azure/azure"
@@ -76,7 +75,7 @@ func (s *Service) updateNSRecords(ctx context.Context, currentRecordSets []*armd
 			"NSDomainNames", allNSDomainNames)
 
 		recordSet := armdns.RecordSet{
-			Type: to.StringPtr(string(dns.NS)),
+			Type: to.StringPtr(string(armdns.RecordTypeNS)),
 			Properties: &armdns.RecordSetProperties{
 				NsRecords: nsRecords,
 				TTL:       nsRecord.Properties.TTL,

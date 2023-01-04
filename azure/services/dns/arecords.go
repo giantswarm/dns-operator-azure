@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/dns/armdns"
-	"github.com/Azure/azure-sdk-for-go/services/dns/mgmt/2018-05-01/dns"
 	"github.com/Azure/go-autorest/autorest/to"
 	"github.com/giantswarm/microerror"
 	capzazure "sigs.k8s.io/cluster-api-provider-azure/azure"
@@ -84,7 +83,7 @@ func (s *Service) updateARecords(ctx context.Context, currentRecordSets []*armdn
 			"ipv4", *ipAddressObject.IPAddress)
 
 		recordSet := armdns.RecordSet{
-			Type: to.StringPtr(string(dns.A)),
+			Type: to.StringPtr(string(armdns.RecordTypeA)),
 			Properties: &armdns.RecordSetProperties{
 				ARecords: []*armdns.ARecord{
 					{

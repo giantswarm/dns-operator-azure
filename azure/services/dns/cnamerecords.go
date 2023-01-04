@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/dns/armdns"
-	"github.com/Azure/azure-sdk-for-go/services/dns/mgmt/2018-05-01/dns"
 	"github.com/Azure/go-autorest/autorest/to"
 	"github.com/giantswarm/microerror"
 
@@ -63,7 +62,7 @@ func (s *Service) updateCNameRecords(ctx context.Context, currentRecordSets []*a
 			"cname", cnameRecord.CName)
 
 		recordSet := armdns.RecordSet{
-			Type: to.StringPtr(string(dns.CNAME)),
+			Type: to.StringPtr(string(armdns.RecordTypeCNAME)),
 			Properties: &armdns.RecordSetProperties{
 				CnameRecord: &armdns.CnameRecord{
 					Cname: to.StringPtr(cnameRecord.CName),
