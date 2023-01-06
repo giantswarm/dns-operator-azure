@@ -1,7 +1,7 @@
 name: dns-operator-azure
-version: [[ .Version ]]
+version: 0.0.1
 description: "Operator for managing DNS zones and records for CAPZ clusters"
-appVersion: "[[ .AppVersion ]]"
+appVersion: "0.0.1"
 home: "https://github.com/giantswarm/dns-operator-azure"
 apiVersion: v1
 annotations:

@@ -6,8 +6,10 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/dns/armdns"
 	"github.com/Azure/go-autorest/autorest/to"
 	"github.com/giantswarm/microerror"
+	"github.com/go-logr/logr"
 	capzazure "sigs.k8s.io/cluster-api-provider-azure/azure"
 	capzpublicips "sigs.k8s.io/cluster-api-provider-azure/azure/services/publicips"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/giantswarm/dns-operator-azure/azure"
 	"github.com/giantswarm/dns-operator-azure/azure/scope"
@@ -52,14 +54,15 @@ func New(scope scope.DNSScope, publicIPsService *capzpublicips.Service) (*Servic
 
 // Reconcile creates or updates the DNS zone, and creates DNS A and CNAME records.
 func (s *Service) Reconcile(ctx context.Context) error {
+	logger := log.FromContext(ctx).WithName("azure-dns-create")
 	clusterZoneName := s.scope.ClusterDomain()
-	s.scope.Info("Reconcile DNS", "DNSZone", clusterZoneName)
+	logger.Info("Reconcile DNS", "DNSZone", clusterZoneName)
 
 	currentRecordSets, err := s.azureClient.ListRecordSets(ctx, s.scope.ResourceGroup(), clusterZoneName)
 	if err != nil && azure.IsParentResourceNotFound(err) {
-		s.scope.V(2).Info("DNS zone not found", "DNSZone", clusterZoneName)
+		logger.Info("DNS zone not found", "DNSZone", clusterZoneName)
 
-		_, rErr := s.createClusterDNSZone(ctx)
+		_, rErr := s.createClusterDNSZone(ctx, logger)
 		if rErr != nil {
 			return microerror.Mask(err)
 		}
@@ -91,18 +94,19 @@ func (s *Service) Reconcile(ctx context.Context) error {
 		return microerror.Mask(err)
 	}
 
-	s.scope.Info("Successfully reconciled DNS", "DNSZone", clusterZoneName)
+	logger.Info("Successfully reconciled DNS", "DNSZone", clusterZoneName)
 	return nil
 }
 
 func (s *Service) ReconcileDelete(ctx context.Context) error {
+	logger := log.FromContext(ctx).WithName("azure-dns-delete")
 	clusterZoneName := s.scope.ClusterDomain()
-	s.scope.Info("Reconcile DNS deletion", "DNSZone", clusterZoneName)
+	logger.Info("Reconcile DNS deletion", "DNSZone", clusterZoneName)
 
 	currentRecordSets, err := s.azureClient.ListRecordSets(ctx, s.scope.ResourceGroup(), clusterZoneName)
 	if err != nil && azure.IsParentResourceNotFound(err) {
 		// Zone doesn't exist already, nothing to do
-		s.scope.V(2).Info("DNS zone not found", "DNSZone", clusterZoneName)
+		logger.Info("DNS zone not found", "DNSZone", clusterZoneName)
 		return nil
 	} else if err != nil {
 		return microerror.Mask(err)
@@ -116,26 +120,26 @@ func (s *Service) ReconcileDelete(ctx context.Context) error {
 	}
 
 	zoneName := s.scope.ClusterDomain()
-	s.scope.V(2).Info("Deleting cluster DNS zone", "DNSZone", zoneName)
+	logger.Info("Deleting cluster DNS zone", "DNSZone", zoneName)
 
 	err = s.azureClient.DeleteZone(ctx, s.scope.ResourceGroup(), zoneName)
 	if azure.IsParentResourceNotFound(err) {
-		s.scope.Info("Cannot delete DNS zone in workload cluster, resource group not found", "resourceGroup", s.scope.ResourceGroup(), "DNSZone", zoneName, "error", err.Error())
+		logger.Info("Cannot delete DNS zone in workload cluster, resource group not found", "resourceGroup", s.scope.ResourceGroup(), "DNSZone", zoneName, "error", err.Error())
 	} else if capzazure.ResourceNotFound(err) {
-		s.scope.Info("Azure DNS zone resource has already been deleted")
+		logger.Info("Azure DNS zone resource has already been deleted")
 	} else if err != nil {
 		return microerror.Mask(err)
 	}
 
-	s.scope.Info("Successfully reconciled DNS", "DNSZone", clusterZoneName)
+	logger.Info("Successfully reconciled DNS", "DNSZone", clusterZoneName)
 	return nil
 }
 
-func (s *Service) createClusterDNSZone(ctx context.Context) (armdns.Zone, error) {
+func (s *Service) createClusterDNSZone(ctx context.Context, logger logr.Logger) (armdns.Zone, error) {
 	var dnsZone armdns.Zone
 	var err error
 	zoneName := s.scope.ClusterDomain()
-	s.scope.V(2).Info("Creating DNS zone", "DNSZone", zoneName)
+	logger.Info("Creating DNS zone", "DNSZone", zoneName)
 
 	// DNS zone not found, let's create it.
 	dnsZoneParams := armdns.Zone{
@@ -147,17 +151,7 @@ func (s *Service) createClusterDNSZone(ctx context.Context) (armdns.Zone, error)
 	if err != nil {
 		return armdns.Zone{}, microerror.Mask(err)
 	}
-	s.scope.V(2).Info("Successfully created DNS zone", "DNSZone", zoneName)
+	logger.Info("Successfully created DNS zone", "DNSZone", zoneName)
 
 	return dnsZone, nil
 }
-
-// func (s *Service) deleteClusterRecords(ctx context.Context, hostedZoneID string) error
-
-// func (r *AzureClusterReconciler) reconcileDeleteWorkloadClusterRecords(ctx context.Context, clusterScope *capzscope.ClusterScope) error {
-// 	clusterScopeWrapper, err := scope.NewClusterScopeWrapper(*clusterScope)
-// 	if err != nil {
-// 		return microerror.Mask(err)
-// 	}
-
-// }

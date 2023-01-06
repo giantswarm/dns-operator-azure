@@ -7,6 +7,7 @@ import (
 	"github.com/Azure/go-autorest/autorest/to"
 	"github.com/giantswarm/microerror"
 	capzazure "sigs.k8s.io/cluster-api-provider-azure/azure"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 // func (s *Service) calculateMissingNSRecords(ctx context.Context, currentRecordSets []dns.RecordSet) []azure.NSRecordSetSpec {
@@ -18,7 +19,7 @@ import (
 // 		for _, recordSet := range currentRecordSets {
 // 			if recordSet.Type != nil && *recordSet.Type == RecordSetTypeNS &&
 // 				recordSet.Name != nil && *recordSet.Name == nsRecordSet.Name {
-// 				s.scope.V(2).Info(
+// 				logger.Info(
 // 					fmt.Sprintf("DNS NS record '%s' found", nsRecordSet.Name),
 // 					"DNSZone", s.scope.ClusterZoneName,
 // 					"name", nsRecordSet.Name,
@@ -27,7 +28,7 @@ import (
 // 			}
 
 // 			nsRecordsToCreate = append(nsRecordsToCreate, nsRecordSet)
-// 			s.scope.V(2).Info(
+// 			logger.Info(
 // 				fmt.Sprintf("DNS NS record '%s' is missing, it will be created", nsRecordSet.Name),
 // 				"DNSZone", s.scope.ClusterZoneName,
 // 				"name", nsRecordSet.Name)
@@ -39,13 +40,14 @@ import (
 // }
 
 func (s *Service) updateNSRecords(ctx context.Context, currentRecordSets []*armdns.RecordSet) error {
+	logger := log.FromContext(ctx).WithName("update-arecords")
 	recordsToCreate := filterAndGetNSRecords(currentRecordSets)
 	// recordsToCreate := s.calculateMissingNSRecords(ctx, currentRecordSets)
 
 	zoneName := s.scope.BaseDomain()
 
 	if len(recordsToCreate) == 0 {
-		s.scope.V(2).Info(
+		logger.Info(
 			"All DNS NS records have already been created",
 			"DNSZone", zoneName)
 		return nil
@@ -68,7 +70,7 @@ func (s *Service) updateNSRecords(ctx context.Context, currentRecordSets []*armd
 			nsRecords = append(nsRecords, nsRecord)
 		}
 
-		s.scope.V(2).Info(
+		logger.Info(
 			"Creating DNS NS record",
 			"DNSZone", zoneName,
 			"name", nsRecord.Name,
@@ -92,7 +94,7 @@ func (s *Service) updateNSRecords(ctx context.Context, currentRecordSets []*armd
 			return microerror.Mask(err)
 		}
 
-		s.scope.V(2).Info(
+		logger.Info(
 			"Successfully created DNS NS record",
 			"DNSZone", zoneName,
 			"name", nsRecord.Name,
@@ -108,23 +110,24 @@ func (s *Service) updateNSRecords(ctx context.Context, currentRecordSets []*armd
 // }
 
 func (s *Service) deleteNSRecords(ctx context.Context, currentRecordSets []*armdns.RecordSet) error {
+	logger := log.FromContext(ctx).WithName("delete-nsrecords")
 	recordsToDelete := filterAndGetNSRecords(currentRecordSets)
 	zoneName := s.scope.BaseDomain()
 
 	for _, nsRecord := range recordsToDelete {
-		s.scope.V(2).Info(
+		logger.Info(
 			"Delete DNS NS record",
 			"DNSZone", zoneName,
 			"name", nsRecord.Name,
 		)
 
 		if err := s.azureBaseZoneClient.DeleteRecordSet(ctx, s.scope.ResourceGroup(), zoneName, armdns.RecordTypeNS, *nsRecord.Name); err != nil {
-			s.scope.V(2).Info("DNS zone not found",
+			logger.Info("DNS zone not found",
 				"DNSZone", zoneName,
 				"error", err.Error(),
 			)
 		} else if capzazure.ResourceNotFound(err) {
-			s.scope.V(2).Info("Azure NS record not found",
+			logger.Info("Azure NS record not found",
 				"DNSZone", zoneName,
 				"NSRecord", nsRecord.Name,
 				"error", err.Error(),
@@ -133,7 +136,7 @@ func (s *Service) deleteNSRecords(ctx context.Context, currentRecordSets []*armd
 			return microerror.Mask(err)
 		}
 
-		s.scope.V(2).Info(
+		logger.Info(
 			"Successfully deleted DNS NS record",
 			"DNSZone", zoneName,
 			"name", nsRecord.Name,

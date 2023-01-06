@@ -1,11 +1,11 @@
 project:
-  branch: "[[ .Branch ]]"
-  commit: "[[ .SHA ]]"
+  branch: "master"
+  commit: "hohoho"
 registry:
   domain: ""
 image:
   name: "giantswarm/dns-operator-azure"
-  tag: "[[ .Version ]]"
+  tag: "1.0.0"
 pod:
   user:
     id: 1000
@@ -13,28 +13,19 @@ pod:
     id: 1000
 
 watchfilter: capi
+baseDomain: ""
 
 azure:
-  region: ""
-  clientID: ""
-  clientSecret: ""
-  tenantID: ""
-  subscriptionID: ""
   baseDNSZone:
-    name: ""
-    subscriptionID: ""
-
-# Config
-managementCluster:
-  name: ""
-  azure:
-    environmentName: ""
-    region: ""
-    credentials:
-      tenantID: ""
-      subscriptionID: ""
-      clientID: ""
-      clientSecret: ""
+    clientID: "9d079fce-732d-4e4b-8906-e2d4d0eac7e3"
+    clientSecret: "CRQ8Q~UfRg1CjvZ3kMg_pGjAcFseuAtxpoqGbbv3"
+    tenantID: "31f75bf9-3d8c-4691-95c0-83dd71613db8"
+    subscriptionID: "7a0a98f1-2574-47dd-b9dd-1833e4104b90"
+  cluster:
+    clientID: "9d079fce-732d-4e4b-8906-e2d4d0eac7e3"
+    clientSecret: "CRQ8Q~UfRg1CjvZ3kMg_pGjAcFseuAtxpoqGbbv3"
+    tenantID: "31f75bf9-3d8c-4691-95c0-83dd71613db8"
+    subscriptionID: "6b1f6e4a-6d0e-4aa4-9a5a-fbaca65a23b3"
 
 verticalPodAutoscaler:
   enabled: true

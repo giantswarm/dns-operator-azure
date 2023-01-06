@@ -17,18 +17,16 @@ limitations under the License.
 package main
 
 import (
-	"context"
 	"flag"
 	"fmt"
 
 	aadpodv1 "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	"github.com/giantswarm/microerror"
-	"github.com/giantswarm/micrologger"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	capz "sigs.k8s.io/cluster-api-provider-azure/api/v1alpha4"
-	capi "sigs.k8s.io/cluster-api/api/v1alpha4"
+	capz "sigs.k8s.io/cluster-api-provider-azure/api/v1beta1"
+	capi "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/cluster-api/util/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -102,12 +100,7 @@ func mainError() error {
 
 	flag.Parse()
 
-	ctx := context.Background()
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
-	logger, err := micrologger.New(micrologger.Config{})
-	if err != nil {
-		return microerror.Mask(err)
-	}
 
 	restConfig := ctrl.GetConfigOrDie()
 	restConfig.UserAgent = "dns-operator-azure"
@@ -119,7 +112,7 @@ func mainError() error {
 		LeaderElectionID:   "2af49e02.giantswarm.io",
 	})
 	if err != nil {
-		logger.Errorf(ctx, errors.FatalError, "unable to start manager")
+		setupLog.Error(errors.FatalError, "unable to start manager")
 		return microerror.Mask(err)
 	}
 
@@ -133,11 +126,10 @@ func mainError() error {
 		BaseZoneClientSecret:   baseZoneClientSecret,
 		BaseZoneSubscriptionID: baseZoneSubscriptionID,
 		BaseZoneTenantID:       baseZoneTenantID,
-		Micrologger:            logger.With("controllers", "AzureCluster"),
 		Recorder:               mgr.GetEventRecorderFor("azurecluster-reconciler"),
 		WatchFilterValue:       watchFilterValue,
 	}).SetupWithManager(mgr); err != nil {
-		logger.Errorf(ctx, errors.FatalError, "unable to create controller AzureCluster")
+		setupLog.Error(errors.FatalError, "unable to create controller AzureCluster")
 		return microerror.Mask(err)
 	}
 
@@ -145,7 +137,7 @@ func mainError() error {
 
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
-		logger.Errorf(ctx, errors.FatalError, "problem running manager")
+		setupLog.Error(errors.FatalError, "problem running manager")
 		return microerror.Mask(err)
 	}
 

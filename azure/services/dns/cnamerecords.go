@@ -7,11 +7,13 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/dns/armdns"
 	"github.com/Azure/go-autorest/autorest/to"
 	"github.com/giantswarm/microerror"
+	"github.com/go-logr/logr"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/giantswarm/dns-operator-azure/azure"
 )
 
-func (s *Service) calculateMissingCNameRecords(ctx context.Context, currentRecordSets []*armdns.RecordSet) []azure.CNameRecordSetSpec {
+func (s *Service) calculateMissingCNameRecords(ctx context.Context, logger logr.Logger, currentRecordSets []*armdns.RecordSet) []azure.CNameRecordSetSpec {
 	desiredRecordSet := s.getDesiredCNameRecords()
 
 	var cnameRecordsToCreate []azure.CNameRecordSetSpec
@@ -20,7 +22,7 @@ func (s *Service) calculateMissingCNameRecords(ctx context.Context, currentRecor
 		for _, recordSet := range currentRecordSets {
 			if recordSet.Type != nil && *recordSet.Type == RecordSetTypeCNAME &&
 				recordSet.Name != nil && *recordSet.Name == desiredCName.Alias {
-				s.scope.V(2).Info(
+				logger.Info(
 					fmt.Sprintf("DNS CNAME record '%s' found", desiredCName.Alias),
 					"DNSZone", s.scope.ClusterZoneName(),
 					"alias", desiredCName.Alias,
@@ -30,7 +32,7 @@ func (s *Service) calculateMissingCNameRecords(ctx context.Context, currentRecor
 			}
 
 			cnameRecordsToCreate = append(cnameRecordsToCreate, desiredCName)
-			s.scope.V(2).Info(
+			logger.Info(
 				fmt.Sprintf("DNS CNAME record '%s' is missing, it will be created", desiredCName.Alias),
 				"DNSZone", s.scope.ClusterZoneName(),
 				"alias", desiredCName.Alias,
@@ -43,19 +45,20 @@ func (s *Service) calculateMissingCNameRecords(ctx context.Context, currentRecor
 }
 
 func (s *Service) updateCNameRecords(ctx context.Context, currentRecordSets []*armdns.RecordSet) error {
-	recordsToCreate := s.calculateMissingCNameRecords(ctx, currentRecordSets)
+	logger := log.FromContext(ctx).WithName("cnamerecords")
+	recordsToCreate := s.calculateMissingCNameRecords(ctx, logger, currentRecordSets)
 
 	zoneName := s.scope.ClusterZoneName()
 
 	if len(recordsToCreate) == 0 {
-		s.scope.V(2).Info(
+		logger.Info(
 			"All DNS CNAME records have already been created",
 			"DNSZone", zoneName)
 		return nil
 	}
 
 	for _, cnameRecord := range recordsToCreate {
-		s.scope.V(2).Info(
+		logger.Info(
 			"Creating DNS CNAME record",
 			"DNSZone", zoneName,
 			"alias", cnameRecord.Alias,
@@ -81,7 +84,7 @@ func (s *Service) updateCNameRecords(ctx context.Context, currentRecordSets []*a
 			return microerror.Mask(err)
 		}
 
-		s.scope.V(2).Info(
+		logger.Info(
 			"Successfully created DNS CNAME record",
 			"DNSZone", zoneName,
 			"alias", cnameRecord.Alias,

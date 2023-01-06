@@ -4,15 +4,19 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/Azure/azure-sdk-for-go/profiles/latest/network/mgmt/network"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/dns/armdns"
 	"github.com/Azure/go-autorest/autorest/to"
 	"github.com/giantswarm/microerror"
+	"github.com/go-logr/logr"
 	capzazure "sigs.k8s.io/cluster-api-provider-azure/azure"
+	capzpublicips "sigs.k8s.io/cluster-api-provider-azure/azure/services/publicips"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/giantswarm/dns-operator-azure/azure"
 )
 
-func (s *Service) calculateMissingARecords(ctx context.Context, currentRecordSets []*armdns.RecordSet) []azure.ARecordSetSpec {
+func (s *Service) calculateMissingARecords(ctx context.Context, logger logr.Logger, currentRecordSets []*armdns.RecordSet) []azure.ARecordSetSpec {
 	desiredRecordSet := s.getDesiredARecords()
 
 	var aRecordsToCreate []azure.ARecordSetSpec
@@ -21,7 +25,7 @@ func (s *Service) calculateMissingARecords(ctx context.Context, currentRecordSet
 		for _, recordSet := range currentRecordSets {
 			if recordSet.Type != nil && *recordSet.Type == RecordSetTypeA &&
 				recordSet.Name != nil && *recordSet.Name == desiredARecordSet.Hostname {
-				s.scope.V(2).Info(
+				logger.Info(
 					fmt.Sprintf("DNS A record '%s' found", desiredARecordSet.Hostname),
 					"DNSZone", s.scope.ClusterDomain(),
 					"hostname", desiredARecordSet.Hostname,
@@ -30,7 +34,7 @@ func (s *Service) calculateMissingARecords(ctx context.Context, currentRecordSet
 			}
 
 			aRecordsToCreate = append(aRecordsToCreate, desiredARecordSet)
-			s.scope.V(2).Info(
+			logger.Info(
 				fmt.Sprintf("DNS A record '%s' is missing, it will be created", desiredARecordSet.Hostname),
 				"DNSZone", "",
 				"hostname", desiredARecordSet.Hostname)
@@ -43,21 +47,25 @@ func (s *Service) calculateMissingARecords(ctx context.Context, currentRecordSet
 }
 
 func (s *Service) updateARecords(ctx context.Context, currentRecordSets []*armdns.RecordSet) error {
-	recordsToCreate := s.calculateMissingARecords(ctx, currentRecordSets)
+	logger := log.FromContext(ctx).WithName("arecords")
+	recordsToCreate := s.calculateMissingARecords(ctx, logger, currentRecordSets)
 
 	zoneName := s.scope.ClusterZoneName()
 
 	if len(recordsToCreate) == 0 {
-		s.scope.V(2).Info(
+		logger.Info(
 			"All DNS A records have already been created",
 			"DNSZone", zoneName)
 		return nil
 	}
 
 	for _, aRecord := range recordsToCreate {
-		ipAddressObject, err := s.publicIPsService.Get(ctx, s.scope.ResourceGroup(), aRecord.PublicIPName)
+		ipAddressObject, err := s.publicIPsService.Get(ctx, &capzpublicips.PublicIPSpec{
+			Name:          aRecord.PublicIPName,
+			ResourceGroup: s.scope.ResourceGroup(),
+		})
 		if capzazure.ResourceNotFound(err) {
-			s.scope.V(2).Info(
+			logger.Info(
 				"Cannot create DNS A record, public IP still not deployed",
 				"DNSZone", zoneName,
 				"hostname", aRecord.Hostname,
@@ -67,8 +75,10 @@ func (s *Service) updateARecords(ctx context.Context, currentRecordSets []*armdn
 			return microerror.Mask(err)
 		}
 
-		if ipAddressObject.IPAddress == nil {
-			s.scope.V(2).Info(
+		ipAddress := ipAddressObject.(network.PublicIPAddress).IPAddress
+
+		if ipAddress == nil {
+			logger.Info(
 				"Cannot create DNS A record, public Azure IP object does not have IP address set",
 				"DNSZone", zoneName,
 				"hostname", aRecord.Hostname,
@@ -76,18 +86,18 @@ func (s *Service) updateARecords(ctx context.Context, currentRecordSets []*armdn
 			continue
 		}
 
-		s.scope.V(2).Info(
+		logger.Info(
 			"Creating DNS A record",
 			"DNSZone", zoneName,
 			"hostname", aRecord.Hostname,
-			"ipv4", *ipAddressObject.IPAddress)
+			"ipv4", *ipAddress)
 
 		recordSet := armdns.RecordSet{
 			Type: to.StringPtr(string(armdns.RecordTypeA)),
 			Properties: &armdns.RecordSetProperties{
 				ARecords: []*armdns.ARecord{
 					{
-						IPv4Address: ipAddressObject.IPAddress,
+						IPv4Address: ipAddress,
 					},
 				},
 				TTL: to.Int64Ptr(aRecord.TTL),
@@ -104,7 +114,7 @@ func (s *Service) updateARecords(ctx context.Context, currentRecordSets []*armdn
 			return microerror.Mask(err)
 		}
 
-		s.scope.V(2).Info(
+		logger.Info(
 			"Successfully created DNS A record",
 			"DNSZone", zoneName,
 			"hostname", aRecord.Hostname,
