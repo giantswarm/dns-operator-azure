@@ -1,11 +1,11 @@
 project:
-  branch: "master"
-  commit: "hohoho"
+  branch: "[[ .Branch ]]"
+  commit: "[[ .SHA ]]"
 registry:
   domain: ""
 image:
   name: "giantswarm/dns-operator-azure"
-  tag: "1.0.0"
+  tag: "[[ .Version ]]"
 pod:
   user:
     id: 1000
