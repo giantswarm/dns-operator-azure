@@ -64,11 +64,11 @@ func (s *DNSScope) BaseDomain() string {
 }
 
 func (s *DNSScope) ClusterDomain() string {
-	return fmt.Sprintf("%s.%s", s.baseDomain, s.ClusterName())
+	return fmt.Sprintf("%s.%s", s.ClusterName(), s.baseDomain)
 }
 
 func (s *DNSScope) ClusterZoneName() string {
-	return fmt.Sprintf("%s.%s", s.baseDomain, s.ClusterName())
+	return fmt.Sprintf("%s.%s", s.ClusterName(), s.baseDomain)
 }
 
 func (s *DNSScope) ResourceGroup() string {
