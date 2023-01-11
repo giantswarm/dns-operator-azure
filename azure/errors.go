@@ -3,17 +3,17 @@ package azure
 import (
 	"errors"
 
-	"github.com/Azure/go-autorest/autorest"
-	"github.com/Azure/go-autorest/autorest/azure"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 )
 
 const (
 	ParentResourceNotFoundErrorCode = "ParentResourceNotFound"
 )
 
-// ResourceNotFound parses the error to check if it's a resource not found error.
+// IsParentResourceNotFound parses the error to check if it's a resource not found error.
 func IsParentResourceNotFound(err error) bool {
-	derr := autorest.DetailedError{}
-	serr := &azure.ServiceError{}
-	return errors.As(err, &derr) && errors.As(derr.Original, &serr) && serr.Code == ParentResourceNotFoundErrorCode
+	rerr := &azcore.ResponseError{}
+	errors.As(err, &rerr)
+
+	return errors.As(err, &rerr) && rerr.ErrorCode == ParentResourceNotFoundErrorCode
 }

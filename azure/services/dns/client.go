@@ -2,6 +2,7 @@ package dns
 
 import (
 	"context"
+	"fmt"
 	"os"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
@@ -94,6 +95,7 @@ func (ac *azureClient) GetZone(ctx context.Context, resourceGroupName string, zo
 func (ac *azureClient) CreateOrUpdateZone(ctx context.Context, resourceGroupName string, zoneName string, zone armdns.Zone) (armdns.Zone, error) {
 	zoneResult, err := ac.zones.CreateOrUpdate(ctx, resourceGroupName, zoneName, zone, nil)
 	if err != nil {
+		fmt.Printf("%+v\n", err)
 		return armdns.Zone{}, microerror.Mask(err)
 	}
 

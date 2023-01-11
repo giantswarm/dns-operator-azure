@@ -4,9 +4,12 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/Azure/azure-sdk-for-go/profiles/latest/network/mgmt/network"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/dns/armdns"
+	// Latest capz controller still depends on this library
+	// https://github.com/kubernetes-sigs/cluster-api-provider-azure/blob/v1.6.0/azure/services/publicips/client.go#L56
+	"github.com/Azure/azure-sdk-for-go/services/network/mgmt/2021-08-01/network" //nolint
 	"github.com/Azure/go-autorest/autorest/to"
+
 	"github.com/giantswarm/microerror"
 	"github.com/go-logr/logr"
 	capzazure "sigs.k8s.io/cluster-api-provider-azure/azure"

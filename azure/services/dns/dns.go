@@ -143,8 +143,8 @@ func (s *Service) createClusterDNSZone(ctx context.Context, logger logr.Logger) 
 
 	// DNS zone not found, let's create it.
 	dnsZoneParams := armdns.Zone{
-		Name:     &zoneName,
-		Type:     to.StringPtr(string(armdns.ZoneTypePublic)),
+		Name: &zoneName,
+		// Type:     to.StringPtr(string(armdns.ZoneTypePublic)),
 		Location: to.StringPtr(capzazure.Global),
 	}
 	dnsZone, err = s.azureClient.CreateOrUpdateZone(ctx, s.scope.ResourceGroup(), zoneName, dnsZoneParams)
