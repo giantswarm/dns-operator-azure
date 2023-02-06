@@ -12,20 +12,15 @@ pod:
   group:
     id: 1000
 
-watchfilter: capi
-baseDomain: ""
+baseDomain: "azuretest.gigantic.io"
 
 azure:
   baseDNSZone:
-    clientID: "9d079fce-732d-4e4b-8906-e2d4d0eac7e3"
-    clientSecret: "CRQ8Q~UfRg1CjvZ3kMg_pGjAcFseuAtxpoqGbbv3"
-    tenantID: "31f75bf9-3d8c-4691-95c0-83dd71613db8"
-    subscriptionID: "7a0a98f1-2574-47dd-b9dd-1833e4104b90"
-  cluster:
-    clientID: "9d079fce-732d-4e4b-8906-e2d4d0eac7e3"
-    clientSecret: "CRQ8Q~UfRg1CjvZ3kMg_pGjAcFseuAtxpoqGbbv3"
-    tenantID: "31f75bf9-3d8c-4691-95c0-83dd71613db8"
-    subscriptionID: "6b1f6e4a-6d0e-4aa4-9a5a-fbaca65a23b3"
+    resourceGroup: ""
+    clientID: ""
+    clientSecret: ""
+    tenantID: ""
+    subscriptionID: ""
 
 verticalPodAutoscaler:
-  enabled: true
+  enabled: false

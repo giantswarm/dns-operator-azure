@@ -29,7 +29,6 @@ import (
 	capi "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/annotations"
-	"sigs.k8s.io/cluster-api/util/conditions"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -41,22 +40,24 @@ import (
 )
 
 const (
-	AzureClusterControllerFinalizer string             = "dns-operator-azure.giantswarm.io/azurecluster"
-	DNSZoneReady                    capi.ConditionType = "DNSZoneReady"
+	AzureClusterControllerFinalizer string = "dns-operator-azure.giantswarm.io/azurecluster"
 )
 
 // AzureClusterReconciler reconciles a AzureCluster object
 type AzureClusterReconciler struct {
 	client.Client
 
-	BaseDomain             string
-	BaseZoneClientID       string
-	BaseZoneClientSecret   string
-	BaseZoneSubscriptionID string
-	BaseZoneTenantID       string
-	Recorder               record.EventRecorder
-	WatchFilterValue       string
+	BaseDomain              string
+	BaseDomainResourceGroup string
+	BaseZoneClientID        string
+	BaseZoneClientSecret    string
+	BaseZoneSubscriptionID  string
+	BaseZoneTenantID        string
+	Recorder                record.EventRecorder
 }
+
+// +kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=azureclusters,verbs=get;list;watch;update;patch
+// +kubebuilder:rbac:groups=cluster.x-k8s.io,resources=clusters,verbs=get;list;watch;update;patch
 
 func (r *AzureClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_ ctrl.Result, reterr error) {
 	log := log.FromContext(ctx)
@@ -79,7 +80,6 @@ func (r *AzureClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return reconcile.Result{}, microerror.Mask(err)
 	}
 	if cluster == nil {
-		r.Recorder.Eventf(azureCluster, corev1.EventTypeNormal, "OwnerRefNotSet", "Cluster Controller has not yet set OwnerRef")
 		log.Info("Cluster Controller has not yet set OwnerRef")
 		return reconcile.Result{}, microerror.Mask(err)
 	}
@@ -117,7 +117,16 @@ func (r *AzureClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	// Handle non-deleted clusters
-	return r.reconcileNormal(ctx, clusterScope)
+	//
+	// only act on Clusters where the LoadBalancersReady condition is true
+	clusterConditions := clusterScope.AzureCluster.GetConditions()
+	for _, condition := range clusterConditions {
+		if condition.Type == capz.LoadBalancersReadyCondition {
+			return r.reconcileNormal(ctx, clusterScope)
+		}
+	}
+
+	return reconcile.Result{}, nil
 }
 
 func (r *AzureClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
@@ -154,23 +163,21 @@ func (r *AzureClusterReconciler) reconcileNormal(ctx context.Context, clusterSco
 	// Reconcile workload cluster DNS records
 	publicIPsService := publicips.New(clusterScope)
 
-	var dnsScope *scope.DNSScope
-	{
-		params := scope.DNSScopeParams{
-			ClusterScope: *clusterScope,
-			BaseDomain:   r.BaseDomain,
-			BaseZoneCredentials: scope.BaseZoneCredentials{
-				ClientID:       r.BaseZoneClientID,
-				ClientSecret:   r.BaseZoneClientSecret,
-				SubscriptionID: r.BaseZoneSubscriptionID,
-				TenantID:       r.BaseZoneTenantID,
-			},
-		}
+	params := scope.DNSScopeParams{
+		ClusterScope:            *clusterScope,
+		BaseDomain:              r.BaseDomain,
+		BaseDomainResourceGroup: r.BaseDomainResourceGroup,
+		BaseZoneCredentials: scope.BaseZoneCredentials{
+			ClientID:       r.BaseZoneClientID,
+			ClientSecret:   r.BaseZoneClientSecret,
+			SubscriptionID: r.BaseZoneSubscriptionID,
+			TenantID:       r.BaseZoneTenantID,
+		},
+	}
 
-		dnsScope, err = scope.NewDNSScope(ctx, params)
-		if err != nil {
-			return reconcile.Result{}, microerror.Mask(err)
-		}
+	dnsScope, err := scope.NewDNSScope(ctx, params)
+	if err != nil {
+		return reconcile.Result{}, microerror.Mask(err)
 	}
 
 	dnsService, err := dns.New(*dnsScope, publicIPsService)
@@ -179,13 +186,6 @@ func (r *AzureClusterReconciler) reconcileNormal(ctx context.Context, clusterSco
 	}
 
 	err = dnsService.Reconcile(ctx)
-	if err != nil {
-		return reconcile.Result{}, microerror.Mask(err)
-	}
-
-	// Update DNSZoneReady condition in AzureCluster
-	conditions.MarkTrue(azureCluster, DNSZoneReady)
-	err = r.Client.Status().Update(ctx, azureCluster)
 	if err != nil {
 		return reconcile.Result{}, microerror.Mask(err)
 	}
@@ -199,24 +199,21 @@ func (r *AzureClusterReconciler) reconcileDelete(ctx context.Context, clusterSco
 
 	log.Info("Reconciling AzureCluster DNS zones delete")
 
-	var err error
-	var dnsScope *scope.DNSScope
-	{
-		params := scope.DNSScopeParams{
-			ClusterScope: *clusterScope,
-			BaseDomain:   r.BaseDomain,
-			BaseZoneCredentials: scope.BaseZoneCredentials{
-				ClientID:       r.BaseZoneClientID,
-				ClientSecret:   r.BaseZoneClientSecret,
-				SubscriptionID: r.BaseZoneSubscriptionID,
-				TenantID:       r.BaseZoneTenantID,
-			},
-		}
+	params := scope.DNSScopeParams{
+		ClusterScope:            *clusterScope,
+		BaseDomain:              r.BaseDomain,
+		BaseDomainResourceGroup: r.BaseDomainResourceGroup,
+		BaseZoneCredentials: scope.BaseZoneCredentials{
+			ClientID:       r.BaseZoneClientID,
+			ClientSecret:   r.BaseZoneClientSecret,
+			SubscriptionID: r.BaseZoneSubscriptionID,
+			TenantID:       r.BaseZoneTenantID,
+		},
+	}
 
-		dnsScope, err = scope.NewDNSScope(ctx, params)
-		if err != nil {
-			return reconcile.Result{}, microerror.Mask(err)
-		}
+	dnsScope, err := scope.NewDNSScope(ctx, params)
+	if err != nil {
+		return reconcile.Result{}, microerror.Mask(err)
 	}
 
 	dnsService, err := dns.New(*dnsScope, nil)
@@ -229,6 +226,7 @@ func (r *AzureClusterReconciler) reconcileDelete(ctx context.Context, clusterSco
 		return reconcile.Result{}, microerror.Mask(err)
 	}
 
+	// remove finalizer
 	if controllerutil.ContainsFinalizer(clusterScope.AzureCluster, AzureClusterControllerFinalizer) {
 		controllerutil.RemoveFinalizer(clusterScope.AzureCluster, AzureClusterControllerFinalizer)
 	}

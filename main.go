@@ -19,11 +19,14 @@ package main
 import (
 	"flag"
 	"fmt"
+	"time"
 
 	aadpodv1 "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	"github.com/giantswarm/microerror"
+	"go.uber.org/zap/zapcore"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	capz "sigs.k8s.io/cluster-api-provider-azure/api/v1beta1"
 	capi "sigs.k8s.io/cluster-api/api/v1beta1"
@@ -49,7 +52,7 @@ func init() {
 	// +kubebuilder:scaffold:scheme
 
 	// Add aadpodidentity v1 to the scheme.
-	scheme.AddKnownTypes(aadpodv1.SchemeGroupVersion,
+	scheme.AddKnownTypes(schema.GroupVersion{Group: aadpodv1.GroupName, Version: "v1"},
 		&aadpodv1.AzureIdentity{},
 		&aadpodv1.AzureIdentityList{},
 		&aadpodv1.AzureIdentityBinding{},
@@ -69,14 +72,15 @@ func main() {
 
 func mainError() error {
 	var (
-		metricsAddr            string
-		enableLeaderElection   bool
-		watchFilterValue       string
-		baseDomain             string
-		baseZoneClientID       string
-		baseZoneClientSecret   string
-		baseZoneSubscriptionID string
-		baseZoneTenantID       string
+		metricsAddr             string
+		enableLeaderElection    bool
+		baseDomain              string
+		baseDomainResourceGroup string
+		baseZoneClientID        string
+		baseZoneClientSecret    string
+		baseZoneSubscriptionID  string
+		baseZoneTenantID        string
+		syncPeriod              time.Duration
 	)
 
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
@@ -85,22 +89,30 @@ func mainError() error {
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
 
-	flag.StringVar(&baseDomain, "base-domain", "", "Domain for which to create the DNS entries, e.g. customer.gigantic.io.")
-	flag.StringVar(&baseZoneClientID, "base-zone-client-id", "", "Client ID to access the base DNS domain.")
-	flag.StringVar(&baseZoneClientSecret, "base-zone-client-secret", "", "Client secret to access the base DNS domain.")
-	flag.StringVar(&baseZoneSubscriptionID, "base-zone-subscription-id", "", "Subscription ID of the base DNS domain.")
-	flag.StringVar(&baseZoneTenantID, "base-zone-tenant-id", "", "Tenant ID of the base DNS domain.")
+	flag.StringVar(&baseDomain, "base-domain", "",
+		"Domain for which to create the DNS entries, e.g. customer.gigantic.io.")
+	flag.StringVar(&baseDomainResourceGroup, "base-domain-resource-group", "",
+		"Resource Group where the base-domain is placed.")
+	flag.StringVar(&baseZoneClientID, "base-zone-client-id", "",
+		"Client ID to access the base DNS domain.")
+	flag.StringVar(&baseZoneClientSecret, "base-zone-client-secret", "",
+		"Client secret to access the base DNS domain.")
+	flag.StringVar(&baseZoneSubscriptionID, "base-zone-subscription-id", "",
+		"Subscription ID of the base DNS domain.")
+	flag.StringVar(&baseZoneTenantID, "base-zone-tenant-id", "",
+		"Tenant ID of the base DNS domain.")
+	flag.DurationVar(&syncPeriod, "sync-period", 5*time.Minute,
+		"The minimum interval at which watched resources are reconciled (e.g. 15m)")
 
-	flag.StringVar(
-		&watchFilterValue,
-		"watch-filter",
-		"",
-		fmt.Sprintf("Label value that the controller watches to reconcile cluster-api objects. Label key is always %s. If unspecified, the controller watches for all cluster-api objects.", capi.WatchLabel),
-	)
-
+	// configure the logger
+	opts := zap.Options{
+		Development: true,
+		TimeEncoder: zapcore.RFC3339TimeEncoder,
+	}
+	opts.BindFlags(flag.CommandLine)
 	flag.Parse()
 
-	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
+	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
 	restConfig := ctrl.GetConfigOrDie()
 	restConfig.UserAgent = "dns-operator-azure"
@@ -109,7 +121,8 @@ func mainError() error {
 		MetricsBindAddress: metricsAddr,
 		Port:               9443,
 		LeaderElection:     enableLeaderElection,
-		LeaderElectionID:   "2af49e02.giantswarm.io",
+		LeaderElectionID:   "dns-operator-azure-leader-election",
+		SyncPeriod:         &syncPeriod,
 	})
 	if err != nil {
 		setupLog.Error(errors.FatalError, "unable to start manager")
@@ -120,14 +133,14 @@ func mainError() error {
 	record.InitFromRecorder(mgr.GetEventRecorderFor("dns-operator-azure"))
 
 	if err = (&controllers.AzureClusterReconciler{
-		Client:                 mgr.GetClient(),
-		BaseDomain:             baseDomain,
-		BaseZoneClientID:       baseZoneClientID,
-		BaseZoneClientSecret:   baseZoneClientSecret,
-		BaseZoneSubscriptionID: baseZoneSubscriptionID,
-		BaseZoneTenantID:       baseZoneTenantID,
-		Recorder:               mgr.GetEventRecorderFor("azurecluster-reconciler"),
-		WatchFilterValue:       watchFilterValue,
+		Client:                  mgr.GetClient(),
+		BaseDomain:              baseDomain,
+		BaseDomainResourceGroup: baseDomainResourceGroup,
+		BaseZoneClientID:        baseZoneClientID,
+		BaseZoneClientSecret:    baseZoneClientSecret,
+		BaseZoneSubscriptionID:  baseZoneSubscriptionID,
+		BaseZoneTenantID:        baseZoneTenantID,
+		Recorder:                mgr.GetEventRecorderFor("azurecluster-reconciler"),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(errors.FatalError, "unable to create controller AzureCluster")
 		return microerror.Mask(err)

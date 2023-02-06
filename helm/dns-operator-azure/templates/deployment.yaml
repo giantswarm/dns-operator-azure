@@ -7,7 +7,6 @@ metadata:
     {{- include "labels.common" . | nindent 4 }}
 spec:
   replicas: 1
-  revisionHistoryLimit: 3
   selector:
     matchLabels:
       {{- include "labels.selector" . | nindent 6 }}
@@ -30,21 +29,17 @@ spec:
         command:
         - /manager
         args:
-        - --watch-filter={{ .Values.watchfilter }}
         - --base-domain={{ .Values.baseDomain }}
+        - --base-domain-resource-group={{ .Values.azure.baseDNSZone.baseDomainResourceGroup }}
         - --base-zone-client-id={{ .Values.azure.baseDNSZone.clientID }}
         - --base-zone-client-secret={{ .Values.azure.baseDNSZone.clientSecret }}
         - --base-zone-subscription-id={{ .Values.azure.baseDNSZone.subscriptionID }}
         - --base-zone-tenant-id={{ .Values.azure.baseDNSZone.tenantID }}
         env:
-        - name: AZURE_TENANT_ID
-          value: {{ .Values.azure.cluster.tenantID }}
-        - name: AZURE_SUBSCRIPTION_ID
-          value: {{ .Values.azure.cluster.subscriptionID }}
-        - name: AZURE_CLIENT_ID
-          value: {{ .Values.azure.cluster.clientID }}
-        - name: AZURE_CLIENT_SECRET
-          value: {{ .Values.azure.cluster.clientSecret }}
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
         resources:
           requests:
             cpu: 50m

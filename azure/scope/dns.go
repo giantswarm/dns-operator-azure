@@ -10,10 +10,6 @@ import (
 	"github.com/giantswarm/dns-operator-azure/pkg/errors"
 )
 
-const (
-	ManagementClusterName = "MANAGEMENT_CLUSTER_NAME"
-)
-
 type BaseZoneCredentials struct {
 	ClientID       string
 	ClientSecret   string
@@ -25,16 +21,18 @@ type BaseZoneCredentials struct {
 type DNSScopeParams struct {
 	ClusterScope scope.ClusterScope
 
-	BaseDomain          string
-	BaseZoneCredentials BaseZoneCredentials
+	BaseDomain              string
+	BaseDomainResourceGroup string
+	BaseZoneCredentials     BaseZoneCredentials
 }
 
 // DNSScope defines the basic context for an actuator to operate upon.
 type DNSScope struct {
 	scope.ClusterScope
 
-	baseDomain          string
-	baseZoneCredentials BaseZoneCredentials
+	baseDomain              string
+	baseDomainResourceGroup string
+	baseZoneCredentials     BaseZoneCredentials
 }
 
 func NewDNSScope(_ context.Context, params DNSScopeParams) (*DNSScope, error) {
@@ -42,14 +40,19 @@ func NewDNSScope(_ context.Context, params DNSScopeParams) (*DNSScope, error) {
 		return nil, microerror.Maskf(errors.InvalidConfigError, "%T.BaseDomain must not be nil", params)
 	}
 
+	if params.BaseDomainResourceGroup == "" {
+		return nil, microerror.Maskf(errors.InvalidConfigError, "%T.BaseDomainResourceGroup must not be nil", params)
+	}
+
 	if (params.BaseZoneCredentials == BaseZoneCredentials{}) {
 		return nil, microerror.Maskf(errors.InvalidConfigError, "%T.BaseZoneCredentials must not be nil", params)
 	}
 
 	scope := &DNSScope{
-		ClusterScope:        params.ClusterScope,
-		baseDomain:          params.BaseDomain,
-		baseZoneCredentials: params.BaseZoneCredentials,
+		ClusterScope:            params.ClusterScope,
+		baseDomain:              params.BaseDomain,
+		baseDomainResourceGroup: params.BaseDomainResourceGroup,
+		baseZoneCredentials:     params.BaseZoneCredentials,
 	}
 
 	return scope, nil
@@ -73,6 +76,10 @@ func (s *DNSScope) ClusterZoneName() string {
 
 func (s *DNSScope) ResourceGroup() string {
 	return s.ClusterName()
+}
+
+func (s *DNSScope) BaseDomainResourceGroup() string {
+	return s.baseDomainResourceGroup
 }
 
 func (s *DNSScope) BaseZoneCredentials() BaseZoneCredentials {

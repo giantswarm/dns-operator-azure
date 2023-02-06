@@ -1,9 +1,9 @@
 name: dns-operator-azure
-version: [[ .Version ]]
+version: "[[ .Version ]]"
 description: "Operator for managing DNS zones and records for CAPZ clusters"
 appVersion: "[[ .AppVersion ]]"
 home: "https://github.com/giantswarm/dns-operator-azure"
 apiVersion: v1
 annotations:
-  application.giantswarm.io/team: "celestial"
-  config.giantswarm.io/version: 1.x.x
+  application.giantswarm.io/team: "glippy"
+  config.giantswarm.io/version: 0.2.0

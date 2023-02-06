@@ -3,6 +3,8 @@ package dns
 import (
 	"context"
 	"fmt"
+	"net"
+	"sort"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/dns/armdns"
 	// Latest capz controller still depends on this library
@@ -12,9 +14,10 @@ import (
 
 	"github.com/giantswarm/microerror"
 	"github.com/go-logr/logr"
-	capzazure "sigs.k8s.io/cluster-api-provider-azure/azure"
 	capzpublicips "sigs.k8s.io/cluster-api-provider-azure/azure/services/publicips"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+
+	"golang.org/x/exp/slices"
 
 	"github.com/giantswarm/dns-operator-azure/azure"
 )
@@ -25,6 +28,7 @@ func (s *Service) calculateMissingARecords(ctx context.Context, logger logr.Logg
 	var aRecordsToCreate []azure.ARecordSetSpec
 
 	for _, desiredARecordSet := range desiredRecordSet {
+		recordSetCreationNeeded := true
 		for _, recordSet := range currentRecordSets {
 			if recordSet.Type != nil && *recordSet.Type == RecordSetTypeA &&
 				recordSet.Name != nil && *recordSet.Name == desiredARecordSet.Hostname {
@@ -33,20 +37,22 @@ func (s *Service) calculateMissingARecords(ctx context.Context, logger logr.Logg
 					"DNSZone", s.scope.ClusterDomain(),
 					"hostname", desiredARecordSet.Hostname,
 				)
-				continue
+				recordSetCreationNeeded = false
 			}
-
-			aRecordsToCreate = append(aRecordsToCreate, desiredARecordSet)
-			logger.Info(
-				fmt.Sprintf("DNS A record '%s' is missing, it will be created", desiredARecordSet.Hostname),
-				"DNSZone", "",
-				"hostname", desiredARecordSet.Hostname)
 		}
 
+		if recordSetCreationNeeded {
+			aRecordsToCreate = append(aRecordsToCreate, desiredARecordSet)
+		}
 	}
 
-	return aRecordsToCreate
+	// remove duplicate entries
+	sort.SliceStable(aRecordsToCreate, func(i, j int) bool {
+		return aRecordsToCreate[i].Hostname < aRecordsToCreate[j].Hostname
+	})
+	aRecordsToCreate = slices.Compact(aRecordsToCreate)
 
+	return aRecordsToCreate
 }
 
 func (s *Service) updateARecords(ctx context.Context, currentRecordSets []*armdns.RecordSet) error {
@@ -63,30 +69,37 @@ func (s *Service) updateARecords(ctx context.Context, currentRecordSets []*armdn
 	}
 
 	for _, aRecord := range recordsToCreate {
-		ipAddressObject, err := s.publicIPsService.Get(ctx, &capzpublicips.PublicIPSpec{
-			Name:          aRecord.PublicIPName,
-			ResourceGroup: s.scope.ResourceGroup(),
-		})
-		if capzazure.ResourceNotFound(err) {
-			logger.Info(
-				"Cannot create DNS A record, public IP still not deployed",
-				"DNSZone", zoneName,
-				"hostname", aRecord.Hostname,
-				"IP resource name", aRecord.PublicIPName)
-			continue
-		} else if err != nil {
-			return microerror.Mask(err)
-		}
 
-		ipAddress := ipAddressObject.(network.PublicIPAddress).IPAddress
+		logger.Info(
+			fmt.Sprintf("DNS A record %s is missing, it will be created", aRecord.Hostname),
+			"DNSZone", zoneName,
+			"FQDN", fmt.Sprintf("%s.%s", aRecord.Hostname, s.scope.ClusterDomain()))
 
-		if ipAddress == nil {
-			logger.Info(
-				"Cannot create DNS A record, public Azure IP object does not have IP address set",
-				"DNSZone", zoneName,
-				"hostname", aRecord.Hostname,
-				"IP resource name", aRecord.PublicIPName)
-			continue
+		var ipAddress *string
+
+		// if the IP isn't a valid IP it's an indicator
+		// that we got a public DNS name to a public IP
+		if net.ParseIP(aRecord.PublicIPName) == nil {
+			ipAddressObject, err := s.publicIPsService.Get(ctx, &capzpublicips.PublicIPSpec{
+				Name:          aRecord.PublicIPName,
+				ResourceGroup: s.scope.ResourceGroup(),
+			})
+			if err != nil {
+				return microerror.Mask(err)
+			}
+
+			ipAddress = ipAddressObject.(network.PublicIPAddress).IPAddress
+
+			if ipAddress == nil {
+				logger.Info(
+					"Cannot create DNS A record, public Azure IP object does not have IP address set",
+					"DNSZone", zoneName,
+					"hostname", aRecord.Hostname,
+					"IP resource name", aRecord.PublicIPName)
+				continue
+			}
+		} else {
+			ipAddress = to.StringPtr(aRecord.PublicIPName)
 		}
 
 		logger.Info(
@@ -106,7 +119,7 @@ func (s *Service) updateARecords(ctx context.Context, currentRecordSets []*armdn
 				TTL: to.Int64Ptr(aRecord.TTL),
 			},
 		}
-		_, err = s.azureClient.CreateOrUpdateRecordSet(
+		_, err := s.azureClient.CreateOrUpdateRecordSet(
 			ctx,
 			s.scope.ResourceGroup(),
 			s.scope.ClusterZoneName(),
@@ -128,11 +141,25 @@ func (s *Service) updateARecords(ctx context.Context, currentRecordSets []*armdn
 }
 
 func (s *Service) getDesiredARecords() []azure.ARecordSetSpec {
-	return []azure.ARecordSetSpec{
-		{
+
+	aRecordSetSpec := []azure.ARecordSetSpec{}
+
+	switch {
+	case s.scope.IsAPIServerPrivate():
+		aRecordSetSpec = append(aRecordSetSpec, azure.ARecordSetSpec{
+			Hostname:     "api",
+			PublicIPName: s.scope.APIServerPrivateIP(),
+			TTL:          3600,
+		},
+		)
+	case !s.scope.IsAPIServerPrivate():
+		aRecordSetSpec = append(aRecordSetSpec, azure.ARecordSetSpec{
 			Hostname:     "api",
 			PublicIPName: s.scope.APIServerPublicIP().Name,
 			TTL:          3600,
 		},
+		)
 	}
+
+	return aRecordSetSpec
 }

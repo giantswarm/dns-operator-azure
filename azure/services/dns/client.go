@@ -11,6 +11,8 @@ import (
 	"github.com/giantswarm/microerror"
 
 	"github.com/giantswarm/dns-operator-azure/azure/scope"
+
+	capzscope "sigs.k8s.io/cluster-api-provider-azure/azure/scope"
 )
 
 const SubscriptionIdEnv = "AZURE_SUBSCRIPTION_ID"
@@ -31,13 +33,16 @@ type azureClient struct {
 
 var _ client = (*azureClient)(nil)
 
-func newAzureClient() (*azureClient, error) {
+func newAzureClient(client capzscope.AzureClients) (*azureClient, error) {
 	cred, err := azidentity.NewDefaultAzureCredential(nil)
 	if err != nil {
 		return nil, microerror.Mask(err)
 	}
 
 	subscriptionID := os.Getenv(SubscriptionIdEnv)
+	if subscriptionID == "" {
+		subscriptionID = client.GetSubscriptionID()
+	}
 
 	zonesClient, err := newZonesClient(subscriptionID, cred)
 	if err != nil {

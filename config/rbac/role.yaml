@@ -2,16 +2,23 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: dns-operator-azure-role
+  creationTimestamp: null
+  name: manager-role
 rules:
 - apiGroups:
   - cluster.x-k8s.io
+  resources:
+  - clusters
+  verbs:
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
   - infrastructure.cluster.x-k8s.io
   resources:
   - azureclusters
-  - azureclusters/status
-  - clusters
-  - clusters/status
   verbs:
   - get
   - list

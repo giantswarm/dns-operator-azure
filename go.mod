@@ -11,11 +11,13 @@ require (
 	github.com/Azure/go-autorest/autorest/to v0.4.0
 	github.com/giantswarm/microerror v0.4.0
 	github.com/go-logr/logr v1.2.3
+	go.uber.org/zap v1.21.0
+	golang.org/x/exp v0.0.0-20230131160201-f062dba9d201
 	k8s.io/api v0.25.2
 	k8s.io/apimachinery v0.25.2
 	k8s.io/client-go v0.25.2
-	sigs.k8s.io/cluster-api v1.2.4
-	sigs.k8s.io/cluster-api-provider-azure v1.6.0
+	sigs.k8s.io/cluster-api v1.2.6
+	sigs.k8s.io/cluster-api-provider-azure v1.6.1
 	sigs.k8s.io/controller-runtime v0.12.3
 )
 
@@ -100,9 +102,8 @@ require (
 	go.starlark.net v0.0.0-20200306205701-8dd3e2ee1dd5 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
-	go.uber.org/zap v1.21.0 // indirect
 	golang.org/x/crypto v0.4.0 // indirect
-	golang.org/x/mod v0.6.0-dev.0.20220419223038-86c51ed26bb4 // indirect
+	golang.org/x/mod v0.6.0 // indirect
 	golang.org/x/net v0.4.0 // indirect
 	golang.org/x/oauth2 v0.0.0-20221014153046-6fdb5e3db783 // indirect
 	golang.org/x/sys v0.3.0 // indirect
