@@ -32,6 +32,7 @@ import (
 	capi "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/cluster-api/util/record"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/giantswarm/dns-operator-azure/controllers"
@@ -81,6 +82,7 @@ func mainError() error {
 		baseZoneSubscriptionID  string
 		baseZoneTenantID        string
 		syncPeriod              time.Duration
+		clusterConcurrency      int
 	)
 
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
@@ -103,6 +105,8 @@ func mainError() error {
 		"Tenant ID of the base DNS domain.")
 	flag.DurationVar(&syncPeriod, "sync-period", 5*time.Minute,
 		"The minimum interval at which watched resources are reconciled (e.g. 15m)")
+	flag.IntVar(&clusterConcurrency, "cluster-concurrency", 5,
+		"Number of clusters to process simultaneously")
 
 	// configure the logger
 	opts := zap.Options{
@@ -141,7 +145,7 @@ func mainError() error {
 		BaseZoneSubscriptionID:  baseZoneSubscriptionID,
 		BaseZoneTenantID:        baseZoneTenantID,
 		Recorder:                mgr.GetEventRecorderFor("azurecluster-reconciler"),
-	}).SetupWithManager(mgr); err != nil {
+	}).SetupWithManager(mgr, controller.Options{MaxConcurrentReconciles: clusterConcurrency}); err != nil {
 		setupLog.Error(errors.FatalError, "unable to create controller AzureCluster")
 		return microerror.Mask(err)
 	}
