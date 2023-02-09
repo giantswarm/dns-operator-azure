@@ -19,6 +19,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"os"
 	"time"
 
 	aadpodv1 "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
@@ -43,6 +44,13 @@ import (
 var (
 	scheme   = runtime.NewScheme()
 	setupLog = ctrl.Log.WithName("setup")
+)
+
+const (
+	SubscriptionId = "AZURE_SUBSCRIPTION_ID"
+	TenantId       = "AZURE_TENANT_ID"
+	ClientId       = "AZURE_CLIENT_ID"
+	ClientSecret   = "AZURE_CLIENT_SECRET" //nolint
 )
 
 func init() {
@@ -90,19 +98,10 @@ func mainError() error {
 	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
-
 	flag.StringVar(&baseDomain, "base-domain", "",
 		"Domain for which to create the DNS entries, e.g. customer.gigantic.io.")
 	flag.StringVar(&baseDomainResourceGroup, "base-domain-resource-group", "",
 		"Resource Group where the base-domain is placed.")
-	flag.StringVar(&baseZoneClientID, "base-zone-client-id", "",
-		"Client ID to access the base DNS domain.")
-	flag.StringVar(&baseZoneClientSecret, "base-zone-client-secret", "",
-		"Client secret to access the base DNS domain.")
-	flag.StringVar(&baseZoneSubscriptionID, "base-zone-subscription-id", "",
-		"Subscription ID of the base DNS domain.")
-	flag.StringVar(&baseZoneTenantID, "base-zone-tenant-id", "",
-		"Tenant ID of the base DNS domain.")
 	flag.DurationVar(&syncPeriod, "sync-period", 5*time.Minute,
 		"The minimum interval at which watched resources are reconciled (e.g. 15m)")
 	flag.IntVar(&clusterConcurrency, "cluster-concurrency", 5,
@@ -135,6 +134,23 @@ func mainError() error {
 
 	// Initialize event recorder.
 	record.InitFromRecorder(mgr.GetEventRecorderFor("dns-operator-azure"))
+
+	baseZoneSubscriptionID = os.Getenv(SubscriptionId)
+	if baseZoneSubscriptionID == "" {
+		return microerror.Mask(fmt.Errorf("environment variable %s not set", SubscriptionId))
+	}
+	baseZoneClientID = os.Getenv(ClientId)
+	if baseZoneClientID == "" {
+		return microerror.Mask(fmt.Errorf("environment variable %s not set", ClientId))
+	}
+	baseZoneClientSecret = os.Getenv(ClientSecret)
+	if baseZoneClientSecret == "" {
+		return microerror.Mask(fmt.Errorf("environment variable %s not set", ClientSecret))
+	}
+	baseZoneTenantID = os.Getenv(TenantId)
+	if baseZoneTenantID == "" {
+		return microerror.Mask(fmt.Errorf("environment variable %s not set", TenantId))
+	}
 
 	if err = (&controllers.AzureClusterReconciler{
 		Client:                  mgr.GetClient(),

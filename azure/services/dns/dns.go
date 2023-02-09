@@ -34,9 +34,7 @@ type Service struct {
 
 // New creates a new dns service.
 func New(scope scope.DNSScope, publicIPsService *capzpublicips.Service) (*Service, error) {
-	azureClient, err := newAzureClient(scope.AzureClients)
-
-	scope.GetSubscriptionID()
+	azureClient, err := newAzureClient(scope.AzureCluster)
 
 	if err != nil {
 		return nil, microerror.Mask(err)

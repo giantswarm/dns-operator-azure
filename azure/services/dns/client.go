@@ -3,19 +3,15 @@ package dns
 import (
 	"context"
 	"fmt"
-	"os"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/dns/armdns"
 	"github.com/giantswarm/microerror"
+	"sigs.k8s.io/cluster-api-provider-azure/api/v1beta1"
 
 	"github.com/giantswarm/dns-operator-azure/azure/scope"
-
-	capzscope "sigs.k8s.io/cluster-api-provider-azure/azure/scope"
 )
-
-const SubscriptionIdEnv = "AZURE_SUBSCRIPTION_ID"
 
 type client interface {
 	GetZone(ctx context.Context, resourceGroupName string, zoneName string) (armdns.Zone, error)
@@ -33,16 +29,13 @@ type azureClient struct {
 
 var _ client = (*azureClient)(nil)
 
-func newAzureClient(client capzscope.AzureClients) (*azureClient, error) {
+func newAzureClient(azureCluster *v1beta1.AzureCluster) (*azureClient, error) {
 	cred, err := azidentity.NewDefaultAzureCredential(nil)
 	if err != nil {
 		return nil, microerror.Mask(err)
 	}
 
-	subscriptionID := os.Getenv(SubscriptionIdEnv)
-	if subscriptionID == "" {
-		subscriptionID = client.GetSubscriptionID()
-	}
+	subscriptionID := azureCluster.Spec.SubscriptionID
 
 	zonesClient, err := newZonesClient(subscriptionID, cred)
 	if err != nil {

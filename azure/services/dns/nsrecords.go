@@ -27,7 +27,7 @@ func (s *Service) deleteClusterNSRecords(ctx context.Context) error {
 // for zone delegation
 func (s *Service) createClusterNSRecord(ctx context.Context, nameServerRecords []*armdns.NsRecord) error {
 
-	_, err := s.azureClient.CreateOrUpdateRecordSet(
+	_, err := s.azureBaseZoneClient.CreateOrUpdateRecordSet(
 		ctx,
 		s.scope.BaseDomainResourceGroup(),
 		s.scope.BaseDomain(),

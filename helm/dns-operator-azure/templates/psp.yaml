@@ -24,7 +24,7 @@ spec:
   supplementalGroups:
     rule: RunAsAny
   allowPrivilegeEscalation: false
-  hostNetwork: false
+  hostNetwork: true
   hostIPC: false
   hostPID: false
 {{- end }}

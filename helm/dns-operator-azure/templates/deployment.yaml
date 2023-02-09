@@ -30,12 +30,28 @@ spec:
         - /manager
         args:
         - --base-domain={{ .Values.baseDomain }}
-        - --base-domain-resource-group={{ .Values.azure.baseDNSZone.baseDomainResourceGroup }}
-        - --base-zone-client-id={{ .Values.azure.baseDNSZone.clientID }}
-        - --base-zone-client-secret={{ .Values.azure.baseDNSZone.clientSecret }}
-        - --base-zone-subscription-id={{ .Values.azure.baseDNSZone.subscriptionID }}
-        - --base-zone-tenant-id={{ .Values.azure.baseDNSZone.tenantID }}
+        - --base-domain-resource-group={{ .Values.azure.baseDNSZone.resourceGroup }}
         env:
+        - name: AZURE_TENANT_ID
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "resource.default.name" . }}-azure-credentials
+              key: tenantID
+        - name: AZURE_SUBSCRIPTION_ID
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "resource.default.name" . }}-azure-credentials
+              key: subscriptionID
+        - name: AZURE_CLIENT_ID
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "resource.default.name" . }}-azure-credentials
+              key: clientID
+        - name: AZURE_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "resource.default.name" . }}-azure-credentials
+              key: clientSecret
         - name: POD_NAMESPACE
           valueFrom:
             fieldRef:
