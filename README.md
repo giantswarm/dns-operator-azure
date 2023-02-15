@@ -7,6 +7,8 @@
 * `NS`: `<clustername>` in DNS zone `<baseDomain>`
 * `A`: `api` in DNS zone `<clustername>` in `AzureCluster` resource group. This record points to the kubernetes API IP of a `cluster`
 
+> the TTL is set to 1h. This might change in the future or will became configurable.
+
 ## reconciliation loop
 
 This is a simplified version of the reconciliation loop:

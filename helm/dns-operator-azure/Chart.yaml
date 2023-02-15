@@ -6,4 +6,4 @@ home: "https://github.com/giantswarm/dns-operator-azure"
 apiVersion: v1
 annotations:
   application.giantswarm.io/team: "glippy"
-  config.giantswarm.io/version: 0.2.0
+  config.giantswarm.io/version: 2.0.0
