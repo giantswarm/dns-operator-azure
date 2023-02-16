@@ -36,8 +36,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	"github.com/giantswarm/dns-operator-azure/controllers"
-	"github.com/giantswarm/dns-operator-azure/pkg/errors"
+	"github.com/giantswarm/dns-operator-azure/v2/controllers"
+	"github.com/giantswarm/dns-operator-azure/v2/pkg/errors"
 	// +kubebuilder:scaffold:imports
 )
 

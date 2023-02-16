@@ -36,8 +36,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/giantswarm/dns-operator-azure/azure/scope"
-	"github.com/giantswarm/dns-operator-azure/azure/services/dns"
+	"github.com/giantswarm/dns-operator-azure/v2/azure/scope"
+	"github.com/giantswarm/dns-operator-azure/v2/azure/services/dns"
 )
 
 const (

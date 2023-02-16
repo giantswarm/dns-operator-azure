@@ -1,4 +1,4 @@
-module github.com/giantswarm/dns-operator-azure
+module github.com/giantswarm/dns-operator-azure/v2
 
 go 1.19
 

@@ -19,7 +19,7 @@ import (
 
 	"golang.org/x/exp/slices"
 
-	"github.com/giantswarm/dns-operator-azure/azure"
+	"github.com/giantswarm/dns-operator-azure/v2/azure"
 )
 
 func (s *Service) calculateMissingARecords(ctx context.Context, logger logr.Logger, currentRecordSets []*armdns.RecordSet) []azure.ARecordSetSpec {
