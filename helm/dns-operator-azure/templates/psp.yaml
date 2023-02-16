@@ -27,4 +27,7 @@ spec:
   hostNetwork: true
   hostIPC: false
   hostPID: false
+  volumes:
+    - "secret"
+    - "configMap"
 {{- end }}
