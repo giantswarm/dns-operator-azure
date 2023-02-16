@@ -10,8 +10,8 @@ import (
 	capzpublicips "sigs.k8s.io/cluster-api-provider-azure/azure/services/publicips"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	"github.com/giantswarm/dns-operator-azure/azure"
-	"github.com/giantswarm/dns-operator-azure/azure/scope"
+	"github.com/giantswarm/dns-operator-azure/v2/azure"
+	"github.com/giantswarm/dns-operator-azure/v2/azure/scope"
 )
 
 const (

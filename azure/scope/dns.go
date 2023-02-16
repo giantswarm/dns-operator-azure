@@ -7,7 +7,7 @@ import (
 	"github.com/giantswarm/microerror"
 	"sigs.k8s.io/cluster-api-provider-azure/azure/scope"
 
-	"github.com/giantswarm/dns-operator-azure/pkg/errors"
+	"github.com/giantswarm/dns-operator-azure/v2/pkg/errors"
 )
 
 type BaseZoneCredentials struct {

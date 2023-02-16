@@ -10,7 +10,7 @@ import (
 	"github.com/giantswarm/microerror"
 	"sigs.k8s.io/cluster-api-provider-azure/api/v1beta1"
 
-	"github.com/giantswarm/dns-operator-azure/azure/scope"
+	"github.com/giantswarm/dns-operator-azure/v2/azure/scope"
 )
 
 type client interface {
