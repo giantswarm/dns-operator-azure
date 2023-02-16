@@ -22,6 +22,7 @@ bin
 *.swp
 *.swo
 *~
+.vscode
 
 # Ignore binary
 /dns-operator-azure

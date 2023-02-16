@@ -12,19 +12,15 @@ pod:
   group:
     id: 1000
 
-watchfilter: capi
+baseDomain: "azuretest.gigantic.io"
 
-# Config
-managementCluster:
-  name: ""
-  azure:
-    environmentName: ""
-    region: ""
-    credentials:
-      tenantID: ""
-      subscriptionID: ""
-      clientID: ""
-      clientSecret: ""
+azure:
+  baseDNSZone:
+    resourceGroup: ""
+    clientID: ""
+    clientSecret: ""
+    tenantID: ""
+    subscriptionID: ""
 
 verticalPodAutoscaler:
-  enabled: true
+  enabled: false

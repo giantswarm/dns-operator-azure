@@ -3,69 +3,45 @@ package dns
 import (
 	"context"
 
-	"github.com/Azure/azure-sdk-for-go/services/dns/mgmt/2018-05-01/dns"
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/dns/armdns"
 	"github.com/Azure/go-autorest/autorest/to"
-	"github.com/giantswarm/microerror"
-
-	"github.com/giantswarm/dns-operator-azure/azure"
 )
 
-func (s *Service) createNSRecords(ctx context.Context, nsRecords []azure.NSRecordSetSpec) error {
-	var err error
-	dnsSpec := s.Scope.DNSSpec()
-	if len(nsRecords) == 0 {
-		s.Scope.V(2).Info(
-			"All DNS NS records have already been created",
-			"DNSZone", dnsSpec.ZoneName)
-		return nil
+func (s *Service) deleteClusterNSRecords(ctx context.Context) error {
+
+	err := s.azureBaseZoneClient.DeleteRecordSet(
+		ctx,
+		s.scope.BaseDomainResourceGroup(),
+		s.scope.BaseDomain(),
+		armdns.RecordTypeNS,
+		s.scope.ClusterName(),
+	)
+	if err != nil {
+		return err
 	}
 
-	for _, nsRecord := range nsRecords {
-		var allNSDomainNames string
-		var nsRecords []dns.NsRecord
-		for i, nsdn := range nsRecord.NSDomainNames {
-			if i > 0 {
-				allNSDomainNames += ", " + nsdn.NSDomainName
-			} else {
-				allNSDomainNames += nsdn.NSDomainName
-			}
+	return nil
+}
 
-			nsDomainName := nsdn.NSDomainName
-			nsRecord := dns.NsRecord{
-				Nsdname: &nsDomainName,
-			}
-			nsRecords = append(nsRecords, nsRecord)
-		}
+// createClusterNSRecord create a NS record in the basedomain
+// for zone delegation
+func (s *Service) createClusterNSRecord(ctx context.Context, nameServerRecords []*armdns.NsRecord) error {
 
-		s.Scope.V(2).Info(
-			"Creating DNS NS record",
-			"DNSZone", dnsSpec.ZoneName,
-			"name", nsRecord.Name,
-			"NSDomainNames", allNSDomainNames)
-
-		recordSet := dns.RecordSet{
-			Type: to.StringPtr(string(dns.NS)),
-			RecordSetProperties: &dns.RecordSetProperties{
-				NsRecords: &nsRecords,
-				TTL:       to.Int64Ptr(nsRecord.TTL),
+	_, err := s.azureBaseZoneClient.CreateOrUpdateRecordSet(
+		ctx,
+		s.scope.BaseDomainResourceGroup(),
+		s.scope.BaseDomain(),
+		armdns.RecordTypeNS,
+		s.scope.ClusterName(),
+		armdns.RecordSet{
+			Properties: &armdns.RecordSetProperties{
+				TTL:       to.Int64Ptr(3600),
+				NsRecords: nameServerRecords,
 			},
-		}
-		_, err = s.client.CreateOrUpdateRecordSet(
-			ctx,
-			s.Scope.ResourceGroup(),
-			dnsSpec.ZoneName,
-			dns.NS,
-			nsRecord.Name,
-			recordSet)
-		if err != nil {
-			return microerror.Mask(err)
-		}
-
-		s.Scope.V(2).Info(
-			"Successfully created DNS NS record",
-			"DNSZone", dnsSpec.ZoneName,
-			"name", nsRecord.Name,
-			"NSDomainNames", allNSDomainNames)
+		},
+	)
+	if err != nil {
+		return err
 	}
 
 	return nil

@@ -7,7 +7,6 @@ metadata:
     {{- include "labels.common" . | nindent 4 }}
 spec:
   replicas: 1
-  revisionHistoryLimit: 3
   selector:
     matchLabels:
       {{- include "labels.selector" . | nindent 6 }}
@@ -30,28 +29,29 @@ spec:
         command:
         - /manager
         args:
-        - --watch-filter={{ .Values.watchfilter }}
+        - --base-domain={{ .Values.baseDomain }}
+        - --base-domain-resource-group={{ .Values.azure.baseDNSZone.resourceGroup }}
         env:
-        - name: MANAGEMENT_CLUSTER_NAME
-          value: {{ .Values.managementCluster.name }}
-        - name: MANAGEMENT_CLUSTER_AZURE_REGION
-          value: {{ .Values.managementCluster.azure.region }}
         - name: AZURE_TENANT_ID
-          value: {{ .Values.managementCluster.azure.credentials.tenantID }}
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "resource.default.name" . }}-azure-credentials
+              key: tenantID
         - name: AZURE_SUBSCRIPTION_ID
-          value: {{ .Values.managementCluster.azure.credentials.subscriptionID }}
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "resource.default.name" . }}-azure-credentials
+              key: subscriptionID
         - name: AZURE_CLIENT_ID
-          value: {{ .Values.managementCluster.azure.credentials.clientID }}
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "resource.default.name" . }}-azure-credentials
+              key: clientID
         - name: AZURE_CLIENT_SECRET
-          value: {{ .Values.managementCluster.azure.credentials.clientSecret }}
-        - name: NODE_NAME
           valueFrom:
-            fieldRef:
-              fieldPath: spec.nodeName
-        - name: POD_NAME
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.name
+            secretKeyRef:
+              name: {{ include "resource.default.name" . }}-azure-credentials
+              key: clientSecret
         - name: POD_NAMESPACE
           valueFrom:
             fieldRef:

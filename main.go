@@ -17,22 +17,23 @@ limitations under the License.
 package main
 
 import (
-	"context"
 	"flag"
 	"fmt"
+	"os"
+	"time"
 
 	aadpodv1 "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	"github.com/giantswarm/microerror"
-	"github.com/giantswarm/micrologger"
+	"go.uber.org/zap/zapcore"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
-	capz "sigs.k8s.io/cluster-api-provider-azure/api/v1alpha4"
-	"sigs.k8s.io/cluster-api-provider-azure/util/reconciler"
-	capi "sigs.k8s.io/cluster-api/api/v1alpha4"
+	capz "sigs.k8s.io/cluster-api-provider-azure/api/v1beta1"
+	capi "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/cluster-api/util/record"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/giantswarm/dns-operator-azure/controllers"
@@ -45,6 +46,13 @@ var (
 	setupLog = ctrl.Log.WithName("setup")
 )
 
+const (
+	SubscriptionId = "AZURE_SUBSCRIPTION_ID"
+	TenantId       = "AZURE_TENANT_ID"
+	ClientId       = "AZURE_CLIENT_ID"
+	ClientSecret   = "AZURE_CLIENT_SECRET" //nolint
+)
+
 func init() {
 	_ = clientgoscheme.AddToScheme(scheme)
 
@@ -53,7 +61,7 @@ func init() {
 	// +kubebuilder:scaffold:scheme
 
 	// Add aadpodidentity v1 to the scheme.
-	scheme.AddKnownTypes(aadpodv1.SchemeGroupVersion,
+	scheme.AddKnownTypes(schema.GroupVersion{Group: aadpodv1.GroupName, Version: "v1"},
 		&aadpodv1.AzureIdentity{},
 		&aadpodv1.AzureIdentityList{},
 		&aadpodv1.AzureIdentityBinding{},
@@ -72,31 +80,42 @@ func main() {
 }
 
 func mainError() error {
-	var metricsAddr string
-	var enableLeaderElection bool
-	var watchFilterValue string
+	var (
+		metricsAddr             string
+		enableLeaderElection    bool
+		baseDomain              string
+		baseDomainResourceGroup string
+		baseZoneClientID        string
+		baseZoneClientSecret    string
+		baseZoneSubscriptionID  string
+		baseZoneTenantID        string
+		syncPeriod              time.Duration
+		clusterConcurrency      int
+	)
 
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
 
 	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
+	flag.StringVar(&baseDomain, "base-domain", "",
+		"Domain for which to create the DNS entries, e.g. customer.gigantic.io.")
+	flag.StringVar(&baseDomainResourceGroup, "base-domain-resource-group", "",
+		"Resource Group where the base-domain is placed.")
+	flag.DurationVar(&syncPeriod, "sync-period", 5*time.Minute,
+		"The minimum interval at which watched resources are reconciled (e.g. 15m)")
+	flag.IntVar(&clusterConcurrency, "cluster-concurrency", 5,
+		"Number of clusters to process simultaneously")
 
-	flag.StringVar(
-		&watchFilterValue,
-		"watch-filter",
-		"",
-		fmt.Sprintf("Label value that the controller watches to reconcile cluster-api objects. Label key is always %s. If unspecified, the controller watches for all cluster-api objects.", capi.WatchLabel),
-	)
-
+	// configure the logger
+	opts := zap.Options{
+		Development: true,
+		TimeEncoder: zapcore.RFC3339TimeEncoder,
+	}
+	opts.BindFlags(flag.CommandLine)
 	flag.Parse()
 
-	ctx := context.Background()
-	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
-	logger, err := micrologger.New(micrologger.Config{})
-	if err != nil {
-		return microerror.Mask(err)
-	}
+	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
 	restConfig := ctrl.GetConfigOrDie()
 	restConfig.UserAgent = "dns-operator-azure"
@@ -105,34 +124,45 @@ func mainError() error {
 		MetricsBindAddress: metricsAddr,
 		Port:               9443,
 		LeaderElection:     enableLeaderElection,
-		LeaderElectionID:   "2af49e02.giantswarm.io",
+		LeaderElectionID:   "dns-operator-azure-leader-election",
+		SyncPeriod:         &syncPeriod,
 	})
 	if err != nil {
-		logger.Errorf(ctx, errors.FatalError, "unable to start manager")
+		setupLog.Error(errors.FatalError, "unable to start manager")
 		return microerror.Mask(err)
 	}
 
 	// Initialize event recorder.
 	record.InitFromRecorder(mgr.GetEventRecorderFor("dns-operator-azure"))
 
-	// if err = (&controllers.AzureClusterReconciler{
-	// 	Client:      mgr.GetClient(),
-	// 	Micrologger: logger.With("controllers", "AzureCluster"),
-	// 	Scheme:      mgr.GetScheme(),
-	// }).SetupWithManager(mgr); err != nil {
-	// 	logger.Errorf(ctx, errors.FatalError, "unable to create controller AzureCluster")
-	// 	return microerror.Mask(err)
-	// }
-	azureClusterReconciler := controllers.NewAzureClusterReconciler(
-		mgr.GetClient(),
-		logger,
-		mgr.GetEventRecorderFor("azurecluster-reconciler"),
-		reconciler.DefaultLoopTimeout,
-		watchFilterValue)
+	baseZoneSubscriptionID = os.Getenv(SubscriptionId)
+	if baseZoneSubscriptionID == "" {
+		return microerror.Mask(fmt.Errorf("environment variable %s not set", SubscriptionId))
+	}
+	baseZoneClientID = os.Getenv(ClientId)
+	if baseZoneClientID == "" {
+		return microerror.Mask(fmt.Errorf("environment variable %s not set", ClientId))
+	}
+	baseZoneClientSecret = os.Getenv(ClientSecret)
+	if baseZoneClientSecret == "" {
+		return microerror.Mask(fmt.Errorf("environment variable %s not set", ClientSecret))
+	}
+	baseZoneTenantID = os.Getenv(TenantId)
+	if baseZoneTenantID == "" {
+		return microerror.Mask(fmt.Errorf("environment variable %s not set", TenantId))
+	}
 
-	if err = azureClusterReconciler.SetupWithManager(mgr); err != nil {
-		logger.Errorf(ctx, errors.FatalError, "unable to start manager")
-		setupLog.Error(err, "unable to create controller", "controller", "AzureCluster")
+	if err = (&controllers.AzureClusterReconciler{
+		Client:                  mgr.GetClient(),
+		BaseDomain:              baseDomain,
+		BaseDomainResourceGroup: baseDomainResourceGroup,
+		BaseZoneClientID:        baseZoneClientID,
+		BaseZoneClientSecret:    baseZoneClientSecret,
+		BaseZoneSubscriptionID:  baseZoneSubscriptionID,
+		BaseZoneTenantID:        baseZoneTenantID,
+		Recorder:                mgr.GetEventRecorderFor("azurecluster-reconciler"),
+	}).SetupWithManager(mgr, controller.Options{MaxConcurrentReconciles: clusterConcurrency}); err != nil {
+		setupLog.Error(errors.FatalError, "unable to create controller AzureCluster")
 		return microerror.Mask(err)
 	}
 
@@ -140,7 +170,7 @@ func mainError() error {
 
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
-		logger.Errorf(ctx, errors.FatalError, "problem running manager")
+		setupLog.Error(errors.FatalError, "problem running manager")
 		return microerror.Mask(err)
 	}
 

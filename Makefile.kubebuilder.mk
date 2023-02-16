@@ -1,10 +1,17 @@
 
 # Image URL to use all building/pushing image targets
 IMG ?= dns-operator-azure:latest
-# Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
-CRD_OPTIONS ?= "crd:trivialVersions=true"
 
 RELEASE_DIR := out
+
+# Directories
+TOOLS_DIR := hack/tools
+TOOLS_DIR_DEPS := $(TOOLS_DIR)/go.sum $(TOOLS_DIR)/go.mod $(TOOLS_DIR)/Makefile
+TOOLS_BIN_DIR := $(TOOLS_DIR)/bin
+
+# Binaries
+CONTROLLER_GEN := $(TOOLS_BIN_DIR)/controller-gen
+PATH := $(abspath $(TOOLS_BIN_DIR)):$(PATH)
 
 $(RELEASE_DIR):
 	mkdir -p $(RELEASE_DIR)/
@@ -33,8 +40,7 @@ deploy: manifests
 
 # Generate manifests e.g. CRD, RBAC etc.
 manifests: controller-gen
-	#$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
-	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..."
+	$(CONTROLLER_GEN) rbac:roleName=manager-role paths="./..." output:rbac:dir=config/rbac
 
 .PHONY: generate-manifests
 generate-manifests: $(RELEASE_DIR) ## Builds the manifests to publish with a release

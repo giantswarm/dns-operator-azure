@@ -7,10 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+
+### Added
+
+- Add support for private IP endpoints from `azurecluster.spec.network.loadbalancer`.
+- Add documentation.
+
 ### Changed
 
+
+- Changed to a flat DNS schema which we have for CAPI clusters.
 - Add VerticalPodAutoscaler CR.
 - `PodSecurityPolicy` are removed on newer k8s versions, so only apply it if object is registered in the k8s API.
+
+### Removed
+
+- Removed `CNAME` creation.
 
 ## [0.4.0] - 2021-10-11
 
