@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Push stable releases to `control-plane-catalog`.
+
 ## [1.0.0] - 2023-02-16
 
 
@@ -16,7 +20,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add documentation.
 
 ### Changed
-
 
 - Changed to a flat DNS schema which we have for CAPI clusters.
 - Add VerticalPodAutoscaler CR.
