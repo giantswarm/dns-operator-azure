@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `dns-operator-azure` run in `hostNetwork`
+
 ## [1.0.1] - 2023-02-16
 
 ### Fixed
