@@ -104,11 +104,11 @@ require (
 	go.uber.org/multierr v1.8.0 // indirect
 	golang.org/x/crypto v0.4.0 // indirect
 	golang.org/x/mod v0.6.0 // indirect
-	golang.org/x/net v0.4.0 // indirect
+	golang.org/x/net v0.7.0 // indirect
 	golang.org/x/oauth2 v0.0.0-20221014153046-6fdb5e3db783 // indirect
-	golang.org/x/sys v0.3.0 // indirect
-	golang.org/x/term v0.3.0 // indirect
-	golang.org/x/text v0.5.0 // indirect
+	golang.org/x/sys v0.5.0 // indirect
+	golang.org/x/term v0.5.0 // indirect
+	golang.org/x/text v0.7.0 // indirect
 	golang.org/x/time v0.0.0-20220609170525-579cf78fd858 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.2.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
@@ -134,7 +134,7 @@ require (
 replace (
 	github.com/Microsoft/hcsshim v0.8.7 => github.com/Microsoft/hcsshim v0.8.21
 	github.com/aws/aws-sdk-go => github.com/aws/aws-sdk-go v1.44.174
-	github.com/containerd/containerd => github.com/containerd/containerd v1.6.15
+	github.com/containerd/containerd => github.com/containerd/containerd v1.6.18
 	github.com/coreos/etcd v3.3.13+incompatible => github.com/coreos/etcd v3.3.24+incompatible
 	github.com/dgrijalva/jwt-go => github.com/dgrijalva/jwt-go/v4 v4.0.0-preview1
 	helm.sh/helm/v3 => helm.sh/helm/v3 v3.10.3
