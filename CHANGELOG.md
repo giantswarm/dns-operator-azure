@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- To make private CAPZ clusters work for now, an additional `A-Record` (called `apiserver`) for the API-Server got created.
+
 ## [1.0.2] - 2023-02-22
 
 ### Fixed
