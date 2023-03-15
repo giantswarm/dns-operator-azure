@@ -149,24 +149,24 @@ func (s *Service) getDesiredARecords() []azure.ARecordSetSpec {
 		aRecordSetSpec = append(aRecordSetSpec, azure.ARecordSetSpec{
 			Hostname:     "api",
 			PublicIPName: s.scope.APIServerPrivateIP(),
-			TTL:          3600,
+			TTL:          300,
 		},
 			azure.ARecordSetSpec{
 				Hostname:     "apiserver",
 				PublicIPName: s.scope.APIServerPrivateIP(),
-				TTL:          3600,
+				TTL:          300,
 			},
 		)
 	case !s.scope.IsAPIServerPrivate():
 		aRecordSetSpec = append(aRecordSetSpec, azure.ARecordSetSpec{
 			Hostname:     "api",
 			PublicIPName: s.scope.APIServerPublicIP().Name,
-			TTL:          3600,
+			TTL:          300,
 		},
 			azure.ARecordSetSpec{
 				Hostname:     "apiserver",
 				PublicIPName: s.scope.APIServerPublicIP().Name,
-				TTL:          3600,
+				TTL:          300,
 			},
 		)
 	}
