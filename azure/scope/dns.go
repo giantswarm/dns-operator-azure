@@ -3,6 +3,7 @@ package scope
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/giantswarm/microerror"
 	"sigs.k8s.io/cluster-api-provider-azure/azure/scope"
@@ -24,6 +25,8 @@ type DNSScopeParams struct {
 	BaseDomain              string
 	BaseDomainResourceGroup string
 	BaseZoneCredentials     BaseZoneCredentials
+
+	BastionIP string
 }
 
 // DNSScope defines the basic context for an actuator to operate upon.
@@ -33,6 +36,7 @@ type DNSScope struct {
 	baseDomain              string
 	baseDomainResourceGroup string
 	baseZoneCredentials     BaseZoneCredentials
+	bastionIP               string
 }
 
 func NewDNSScope(_ context.Context, params DNSScopeParams) (*DNSScope, error) {
@@ -53,6 +57,7 @@ func NewDNSScope(_ context.Context, params DNSScopeParams) (*DNSScope, error) {
 		baseDomain:              params.BaseDomain,
 		baseDomainResourceGroup: params.BaseDomainResourceGroup,
 		baseZoneCredentials:     params.BaseZoneCredentials,
+		bastionIP:               params.BastionIP,
 	}
 
 	return scope, nil
@@ -60,6 +65,15 @@ func NewDNSScope(_ context.Context, params DNSScopeParams) (*DNSScope, error) {
 
 func (s *DNSScope) APIEndpoint() string {
 	return s.APIServerPublicIP().Name
+}
+
+func (s *DNSScope) BastionIPList() string {
+	//s.ClusterScope.AzureCluster.GetAnnotations()
+	return s.bastionIP
+}
+
+func (s *DNSScope) BastionIP() []string {
+	return strings.Split(s.bastionIP, ",")
 }
 
 func (s *DNSScope) BaseDomain() string {

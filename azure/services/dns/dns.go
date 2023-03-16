@@ -53,6 +53,20 @@ func New(scope scope.DNSScope, publicIPsService *capzpublicips.Service) (*Servic
 	}, nil
 }
 
+// New creates a new dns service.
+func NewZone(scope scope.DNSScope) (*Service, error) {
+	azureClient, err := newAzureClient(scope.AzureCluster)
+
+	if err != nil {
+		return nil, microerror.Mask(err)
+	}
+
+	return &Service{
+		scope:       scope,
+		azureClient: azureClient,
+	}, nil
+}
+
 // Reconcile creates or updates the DNS zone, and creates DNS A and CNAME records.
 func (s *Service) Reconcile(ctx context.Context) error {
 	log := log.FromContext(ctx).WithName("azure-dns-create")
@@ -113,6 +127,30 @@ func (s *Service) Reconcile(ctx context.Context) error {
 	}
 
 	log.Info("Successfully reconciled DNS", "DNSZone", clusterZoneName)
+	return nil
+}
+
+func (s *Service) ReconcileBastion(ctx context.Context) error {
+
+	log := log.FromContext(ctx).WithName("azure-dns-create-bastion")
+
+	clusterZoneName := s.scope.ClusterDomain()
+	log.Info("Reconcile DNS", "Bastion", clusterZoneName)
+
+	// create DNS Zone
+	clusterRecordSets, err := s.azureClient.ListRecordSets(ctx, s.scope.ResourceGroup(), clusterZoneName)
+	if err != nil && !azure.IsParentResourceNotFound(err) {
+		return microerror.Mask(err)
+	}
+
+	// Create required A records.
+	log.Info("Reconcile DNS create A records", "Bastion", clusterZoneName)
+	if err := s.updateARecords(ctx, clusterRecordSets); err != nil {
+		return microerror.Mask(err)
+	}
+
+	log.Info("Successfully reconciled DNS", "Bastion", clusterZoneName)
+
 	return nil
 }
 

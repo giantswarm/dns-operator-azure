@@ -23,6 +23,17 @@ rules:
   - update
   - watch
 #
+# AzureMachines
+#
+- apiGroups:
+  - infrastructure.cluster.x-k8s.io
+  resources:
+  - azuremachines
+  verbs:
+  - get
+  - list
+  - watch
+#
 # AzureClusterIdentity
 #
 - apiGroups:

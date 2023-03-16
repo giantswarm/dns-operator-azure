@@ -16,6 +16,7 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/giantswarm/microerror"
@@ -42,6 +43,7 @@ import (
 
 const (
 	AzureClusterControllerFinalizer string = "dns-operator-azure.giantswarm.io/azurecluster"
+	BastionHostIPAnnotation         string = "dns-operator-azure.giantswarm.io/bastion-ip"
 )
 
 // AzureClusterReconciler reconciles a AzureCluster object
@@ -146,7 +148,7 @@ func (r *AzureClusterReconciler) reconcileNormal(ctx context.Context, clusterSco
 
 	var err error
 
-	// If the AzureCluster doesn't have our finalizer, add it.
+	// If the AzureCluster doesn't has our finalizer, add it.
 	if !controllerutil.ContainsFinalizer(azureCluster, AzureClusterControllerFinalizer) {
 		controllerutil.AddFinalizer(azureCluster, AzureClusterControllerFinalizer)
 		// Register the finalizer immediately to avoid orphaning cluster resources on delete
@@ -158,7 +160,7 @@ func (r *AzureClusterReconciler) reconcileNormal(ctx context.Context, clusterSco
 	// If a cluster isn't provisioned we don't need to reconcile it
 	// as not all information for creating DNS records are available yet.
 	if cluster.Status.Phase != string(capi.ClusterPhaseProvisioned) {
-		log.Info("Requeuing cluster %s - phase %s, ", cluster.Name, cluster.Status.Phase)
+		log.Info(fmt.Sprintf("Requeuing cluster %s - phase %s", cluster.Name, cluster.Status.Phase))
 		return ctrl.Result{RequeueAfter: 2 * time.Minute}, nil
 	}
 
@@ -175,6 +177,13 @@ func (r *AzureClusterReconciler) reconcileNormal(ctx context.Context, clusterSco
 			SubscriptionID: r.BaseZoneSubscriptionID,
 			TenantID:       r.BaseZoneTenantID,
 		},
+	}
+
+	// add the bastionIP from the annotations
+	clusterAnnotations := azureCluster.GetAnnotations()
+	if clusterAnnotations[BastionHostIPAnnotation] != "" {
+		log.V(1).Info("bastion host annotation is not empty")
+		params.BastionIP = clusterAnnotations[BastionHostIPAnnotation]
 	}
 
 	dnsScope, err := scope.NewDNSScope(ctx, params)
