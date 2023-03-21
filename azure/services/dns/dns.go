@@ -72,6 +72,7 @@ func (s *Service) Reconcile(ctx context.Context) error {
 			return microerror.Mask(err)
 		}
 	}
+	log.Info("ClusterRecordSet Fetched")
 
 	// get cluster specific zone information
 	clusterZone, err := s.azureClient.GetZone(ctx, s.scope.ResourceGroup(), clusterZoneName)
