@@ -61,6 +61,8 @@ func (s *Service) Reconcile(ctx context.Context) error {
 	log.Info("Reconcile DNS", "DNSZone", clusterZoneName)
 
 	// create DNS Zone
+	log.Info("ClusterRecordSet Fetching %s/%s", s.scope.ResourceGroup(), clusterZoneName)
+	log.Info("ClusterRecordSet Credentials %v", s.azureClient)
 	clusterRecordSets, err := s.azureClient.ListRecordSets(ctx, s.scope.ResourceGroup(), clusterZoneName)
 	if err != nil && !azure.IsParentResourceNotFound(err) {
 		return microerror.Mask(err)
