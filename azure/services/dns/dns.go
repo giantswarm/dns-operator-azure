@@ -62,8 +62,6 @@ func (s *Service) Reconcile(ctx context.Context) error {
 	log.Info("Reconcile DNS", "DNSZone", clusterZoneName)
 
 	// create DNS Zone
-	log.Info(fmt.Sprintf("ClusterRecordSet fetching %s/%s", s.scope.ResourceGroup(), clusterZoneName))
-	log.Info(fmt.Sprintf("ClusterRecordSet Credentials %v", s.azureClient))
 	clusterRecordSets, err := s.azureClient.ListRecordSets(ctx, s.scope.ResourceGroup(), clusterZoneName)
 	if err != nil && !azure.IsParentResourceNotFound(err) {
 		return microerror.Mask(err)
@@ -73,7 +71,6 @@ func (s *Service) Reconcile(ctx context.Context) error {
 			return microerror.Mask(err)
 		}
 	}
-	log.Info("ClusterRecordSet Fetched")
 
 	// get cluster specific zone information
 	clusterZone, err := s.azureClient.GetZone(ctx, s.scope.ResourceGroup(), clusterZoneName)
