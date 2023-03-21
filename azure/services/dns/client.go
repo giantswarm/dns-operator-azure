@@ -30,7 +30,11 @@ type azureClient struct {
 var _ client = (*azureClient)(nil)
 
 func newAzureClient(azureCluster *v1beta1.AzureCluster) (*azureClient, error) {
-	cred, err := azidentity.NewDefaultAzureCredential(nil)
+	// Hardcode the CAPZ IDentity for testing
+	resourceID := azidentity.ResourceID("/subscriptions/5a16b9e0-fb22-4e7e-b544-09f8ccab5dc8/resourcegroups/garlic/providers/Microsoft.ManagedIdentity/userAssignedIdentities/garlic-capz")
+	opts = azidentity.ManagedIdentityCredentialOptions{ID: resourceID}
+	cred, err = azidentity.NewManagedIdentityCredential(&opts)
+	//cred, err := azidentity.NewDefaultAzureCredential(nil)
 	if err != nil {
 		return nil, microerror.Mask(err)
 	}
