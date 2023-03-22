@@ -167,14 +167,8 @@ func mainError() error {
 	}
 
 	if err = (&controllers.AzureMachineReconciler{
-		Client:                  mgr.GetClient(),
-		BaseDomain:              baseDomain,
-		BaseDomainResourceGroup: baseDomainResourceGroup,
-		BaseZoneClientID:        baseZoneClientID,
-		BaseZoneClientSecret:    baseZoneClientSecret,
-		BaseZoneSubscriptionID:  baseZoneSubscriptionID,
-		BaseZoneTenantID:        baseZoneTenantID,
-		Recorder:                mgr.GetEventRecorderFor("azuremachine-reconciler"),
+		Client:   mgr.GetClient(),
+		Recorder: mgr.GetEventRecorderFor("azuremachine-reconciler"),
 	}).SetupWithManager(mgr, controller.Options{MaxConcurrentReconciles: clusterConcurrency}); err != nil {
 		setupLog.Error(errors.FatalError, "unable to create controller AzureMachine")
 		return microerror.Mask(err)

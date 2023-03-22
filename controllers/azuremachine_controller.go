@@ -18,6 +18,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -28,13 +29,6 @@ const (
 
 type AzureMachineReconciler struct {
 	client.Client
-
-	BaseDomain              string
-	BaseDomainResourceGroup string
-	BaseZoneClientID        string
-	BaseZoneClientSecret    string
-	BaseZoneSubscriptionID  string
-	BaseZoneTenantID        string
 
 	Recorder record.EventRecorder
 }
@@ -165,6 +159,15 @@ func (r *AzureMachineReconciler) reconcileNormal(ctx context.Context, azureMachi
 	log := log.FromContext(ctx)
 	log.Info("Reconciling Bastion IP discovery")
 
+	// If the AzureCluster doesn't has our finalizer, add it.
+	if !controllerutil.ContainsFinalizer(azureMachineScope.AzureMachine, AzureMachineControllerFinalizer) {
+		controllerutil.AddFinalizer(azureMachineScope.AzureMachine, AzureMachineControllerFinalizer)
+		// Register the finalizer immediately to avoid orphaning cluster resources on delete
+		if err := r.Update(ctx, azureMachineScope.AzureMachine); err != nil {
+			return reconcile.Result{}, microerror.Mask(err)
+		}
+	}
+
 	bastionIP := getClusterBastionIPsFromAnnotation(ctx, clusterScope)
 
 	for _, addr := range azureMachineScope.AzureMachine.Status.Addresses {
@@ -174,7 +177,7 @@ func (r *AzureMachineReconciler) reconcileNormal(ctx context.Context, azureMachi
 	}
 
 	// remove duplicate entries (if there are any)
-	bastionIP = slices.Compact[[]string](bastionIP)
+	bastionIP = slices.Compact(bastionIP)
 
 	clusterScope.SetAnnotation(BastionHostIPAnnotation, strings.Join(bastionIP, ","))
 
@@ -199,10 +202,12 @@ func (r *AzureMachineReconciler) reconcileDelete(ctx context.Context, azureMachi
 		}
 	}
 
-	//todo
-	// add an annotation to the machine that the ip got reflected to the azurecluster
-
 	clusterScope.SetAnnotation(BastionHostIPAnnotation, strings.Join(bastionIP, ","))
+
+	// remove finalizer
+	if controllerutil.ContainsFinalizer(azureMachineScope.AzureMachine, AzureMachineControllerFinalizer) {
+		controllerutil.RemoveFinalizer(azureMachineScope.AzureMachine, AzureMachineControllerFinalizer)
+	}
 
 	log.Info("Successfully reconciled Bastion IP deletion")
 
