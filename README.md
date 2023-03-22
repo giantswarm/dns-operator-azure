@@ -6,8 +6,9 @@
 
 * `NS`: `<clustername>` in DNS zone `<baseDomain>`
 * `A`: `api` in DNS zone `<clustername>` in `AzureCluster` resource group. This record points to the kubernetes API IP of a `cluster`
+* `A`: `bastion` in DNS zone `<clustername>` in `AzureCluster` resource group. This record points the the bastion host IP (managed via a `machineDeployment`) of a `cluster`
 
-> the TTL is set to 1h. This might change in the future or will became configurable.
+> the TTL is set to 5m for the A records and 1h for the NS record. This might change in the future or will became configurable.
 
 ## reconciliation loop
 
@@ -15,9 +16,11 @@ This is a simplified version of the reconciliation loop:
 
 ![](dns-operator.png)
 
-## finalizer
+## finalizer & annotations
 
-The operator set the finalizer `dns-operator-azure.finalizers.giantswarm.io` on the `AzureCluster` CR.
+* The operator set the finalizer `dns-operator-azure.giantswarm.io/azurecluster` on the `AzureCluster` CR.
+* The operator set the finalizer `dns-operator-azure.giantswarm.io/azuremachine` on the `AzureMachine` CR.
+* The operator set the annotation `dns-operator-azure.giantswarm.io/bastion-ip` on the `AzureCluster` CR.
 
 ## cluster deletion
 
