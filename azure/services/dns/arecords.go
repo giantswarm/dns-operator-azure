@@ -25,6 +25,9 @@ const (
 	bastion1RecordName  = "bastion1"
 	apiRecordName       = "api"
 	apiserverRecordName = "apiserver"
+
+	apiRecordTTL     = 300
+	bastionRecordTTL = 300
 )
 
 func (s *Service) calculateMissingARecords(ctx context.Context, logger logr.Logger, currentRecordSets []*armdns.RecordSet) ([]*armdns.RecordSet, error) {
@@ -128,7 +131,7 @@ func (s *Service) getDesiredARecords(ctx context.Context) ([]*armdns.RecordSet, 
 			Name: to.StringPtr(apiRecordName),
 			Type: to.StringPtr(string(armdns.RecordTypeA)),
 			Properties: &armdns.RecordSetProperties{
-				TTL: to.Int64Ptr(300),
+				TTL: to.Int64Ptr(apiRecordTTL),
 			},
 		},
 		// apiserver A-Record
@@ -136,7 +139,7 @@ func (s *Service) getDesiredARecords(ctx context.Context) ([]*armdns.RecordSet, 
 			Name: to.StringPtr(apiserverRecordName),
 			Type: to.StringPtr(string(armdns.RecordTypeA)),
 			Properties: &armdns.RecordSetProperties{
-				TTL: to.Int64Ptr(300),
+				TTL: to.Int64Ptr(apiRecordTTL),
 			},
 		})
 
@@ -180,7 +183,7 @@ func (s *Service) getDesiredARecords(ctx context.Context) ([]*armdns.RecordSet, 
 				Name: to.StringPtr(bastionRecordName),
 				Type: to.StringPtr(string(armdns.RecordTypeA)),
 				Properties: &armdns.RecordSetProperties{
-					TTL: to.Int64Ptr(300),
+					TTL: to.Int64Ptr(bastionRecordTTL),
 				},
 			},
 			// bastion1 A-Record
@@ -188,7 +191,7 @@ func (s *Service) getDesiredARecords(ctx context.Context) ([]*armdns.RecordSet, 
 				Name: to.StringPtr(bastion1RecordName),
 				Type: to.StringPtr(string(armdns.RecordTypeA)),
 				Properties: &armdns.RecordSetProperties{
-					TTL: to.Int64Ptr(300),
+					TTL: to.Int64Ptr(bastionRecordTTL),
 				},
 			})
 
