@@ -63,71 +63,72 @@ func (r *AzureMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return reconcile.Result{}, microerror.Mask(err)
 	}
 
-	cluster, err := util.GetClusterFromMetadata(ctx, r.Client, azureMachine.ObjectMeta)
-	if err != nil {
-		return reconcile.Result{}, microerror.Mask(err)
-	}
-
-	azureCluster := &capz.AzureCluster{}
-	log.V(1).Info(fmt.Sprintf("try to get the cluster - %s", cluster.Spec.InfrastructureRef.Name))
-
-	err = r.Client.Get(ctx, types.NamespacedName{
-		Name:      cluster.Spec.InfrastructureRef.Name,
-		Namespace: cluster.Spec.InfrastructureRef.Namespace,
-	}, azureCluster)
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			log.V(1).Info("cluster object was not found", "error", err)
-			return reconcile.Result{}, nil
-		}
-		return reconcile.Result{}, microerror.Mask(err)
-	}
-
-	// Return early if the objects or Cluster is paused.
-	if annotations.IsPaused(cluster, azureMachine) || annotations.IsPaused(cluster, machine) {
-		log.Info("Machine, AzureMachine or linked Cluster is marked as paused. Won't reconcile")
-		return ctrl.Result{}, nil
-	}
-
-	// Create the scope.
-	machineScope, err := capzscope.NewMachineScope(capzscope.MachineScopeParams{
-		Client:       r.Client,
-		Machine:      machine,
-		AzureMachine: azureMachine,
-	})
-	if err != nil {
-		log.Error(err, "failed to create machine scope")
-		return reconcile.Result{}, microerror.Mask(err)
-	}
-
-	defer func() {
-		if err := machineScope.Close(ctx); err != nil && reterr == nil {
-			reterr = microerror.Mask(err)
-		}
-	}()
-
-	// Create the cluster scope
-	// needed to get cluster credentials to act on clusters domain
-	clusterScope, err := capzscope.NewClusterScope(ctx, capzscope.ClusterScopeParams{
-		Client:       r.Client,
-		Cluster:      cluster,
-		AzureCluster: azureCluster,
-	})
-	if err != nil {
-		log.Error(err, "failed to create cluster scope")
-		return reconcile.Result{}, microerror.Mask(err)
-	}
-
-	defer func() {
-		if err := clusterScope.Close(ctx); err != nil && reterr == nil {
-			reterr = microerror.Mask(err)
-		}
-	}()
-
 	// only continue reconcilation if the bastion label is set
-	azureMachineLabels := machineScope.AzureMachine.GetLabels()
+	azureMachineLabels := azureMachine.GetLabels()
 	// TODO: change the role label as `cluster.x-k8s.io/role` sounds very CAPI common (which is not)
 	if azureMachineLabels["cluster.x-k8s.io/role"] == "bastion" {
+
+		cluster, err := util.GetClusterFromMetadata(ctx, r.Client, azureMachine.ObjectMeta)
+		if err != nil {
+			return reconcile.Result{}, microerror.Mask(err)
+		}
+
+		// Return early if the objects or Cluster is paused.
+		if annotations.IsPaused(cluster, azureMachine) || annotations.IsPaused(cluster, machine) {
+			log.Info("Machine, AzureMachine or linked Cluster is marked as paused. Won't reconcile")
+			return ctrl.Result{}, nil
+		}
+
+		// Create the scope.
+		machineScope, err := capzscope.NewMachineScope(capzscope.MachineScopeParams{
+			Client:       r.Client,
+			Machine:      machine,
+			AzureMachine: azureMachine,
+		})
+		if err != nil {
+			log.Error(err, "failed to create machine scope")
+			return reconcile.Result{}, microerror.Mask(err)
+		}
+
+		defer func() {
+			if err := machineScope.Close(ctx); err != nil && reterr == nil {
+				reterr = microerror.Mask(err)
+			}
+		}()
+
+		azureCluster := &capz.AzureCluster{}
+		log.V(1).Info(fmt.Sprintf("try to get the cluster - %s", cluster.Spec.InfrastructureRef.Name))
+
+		err = r.Client.Get(ctx, types.NamespacedName{
+			Name:      cluster.Spec.InfrastructureRef.Name,
+			Namespace: cluster.Spec.InfrastructureRef.Namespace,
+		}, azureCluster)
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				log.V(1).Info("cluster object was not found", "error", err)
+				return reconcile.Result{}, nil
+			}
+			return reconcile.Result{}, microerror.Mask(err)
+		}
+
+		// Create the cluster scope
+		// needed to get cluster credentials to act on clusters domain
+		clusterScope, err := capzscope.NewClusterScope(ctx, capzscope.ClusterScopeParams{
+			Client:       r.Client,
+			Cluster:      cluster,
+			AzureCluster: azureCluster,
+		})
+		if err != nil {
+			log.Error(err, "failed to create cluster scope")
+			return reconcile.Result{}, microerror.Mask(err)
+		}
+
+		defer func() {
+			if err := clusterScope.Close(ctx); err != nil && reterr == nil {
+				reterr = microerror.Mask(err)
+			}
+		}()
+
 		// Handle deleted machines
 		if !machine.DeletionTimestamp.IsZero() || !azureMachine.DeletionTimestamp.IsZero() {
 			return r.reconcileDelete(ctx, machineScope, clusterScope)
@@ -143,7 +144,7 @@ func (r *AzureMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		}
 	}
 
-	log.V(1).Info("machine doesn't met required conditions and labels", "machine", machineScope.AzureMachine.Name)
+	log.V(1).Info("machine doesn't met required conditions and labels", "machine", azureMachine.Name)
 
 	return reconcile.Result{}, nil
 }
