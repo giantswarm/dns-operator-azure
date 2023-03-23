@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Push new releases to `capz-app-collection`
+- Create `bastion` and `bastion1` record for the bastion host based `machineDeployment`
 
 ### Changed
 

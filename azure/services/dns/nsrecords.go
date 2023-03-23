@@ -7,6 +7,10 @@ import (
 	"github.com/Azure/go-autorest/autorest/to"
 )
 
+const (
+	zoneRecordTTL = 3600
+)
+
 func (s *Service) deleteClusterNSRecords(ctx context.Context) error {
 
 	err := s.azureBaseZoneClient.DeleteRecordSet(
@@ -35,7 +39,7 @@ func (s *Service) createClusterNSRecord(ctx context.Context, nameServerRecords [
 		s.scope.ClusterName(),
 		armdns.RecordSet{
 			Properties: &armdns.RecordSetProperties{
-				TTL:       to.Int64Ptr(3600),
+				TTL:       to.Int64Ptr(zoneRecordTTL),
 				NsRecords: nameServerRecords,
 			},
 		},

@@ -166,6 +166,14 @@ func mainError() error {
 		return microerror.Mask(err)
 	}
 
+	if err = (&controllers.AzureMachineReconciler{
+		Client:   mgr.GetClient(),
+		Recorder: mgr.GetEventRecorderFor("azuremachine-reconciler"),
+	}).SetupWithManager(mgr, controller.Options{MaxConcurrentReconciles: clusterConcurrency}); err != nil {
+		setupLog.Error(errors.FatalError, "unable to create controller AzureMachine")
+		return microerror.Mask(err)
+	}
+
 	// +kubebuilder:scaffold:builder
 
 	setupLog.Info("starting manager")

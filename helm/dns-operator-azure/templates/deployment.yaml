@@ -32,6 +32,7 @@ spec:
         args:
         - --base-domain={{ .Values.baseDomain }}
         - --base-domain-resource-group={{ .Values.azure.baseDNSZone.resourceGroup }}
+        - --zap-log-level=info
         env:
         - name: AZURE_TENANT_ID
           valueFrom:

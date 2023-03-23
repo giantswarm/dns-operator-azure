@@ -2,15 +2,22 @@
 autonumber
 
 database "Cluster API Infra CR" as capiInfraCR #blue
+database "Cluster API AzureMachine CR" as capzMachineCR #blue
 control "dns-operator-azure" as dnsOperator #blue
 participant "Azure DNS basedomain zone" as azureDNSBasedomainZone #DeepSkyBlue
 participant "Azure DNS cluster zone" as azureDNSClusterZone #DeepSkyBlue
 
 dnsOperator -> capiInfraCR: reconcile on ""AzureCluster"" CR
 dnsOperator -> capiInfraCR: set the finalizer
+dnsOperator -> capzMachineCR: reconcile on ""AzureMachine"" CR
+dnsOperator -> capzMachineCR: set the finalizer
+dnsOperator -> capzMachineCR: get the bastion host IP
+dnsOperator -> capiInfraCR: write the bastion host IP as annotation
 dnsOperator -> azureDNSClusterZone: create a public DNS zone ""<clusterName>.<baseDomain>""
 dnsOperator -> azureDNSBasedomainZone: create ""NS record"" in ""<baseDomain>"" for zone delegation to ""<clusterName>.<baseDomain>""
 dnsOperator -> capiInfraCR: get controlPlane IP address
+dnsOperator -> capiInfraCR: get bastion IP addresses
 dnsOperator -> azureDNSClusterZone: create ""A record"" ( ""api.<clusterName>.<baseDomain>"" ) for controlPlane IP address
+dnsOperator -> azureDNSClusterZone: create ""A record"" ( ""bastion.<clusterName>.<baseDomain>"" ) for bastion IP address
 
 @enduml
