@@ -164,8 +164,8 @@ func (r *AzureMachineReconciler) reconcileNormal(ctx context.Context, azureMachi
 	if !controllerutil.ContainsFinalizer(azureMachineScope.AzureMachine, AzureMachineControllerFinalizer) {
 		controllerutil.AddFinalizer(azureMachineScope.AzureMachine, AzureMachineControllerFinalizer)
 		// Register the finalizer immediately to avoid orphaning cluster resources on delete
-		if err := r.Update(ctx, azureMachineScope.AzureMachine); err != nil {
-			return reconcile.Result{}, microerror.Mask(err)
+		if err := azureMachineScope.PatchObject(ctx); err != nil {
+			return reconcile.Result{}, err
 		}
 	}
 

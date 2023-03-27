@@ -152,9 +152,9 @@ func (r *AzureClusterReconciler) reconcileNormal(ctx context.Context, clusterSco
 	// If the AzureCluster doesn't has our finalizer, add it.
 	if !controllerutil.ContainsFinalizer(azureCluster, AzureClusterControllerFinalizer) {
 		controllerutil.AddFinalizer(azureCluster, AzureClusterControllerFinalizer)
-		// Register the finalizer immediately to avoid orphaning cluster resources on delete
-		if err := r.Update(ctx, azureCluster); err != nil {
-			return reconcile.Result{}, microerror.Mask(err)
+		// Register the finalizer immediately to avoid orphaning Azure resources on delete
+		if err := clusterScope.PatchObject(ctx); err != nil {
+			return reconcile.Result{}, err
 		}
 	}
 
