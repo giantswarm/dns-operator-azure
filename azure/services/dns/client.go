@@ -8,9 +8,10 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/dns/armdns"
 	"github.com/giantswarm/microerror"
-	"sigs.k8s.io/cluster-api-provider-azure/api/v1beta1"
 
 	"github.com/giantswarm/dns-operator-azure/v2/azure/scope"
+
+	infrav1 "sigs.k8s.io/cluster-api-provider-azure/api/v1beta1"
 )
 
 type client interface {
@@ -29,23 +30,40 @@ type azureClient struct {
 
 var _ client = (*azureClient)(nil)
 
-func newAzureClient(azureCluster *v1beta1.AzureCluster) (*azureClient, error) {
-	cred, err := azidentity.NewDefaultAzureCredential(nil)
+func newAzureClient(scope scope.DNSScope) (*azureClient, error) {
+
+	clusterIdentity := scope.GetAzureClusterIdentity()
+
+	var cred azcore.TokenCredential
+	var err error
+
+	switch clusterIdentity.Spec.Type {
+	case infrav1.UserAssignedMSI:
+		cred, err = azidentity.NewManagedIdentityCredential(&azidentity.ManagedIdentityCredentialOptions{
+			ID: azidentity.ClientID(scope.ClientID()),
+		})
+		if err != nil {
+			return nil, microerror.Mask(err)
+		}
+
+	case infrav1.ManualServicePrincipal:
+		secret := scope.GetAzureClientSecret()
+
+		cred, err = azidentity.NewClientSecretCredential(clusterIdentity.Spec.TenantID, clusterIdentity.Spec.ClientID, secret, nil)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	zonesClient, err := newZonesClient(scope.SubscriptionID(), cred)
+	if err != nil {
+		return nil, microerror.Mask(err)
+	}
+	recordSetsClient, err := newRecordSetsClient(scope.SubscriptionID(), cred)
 	if err != nil {
 		return nil, microerror.Mask(err)
 	}
 
-	subscriptionID := azureCluster.Spec.SubscriptionID
-
-	zonesClient, err := newZonesClient(subscriptionID, cred)
-	if err != nil {
-		return nil, microerror.Mask(err)
-	}
-
-	recordSetsClient, err := newRecordSetsClient(subscriptionID, cred)
-	if err != nil {
-		return nil, microerror.Mask(err)
-	}
 	return &azureClient{
 		zones:      zonesClient,
 		recordSets: recordSetsClient,

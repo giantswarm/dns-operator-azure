@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Depending on the referenced `AzureClusterIdentity` the internal `dnsClient` uses either `ManagedIdentityCredential` for MSI or `DefaultAzureCredential` for Service Principal
 - Decrease TTL for `A-Records` from 60 minutes down to 5 minutes
 
 ## [1.0.3] - 2023-03-09

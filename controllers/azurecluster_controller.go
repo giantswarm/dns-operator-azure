@@ -22,6 +22,7 @@ import (
 	"github.com/giantswarm/microerror"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	capz "sigs.k8s.io/cluster-api-provider-azure/api/v1beta1"
 	capzscope "sigs.k8s.io/cluster-api-provider-azure/azure/scope"
@@ -151,9 +152,9 @@ func (r *AzureClusterReconciler) reconcileNormal(ctx context.Context, clusterSco
 	// If the AzureCluster doesn't has our finalizer, add it.
 	if !controllerutil.ContainsFinalizer(azureCluster, AzureClusterControllerFinalizer) {
 		controllerutil.AddFinalizer(azureCluster, AzureClusterControllerFinalizer)
-		// Register the finalizer immediately to avoid orphaning cluster resources on delete
-		if err := r.Update(ctx, azureCluster); err != nil {
-			return reconcile.Result{}, microerror.Mask(err)
+		// Register the finalizer immediately to avoid orphaning Azure resources on delete
+		if err := clusterScope.PatchObject(ctx); err != nil {
+			return reconcile.Result{}, err
 		}
 	}
 
@@ -167,10 +168,50 @@ func (r *AzureClusterReconciler) reconcileNormal(ctx context.Context, clusterSco
 	// Reconcile workload cluster DNS records
 	publicIPsService := publicips.New(clusterScope)
 
+	azureClusterIdentity := &capz.AzureClusterIdentity{}
+	log.V(1).Info(fmt.Sprintf("try to get the clusterClusterIdentity - %s", clusterScope.AzureCluster.Spec.IdentityRef.Name))
+
+	err = r.Client.Get(ctx, types.NamespacedName{
+		Name:      clusterScope.AzureCluster.Spec.IdentityRef.Name,
+		Namespace: clusterScope.AzureCluster.Spec.IdentityRef.Namespace,
+	}, azureClusterIdentity)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			log.V(1).Info("cluster object was not found", "error", err)
+			return reconcile.Result{}, nil
+		}
+		return reconcile.Result{}, microerror.Mask(err)
+	}
+
+	log.V(1).Info("azureClusterIdentity information",
+		"spec.Type", azureClusterIdentity.Spec.Type,
+		"spec.tenantID", azureClusterIdentity.Spec.TenantID,
+		"spec.clientID", azureClusterIdentity.Spec.TenantID,
+	)
+
+	staticServicePrincipalSecret := &corev1.Secret{}
+	if azureClusterIdentity.Spec.Type == capz.ManualServicePrincipal {
+		log.V(1).Info(fmt.Sprintf("try to get the referenced secret - %s/%s", azureClusterIdentity.Spec.ClientSecret.Namespace, azureClusterIdentity.Spec.ClientSecret.Name))
+
+		err = r.Client.Get(ctx, types.NamespacedName{
+			Name:      azureClusterIdentity.Spec.ClientSecret.Name,
+			Namespace: azureClusterIdentity.Spec.ClientSecret.Namespace,
+		}, staticServicePrincipalSecret)
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				log.V(1).Info("static service principal secret object was not found", "error", err)
+				return reconcile.Result{}, nil
+			}
+			return reconcile.Result{}, microerror.Mask(err)
+		}
+	}
+
 	params := scope.DNSScopeParams{
-		ClusterScope:            *clusterScope,
-		BaseDomain:              r.BaseDomain,
-		BaseDomainResourceGroup: r.BaseDomainResourceGroup,
+		ClusterScope:                       *clusterScope,
+		AzureClusterIdentity:               *azureClusterIdentity,
+		AzureClusterServicePrincipalSecret: *staticServicePrincipalSecret,
+		BaseDomain:                         r.BaseDomain,
+		BaseDomainResourceGroup:            r.BaseDomainResourceGroup,
 		BaseZoneCredentials: scope.BaseZoneCredentials{
 			ClientID:       r.BaseZoneClientID,
 			ClientSecret:   r.BaseZoneClientSecret,

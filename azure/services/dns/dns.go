@@ -34,7 +34,7 @@ type Service struct {
 
 // New creates a new dns service.
 func New(scope scope.DNSScope, publicIPsService *capzpublicips.Service) (*Service, error) {
-	azureClient, err := newAzureClient(scope.AzureCluster)
+	azureClient, err := newAzureClient(scope)
 
 	if err != nil {
 		return nil, microerror.Mask(err)
@@ -53,20 +53,6 @@ func New(scope scope.DNSScope, publicIPsService *capzpublicips.Service) (*Servic
 	}, nil
 }
 
-// New creates a new dns service.
-func NewZone(scope scope.DNSScope) (*Service, error) {
-	azureClient, err := newAzureClient(scope.AzureCluster)
-
-	if err != nil {
-		return nil, microerror.Mask(err)
-	}
-
-	return &Service{
-		scope:       scope,
-		azureClient: azureClient,
-	}, nil
-}
-
 // Reconcile creates or updates the DNS zone, and creates DNS A and CNAME records.
 func (s *Service) Reconcile(ctx context.Context) error {
 	log := log.FromContext(ctx).WithName("azure-dns-create")
@@ -74,11 +60,16 @@ func (s *Service) Reconcile(ctx context.Context) error {
 	clusterZoneName := s.scope.ClusterDomain()
 	log.Info("Reconcile DNS", "DNSZone", clusterZoneName)
 
+	log.V(1).Info("client information for base Zone", "clientID", s.scope.BaseZoneCredentials().ClientID, "tenantID", s.scope.BaseZoneCredentials().TenantID, "subscriptionID", s.scope.BaseZoneCredentials().SubscriptionID)
+	log.V(1).Info("client information for cluster Zone", "clientID", s.scope.AzureClients.ClientID(), "tenantID", s.scope.AzureClients.TenantID(), "subscriptionID", s.scope.AzureClients.SubscriptionID())
+
 	// create DNS Zone
 	clusterRecordSets, err := s.azureClient.ListRecordSets(ctx, s.scope.ResourceGroup(), clusterZoneName)
 	if err != nil && !azure.IsParentResourceNotFound(err) {
+		log.V(1).Info("new error", "error", err.Error())
 		return microerror.Mask(err)
 	} else if azure.IsParentResourceNotFound(err) {
+		log.V(1).Info("cluster specific DNS zone not found", "error", err.Error())
 		_, err = s.createClusterDNSZone(ctx)
 		if err != nil {
 			return microerror.Mask(err)
@@ -86,19 +77,23 @@ func (s *Service) Reconcile(ctx context.Context) error {
 	}
 
 	// get cluster specific zone information
+	log.V(1).Info("get cluster specific zone information")
 	clusterZone, err := s.azureClient.GetZone(ctx, s.scope.ResourceGroup(), clusterZoneName)
 	if err != nil {
 		return microerror.Mask(err)
 	}
 
 	// create NS Record in base zone
+	log.V(1).Info("list NS records in basedomain", "resourcegroup", s.scope.BaseDomainResourceGroup(), "dns zone", s.scope.BaseDomain())
 	basedomainRecordSets, err := s.azureBaseZoneClient.ListRecordSets(ctx, s.scope.BaseDomainResourceGroup(), s.scope.BaseDomain())
 	if err != nil {
 		return microerror.Mask(err)
 	}
 
+	log.V(1).Info("range over received NS records")
 	clusterNSRecordExists := false
 	for _, basedomainRecordSet := range basedomainRecordSets {
+		log.V(1).Info("basedomainRecordSet", "name", basedomainRecordSet.Name)
 		if basedomainRecordSet.Name == &s.scope.Cluster.Name {
 			if len(basedomainRecordSet.Properties.NsRecords) > 0 {
 				clusterNSRecordExists = true
@@ -106,8 +101,10 @@ func (s *Service) Reconcile(ctx context.Context) error {
 		}
 	}
 
+	log.V(1).Info("range over clusterZone name servers")
 	clusterZoneNameServers := []*armdns.NsRecord{}
 	for _, nameServer := range clusterZone.Properties.NameServers {
+		log.V(1).Info("clusterZone name servers", "name server", nameServer)
 		clusterZoneNameServers = append(clusterZoneNameServers, &armdns.NsRecord{
 			Nsdname: nameServer,
 		})
@@ -127,30 +124,6 @@ func (s *Service) Reconcile(ctx context.Context) error {
 	}
 
 	log.Info("Successfully reconciled DNS", "DNSZone", clusterZoneName)
-	return nil
-}
-
-func (s *Service) ReconcileBastion(ctx context.Context) error {
-
-	log := log.FromContext(ctx).WithName("azure-dns-create-bastion")
-
-	clusterZoneName := s.scope.ClusterDomain()
-	log.Info("Reconcile DNS", "Bastion", clusterZoneName)
-
-	// create DNS Zone
-	clusterRecordSets, err := s.azureClient.ListRecordSets(ctx, s.scope.ResourceGroup(), clusterZoneName)
-	if err != nil && !azure.IsParentResourceNotFound(err) {
-		return microerror.Mask(err)
-	}
-
-	// Create required A records.
-	log.Info("Reconcile DNS create A records", "Bastion", clusterZoneName)
-	if err := s.updateARecords(ctx, clusterRecordSets); err != nil {
-		return microerror.Mask(err)
-	}
-
-	log.Info("Successfully reconciled DNS", "Bastion", clusterZoneName)
-
 	return nil
 }
 
