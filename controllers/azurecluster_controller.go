@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/giantswarm/microerror"
+	"github.com/prometheus/client_golang/prometheus"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
@@ -40,6 +41,8 @@ import (
 
 	"github.com/giantswarm/dns-operator-azure/v2/azure/scope"
 	"github.com/giantswarm/dns-operator-azure/v2/azure/services/dns"
+
+	"github.com/giantswarm/dns-operator-azure/v2/pkg/metrics"
 )
 
 const (
@@ -237,6 +240,15 @@ func (r *AzureClusterReconciler) reconcileNormal(ctx context.Context, clusterSco
 		return reconcile.Result{}, microerror.Mask(err)
 	}
 
+	// generate base domain info metric
+	// dns_operator_base_domain_info{controller="dns-operator-azure",resource_group="root_dns_zone_rg",subscription_id="1be3b2e6-xxxx-xxxx-xxxx-eb35cae23c6a",tenant_id="31f75bf9-xxxx-xxxx-xxxx-eb35cae23c6a",zone="azuretest.gigantic.io"}
+	metrics.ZoneInfo.WithLabelValues(
+		r.BaseDomain,              // label: zone
+		r.BaseDomainResourceGroup, // label: resource_group
+		r.BaseZoneTenantID,        // label: tenant_id
+		r.BaseZoneSubscriptionID,  // label: subscription_id
+	).Set(1)
+
 	err = dnsService.Reconcile(ctx)
 	if err != nil {
 		return reconcile.Result{}, microerror.Mask(err)
@@ -283,6 +295,32 @@ func (r *AzureClusterReconciler) reconcileDelete(ctx context.Context, clusterSco
 		controllerutil.RemoveFinalizer(clusterScope.AzureCluster, AzureClusterControllerFinalizer)
 	}
 
+	deletedMetrics := deleteClusterMetrics(fmt.Sprintf("%s.%s", clusterScope.ClusterName(), r.BaseDomain))
+	log.V(1).Info(fmt.Sprintf("%d metrics for cluster %s got deleted", deletedMetrics, clusterScope.ClusterName()))
+
 	log.Info("Successfully reconciled AzureCluster DNS zones delete")
 	return reconcile.Result{}, nil
+}
+
+// deleteClusterMetrics delete all given metrics where
+// labelKey=zone match the given zonename
+func deleteClusterMetrics(zonename string) int {
+
+	labelKey := "zone"
+	deletedMetrics := 0
+
+	deletedMetrics += metrics.ZoneInfo.DeletePartialMatch(prometheus.Labels{
+		labelKey: zonename,
+	})
+
+	deletedMetrics += metrics.ClusterZoneRecords.DeletePartialMatch(prometheus.Labels{
+		labelKey: zonename,
+	})
+
+	deletedMetrics += metrics.RecordInfo.DeletePartialMatch(prometheus.Labels{
+		labelKey: zonename,
+	})
+
+	return deletedMetrics
+
 }
