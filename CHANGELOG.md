@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Introduced `metrics` about generated DNS zones, records and stats about API calls towards Azure
+- Add `application.giantswarm.io/team` label
 
 ## [1.1.0] - 2023-03-28
 
