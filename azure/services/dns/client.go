@@ -12,6 +12,8 @@ import (
 	"github.com/giantswarm/dns-operator-azure/v2/azure/scope"
 
 	infrav1 "sigs.k8s.io/cluster-api-provider-azure/api/v1beta1"
+
+	"github.com/giantswarm/dns-operator-azure/v2/pkg/metrics"
 )
 
 type client interface {
@@ -101,7 +103,13 @@ func newRecordSetsClient(subscriptionID string, cred azcore.TokenCredential) (*a
 
 func (ac *azureClient) GetZone(ctx context.Context, resourceGroupName string, zoneName string) (armdns.Zone, error) {
 	resp, err := ac.zones.Get(ctx, resourceGroupName, zoneName, nil)
+
+	// dns_operator_api_request_total{controller="dns-operator-azure",method="zones.Get"}
+	metrics.AzureRequest.WithLabelValues("zones.Get").Inc()
+
 	if err != nil {
+		// dns_operator_api_request_errors_total{controller="dns-operator-azure",method="zones.Get"}
+		metrics.AzureRequestError.WithLabelValues("zones.Get").Inc()
 		return armdns.Zone{}, microerror.Mask(err)
 	}
 
@@ -110,7 +118,11 @@ func (ac *azureClient) GetZone(ctx context.Context, resourceGroupName string, zo
 
 func (ac *azureClient) CreateOrUpdateZone(ctx context.Context, resourceGroupName string, zoneName string, zone armdns.Zone) (armdns.Zone, error) {
 	zoneResult, err := ac.zones.CreateOrUpdate(ctx, resourceGroupName, zoneName, zone, nil)
+	// dns_operator_api_request_total{controller="dns-operator-azure",method="zones.CreateOrUpdate"}
+	metrics.AzureRequest.WithLabelValues("zones.CreateOrUpdate").Inc()
 	if err != nil {
+		// dns_operator_api_request_errors_total{controller="dns-operator-azure",method="zones.CreateOrUpdate"}
+		metrics.AzureRequestError.WithLabelValues("zones.CreateOrUpdate").Inc()
 		fmt.Printf("%+v\n", err)
 		return armdns.Zone{}, microerror.Mask(err)
 	}
@@ -120,12 +132,20 @@ func (ac *azureClient) CreateOrUpdateZone(ctx context.Context, resourceGroupName
 
 func (ac *azureClient) DeleteZone(ctx context.Context, resourceGroupName string, zoneName string) error {
 	poller, err := ac.zones.BeginDelete(ctx, resourceGroupName, zoneName, nil)
+	// dns_operator_api_request_total{controller="dns-operator-azure",method="zones.Get"}
+	metrics.AzureRequest.WithLabelValues("zones.BeginDelete").Inc()
 	if err != nil {
+		// dns_operator_api_request_errors_total{controller="dns-operator-azure",method="zones.Get"}
+		metrics.AzureRequestError.WithLabelValues("zones.BeginDelete").Inc()
 		return microerror.Mask(err)
 	}
 
 	_, err = poller.PollUntilDone(ctx, nil)
+	// dns_operator_api_request_total{controller="dns-operator-azure",method="poller.PollUntilDone"}
+	metrics.AzureRequest.WithLabelValues("poller.PollUntilDone").Inc()
 	if err != nil {
+		// dns_operator_api_request_errors_total{controller="dns-operator-azure",method="poller.PollUntilDone"}
+		metrics.AzureRequestError.WithLabelValues("poller.PollUntilDone").Inc()
 		return microerror.Mask(err)
 	}
 
@@ -134,6 +154,8 @@ func (ac *azureClient) DeleteZone(ctx context.Context, resourceGroupName string,
 
 func (ac *azureClient) ListRecordSets(ctx context.Context, resourceGroupName string, zoneName string) ([]*armdns.RecordSet, error) {
 	recordsSetsResultPager := ac.recordSets.NewListByDNSZonePager(resourceGroupName, zoneName, nil)
+	// dns_operator_api_request_total{controller="dns-operator-azure",method="recordSets.NewListByDNSZonePager"}
+	metrics.AzureRequest.WithLabelValues("recordSets.NewListByDNSZonePager").Inc()
 
 	var recordSets []*armdns.RecordSet
 	for recordsSetsResultPager.More() {
@@ -150,7 +172,12 @@ func (ac *azureClient) ListRecordSets(ctx context.Context, resourceGroupName str
 func (ac *azureClient) CreateOrUpdateRecordSet(ctx context.Context, resourceGroupName string, zoneName string, recordType armdns.RecordType, recordSetName string, recordSet armdns.RecordSet) (armdns.RecordSet, error) {
 	resp, err := ac.recordSets.CreateOrUpdate(ctx, resourceGroupName, zoneName, recordSetName, recordType, recordSet, nil)
 
+	// dns_operator_api_request_total{controller="dns-operator-azure",method="recordSets.CreateOrUpdate"}
+	metrics.AzureRequest.WithLabelValues("recordSets.CreateOrUpdate").Inc()
+
 	if err != nil {
+		// dns_operator_api_request_errors_total{controller="dns-operator-azure",method="recordSets.CreateOrUpdate"}
+		metrics.AzureRequestError.WithLabelValues("recordSets.CreateOrUpdate").Inc()
 		return armdns.RecordSet{}, microerror.Mask(err)
 	}
 
@@ -159,7 +186,13 @@ func (ac *azureClient) CreateOrUpdateRecordSet(ctx context.Context, resourceGrou
 
 func (ac *azureClient) DeleteRecordSet(ctx context.Context, resourceGroupName string, zoneName string, recordType armdns.RecordType, recordSetName string) error {
 	_, err := ac.recordSets.Delete(ctx, resourceGroupName, zoneName, recordSetName, recordType, nil)
+
+	// dns_operator_api_request_total{controller="dns-operator-azure",method="recordSets.Delete"}
+	metrics.AzureRequest.WithLabelValues("recordSets.Delete").Inc()
+
 	if err != nil {
+		// dns_operator_api_request_errors_total{controller="dns-operator-azure",method="recordSets.Delete"}
+		metrics.AzureRequestError.WithLabelValues("recordSets.Delete").Inc()
 		return microerror.Mask(err)
 	}
 

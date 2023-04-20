@@ -25,6 +25,9 @@ spec:
     rule: RunAsAny
   allowPrivilegeEscalation: false
   hostNetwork: true
+  hostPorts:
+  - min: 8666
+    max: 8666
   hostIPC: false
   hostPID: false
   volumes:

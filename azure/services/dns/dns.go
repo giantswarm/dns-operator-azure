@@ -12,6 +12,8 @@ import (
 
 	"github.com/giantswarm/dns-operator-azure/v2/azure"
 	"github.com/giantswarm/dns-operator-azure/v2/azure/scope"
+
+	"github.com/giantswarm/dns-operator-azure/v2/pkg/metrics"
 )
 
 const (
@@ -60,13 +62,35 @@ func (s *Service) Reconcile(ctx context.Context) error {
 	clusterZoneName := s.scope.ClusterDomain()
 	log.Info("Reconcile DNS", "DNSZone", clusterZoneName)
 
-	log.V(1).Info("client information for base Zone", "clientID", s.scope.BaseZoneCredentials().ClientID, "tenantID", s.scope.BaseZoneCredentials().TenantID, "subscriptionID", s.scope.BaseZoneCredentials().SubscriptionID)
-	log.V(1).Info("client information for cluster Zone", "clientID", s.scope.AzureClients.ClientID(), "tenantID", s.scope.AzureClients.TenantID(), "subscriptionID", s.scope.AzureClients.SubscriptionID())
+	log.V(1).Info("client information for base Zone",
+		"clientID", s.scope.BaseZoneCredentials().ClientID,
+		"tenantID", s.scope.BaseZoneCredentials().TenantID,
+		"subscriptionID", s.scope.BaseZoneCredentials().SubscriptionID,
+	)
+	log.V(1).Info("client information for cluster Zone",
+		"clientID", s.scope.AzureClients.ClientID(),
+		"tenantID", s.scope.AzureClients.TenantID(),
+		"subscriptionID", s.scope.AzureClients.SubscriptionID(),
+	)
+
+	// create info metric
+	// dns_operator_cluster_zone_info{controller="dns-operator-azure",resource_group="glippy",subscription_id="6b1f6e4a-6d0e-4aa4-9a5a-fbaca65a23b3",tenant_id="31f75bf9-3d8c-4691-95c0-83dd71613db8",zone="glippy.azuretest.gigantic.io"} 1
+	// dns_operator_cluster_zone_info{controller="dns-operator-azure",resource_group="np1014",subscription_id="6b1f6e4a-6d0e-4aa4-9a5a-fbaca65a23b3",tenant_id="31f75bf9-3d8c-4691-95c0-83dd71613db8",zone="np1014.azuretest.gigantic.io"} 1
+	metrics.ZoneInfo.WithLabelValues(
+		s.scope.ClusterDomain(),  // label: zone
+		s.scope.ResourceGroup(),  // label: resource_group
+		s.scope.TenantID(),       // label: tenant_id
+		s.scope.SubscriptionID(), // label: subscription_id
+	).Set(1)
 
 	// create DNS Zone
 	clusterRecordSets, err := s.azureClient.ListRecordSets(ctx, s.scope.ResourceGroup(), clusterZoneName)
 	if err != nil && !azure.IsParentResourceNotFound(err) {
 		log.V(1).Info("new error", "error", err.Error())
+
+		// dns_operator_api_request_errors_total{controller="dns-operator-azure",method="recordSets.NewListByDNSZonePager"}
+		metrics.AzureRequestError.WithLabelValues("recordSets.NewListByDNSZonePager").Inc()
+
 		return microerror.Mask(err)
 	} else if azure.IsParentResourceNotFound(err) {
 		log.V(1).Info("cluster specific DNS zone not found", "error", err.Error())
@@ -83,12 +107,18 @@ func (s *Service) Reconcile(ctx context.Context) error {
 		return microerror.Mask(err)
 	}
 
+	// dns_operator_zone_records_sum{controller="dns-operator-azure",zone="glippy.azuretest.gigantic.io"} 30
+	metrics.ClusterZoneRecords.WithLabelValues(s.scope.ClusterDomain()).Set(float64(to.Int64(clusterZone.Properties.NumberOfRecordSets)))
+
 	// create NS Record in base zone
 	log.V(1).Info("list NS records in basedomain", "resourcegroup", s.scope.BaseDomainResourceGroup(), "dns zone", s.scope.BaseDomain())
 	basedomainRecordSets, err := s.azureBaseZoneClient.ListRecordSets(ctx, s.scope.BaseDomainResourceGroup(), s.scope.BaseDomain())
 	if err != nil {
 		return microerror.Mask(err)
 	}
+
+	// dns_operator_zone_records_sum{controller="dns-operator-azure",zone="azuretest.gigantic.io"} 7
+	metrics.ClusterZoneRecords.WithLabelValues(s.scope.BaseDomain()).Set(float64(len(basedomainRecordSets)))
 
 	log.V(1).Info("range over received NS records")
 	clusterNSRecordExists := false
@@ -134,7 +164,7 @@ func (s *Service) ReconcileDelete(ctx context.Context) error {
 
 	log.Info("Deleting NS record", "NSrecord", s.scope.ClusterName(), "DNS zone", s.scope.BaseDomain())
 
-	// Create required NS records.
+	// delete cluster NS records
 	if err := s.deleteClusterNSRecords(ctx); err != nil {
 		return microerror.Mask(err)
 	}
