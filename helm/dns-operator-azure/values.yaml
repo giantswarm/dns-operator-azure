@@ -22,5 +22,9 @@ azure:
     tenantID: ""
     subscriptionID: ""
 
+managementCluster:
+  name: ""
+  namespace: ""
+
 verticalPodAutoscaler:
   enabled: false

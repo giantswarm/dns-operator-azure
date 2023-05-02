@@ -41,6 +41,7 @@ import (
 
 	"github.com/giantswarm/dns-operator-azure/v2/azure/scope"
 	"github.com/giantswarm/dns-operator-azure/v2/azure/services/dns"
+	"github.com/giantswarm/dns-operator-azure/v2/azure/services/privatedns"
 
 	"github.com/giantswarm/dns-operator-azure/v2/pkg/metrics"
 )
@@ -48,6 +49,7 @@ import (
 const (
 	AzureClusterControllerFinalizer string = "dns-operator-azure.giantswarm.io/azurecluster"
 	BastionHostIPAnnotation         string = "dns-operator-azure.giantswarm.io/bastion-ip"
+	privateLinkedAPIServerIP        string = "dns-operator-azure.giantswarm.io/private-link-apiserver-ip"
 )
 
 // AzureClusterReconciler reconciles a AzureCluster object
@@ -61,6 +63,9 @@ type AzureClusterReconciler struct {
 	BaseZoneSubscriptionID  string
 	BaseZoneTenantID        string
 	Recorder                record.EventRecorder
+
+	ManagementClusterName      string
+	ManagementClusterNamespace string
 }
 
 // +kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=azureclusters,verbs=get;list;watch;update;patch
@@ -230,6 +235,66 @@ func (r *AzureClusterReconciler) reconcileNormal(ctx context.Context, clusterSco
 		params.BastionIP = clusterAnnotations[BastionHostIPAnnotation]
 	}
 
+	// `azureCluster.spec.networkSpec.apiServerLB.privateLinks` is the current identifier
+	// for private DNS zone creation in the management cluster
+	if len(azureCluster.Spec.NetworkSpec.APIServerLB.PrivateLinks) > 0 {
+
+		managementCluster, err := r.getManagementAzureClusterCR(ctx)
+		if err != nil {
+			return reconcile.Result{}, microerror.Mask(err)
+		}
+
+		managementClusterAzureIdentity, err := r.getManagementClusterIdentity(ctx, managementCluster)
+		if err != nil {
+			return reconcile.Result{}, microerror.Mask(err)
+		}
+
+		managementClusterStaticServicePrincipalSecret := &corev1.Secret{}
+		if managementClusterAzureIdentity.Spec.Type == capz.ManualServicePrincipal {
+			log.V(1).Info(fmt.Sprintf("try to get the referenced secret - %s/%s", managementClusterAzureIdentity.Spec.ClientSecret.Namespace, managementClusterAzureIdentity.Spec.ClientSecret.Name))
+
+			err = r.Client.Get(ctx, types.NamespacedName{
+				Name:      managementClusterAzureIdentity.Spec.ClientSecret.Name,
+				Namespace: managementClusterAzureIdentity.Spec.ClientSecret.Namespace,
+			}, managementClusterStaticServicePrincipalSecret)
+			if err != nil {
+				if apierrors.IsNotFound(err) {
+					log.V(1).Info("static service principal secret object was not found", "error", err)
+					return reconcile.Result{}, nil
+				}
+				return reconcile.Result{}, microerror.Mask(err)
+			}
+		}
+
+		privateParams := scope.PrivateDNSScopeParams{
+			BaseDomain:                              r.BaseDomain,
+			ClusterName:                             azureCluster.GetName(),
+			ManagementClusterSpec:                   managementCluster.Spec,
+			ManagementClusterAzureIdentity:          *managementClusterAzureIdentity,
+			ManagementClusterServicePrincipalSecret: *managementClusterStaticServicePrincipalSecret,
+		}
+
+		if clusterAnnotations[privateLinkedAPIServerIP] != "" {
+			log.V(1).Info("private link api server IP annotation found")
+			privateParams.APIServerIP = clusterAnnotations[privateLinkedAPIServerIP]
+		}
+
+		privateDnsScope, err := scope.NewPrivateDNSScope(ctx, privateParams)
+		if err != nil {
+			return reconcile.Result{}, microerror.Mask(err)
+		}
+
+		privateDnsService, err := privatedns.New(*privateDnsScope)
+		if err != nil {
+			return reconcile.Result{}, microerror.Mask(err)
+		}
+
+		err = privateDnsService.Reconcile(ctx)
+		if err != nil {
+			return reconcile.Result{}, microerror.Mask(err)
+		}
+	}
+
 	dnsScope, err := scope.NewDNSScope(ctx, params)
 	if err != nil {
 		return reconcile.Result{}, microerror.Mask(err)
@@ -275,6 +340,62 @@ func (r *AzureClusterReconciler) reconcileDelete(ctx context.Context, clusterSco
 		},
 	}
 
+	azureCluster := clusterScope.AzureCluster
+	// `azureCluster.spec.networkSpec.apiServerLB.privateLinks` is the current identifier
+	// for private DNS zone creation in the management cluster
+	if len(azureCluster.Spec.NetworkSpec.APIServerLB.PrivateLinks) > 0 {
+
+		managementCluster, err := r.getManagementAzureClusterCR(ctx)
+		if err != nil {
+			return reconcile.Result{}, microerror.Mask(err)
+		}
+
+		managementClusterAzureIdentity, err := r.getManagementClusterIdentity(ctx, managementCluster)
+		if err != nil {
+			return reconcile.Result{}, microerror.Mask(err)
+		}
+
+		managementClusterStaticServicePrincipalSecret := &corev1.Secret{}
+		if managementClusterAzureIdentity.Spec.Type == capz.ManualServicePrincipal {
+			log.V(1).Info(fmt.Sprintf("try to get the referenced secret - %s/%s", managementClusterAzureIdentity.Spec.ClientSecret.Namespace, managementClusterAzureIdentity.Spec.ClientSecret.Name))
+
+			err = r.Client.Get(ctx, types.NamespacedName{
+				Name:      managementClusterAzureIdentity.Spec.ClientSecret.Name,
+				Namespace: managementClusterAzureIdentity.Spec.ClientSecret.Namespace,
+			}, managementClusterStaticServicePrincipalSecret)
+			if err != nil {
+				if apierrors.IsNotFound(err) {
+					log.V(1).Info("static service principal secret object was not found", "error", err)
+					return reconcile.Result{}, nil
+				}
+				return reconcile.Result{}, microerror.Mask(err)
+			}
+		}
+
+		privateParams := scope.PrivateDNSScopeParams{
+			BaseDomain:                              r.BaseDomain,
+			ClusterName:                             "todo",
+			ManagementClusterSpec:                   managementCluster.Spec,
+			ManagementClusterAzureIdentity:          *managementClusterAzureIdentity,
+			ManagementClusterServicePrincipalSecret: *managementClusterStaticServicePrincipalSecret,
+		}
+
+		privateDnsScope, err := scope.NewPrivateDNSScope(ctx, privateParams)
+		if err != nil {
+			return reconcile.Result{}, microerror.Mask(err)
+		}
+
+		privateDnsService, err := privatedns.New(*privateDnsScope)
+		if err != nil {
+			return reconcile.Result{}, microerror.Mask(err)
+		}
+
+		err = privateDnsService.ReconcileDelete(ctx)
+		if err != nil {
+			return reconcile.Result{}, microerror.Mask(err)
+		}
+	}
+
 	dnsScope, err := scope.NewDNSScope(ctx, params)
 	if err != nil {
 		return reconcile.Result{}, microerror.Mask(err)
@@ -300,6 +421,65 @@ func (r *AzureClusterReconciler) reconcileDelete(ctx context.Context, clusterSco
 
 	log.Info("Successfully reconciled AzureCluster DNS zones delete")
 	return reconcile.Result{}, nil
+}
+
+func (r *AzureClusterReconciler) getManagementAzureClusterCR(ctx context.Context) (*capz.AzureCluster, error) {
+
+	log := log.FromContext(ctx)
+	log.V(1).Info(fmt.Sprintf("try to get the azureCluster - %s/%s", r.ManagementClusterNamespace, r.ManagementClusterName))
+
+	managementCluster := &capz.AzureCluster{}
+
+	err := r.Client.Get(ctx, types.NamespacedName{
+		Name:      r.ManagementClusterName,
+		Namespace: r.ManagementClusterNamespace,
+	}, managementCluster)
+
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			log.V(1).Info("azureCluster was not found", "error", err)
+			return managementCluster, nil
+		}
+		return managementCluster, microerror.Mask(err)
+	}
+
+	log.V(1).Info("azureManagementCluster information",
+		"spec.Type", managementCluster.Spec.IdentityRef.Name,
+		"spec.subscriptionID", managementCluster.Spec.SubscriptionID,
+	)
+
+	return managementCluster, nil
+
+}
+
+func (r *AzureClusterReconciler) getManagementClusterIdentity(ctx context.Context, managementCluster *capz.AzureCluster) (*capz.AzureClusterIdentity, error) {
+
+	log := log.FromContext(ctx)
+	log.V(1).Info(fmt.Sprintf("try to get the azureClusterIdentity - %s/%s", managementCluster.Spec.IdentityRef.Namespace, managementCluster.Spec.IdentityRef.Name))
+
+	managementClusterAzureIdentity := &capz.AzureClusterIdentity{}
+
+	err := r.Client.Get(ctx, types.NamespacedName{
+		Name:      managementCluster.Spec.IdentityRef.Name,
+		Namespace: managementCluster.Spec.IdentityRef.Namespace,
+	}, managementClusterAzureIdentity)
+
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			log.V(1).Info("azureClusterIdentity was not found", "error", err)
+			return managementClusterAzureIdentity, nil
+		}
+		return managementClusterAzureIdentity, microerror.Mask(err)
+	}
+
+	log.V(1).Info("azureClusterIdentity information",
+		"spec.Type", managementClusterAzureIdentity.Spec.Type,
+		"spec.tenantID", managementClusterAzureIdentity.Spec.TenantID,
+		"spec.clientID", managementClusterAzureIdentity.Spec.TenantID,
+	)
+
+	return managementClusterAzureIdentity, nil
+
 }
 
 // deleteClusterMetrics delete all given metrics where

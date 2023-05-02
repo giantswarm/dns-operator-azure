@@ -16,6 +16,15 @@ import (
 	"github.com/giantswarm/dns-operator-azure/v2/pkg/metrics"
 )
 
+type client interface {
+	GetZone(ctx context.Context, resourceGroupName string, zoneName string) (armdns.Zone, error)
+	CreateOrUpdateZone(ctx context.Context, resourceGroupName string, zoneName string, zone armdns.Zone) (armdns.Zone, error)
+	DeleteZone(ctx context.Context, resourceGroupName string, zoneName string) error
+	CreateOrUpdateRecordSet(ctx context.Context, resourceGroupName string, zoneName string, recordType armdns.RecordType, name string, recordSet armdns.RecordSet) (armdns.RecordSet, error)
+	DeleteRecordSet(ctx context.Context, resourceGroupName string, zoneName string, recordType armdns.RecordType, recordSetName string) error
+	ListRecordSets(ctx context.Context, resourceGroupName string, zoneName string) ([]*armdns.RecordSet, error)
+}
+
 const (
 	RecordSetTypePrefix = "Microsoft.Network/dnszones/"
 	RecordSetTypeA      = RecordSetTypePrefix + string(armdns.RecordTypeA)
@@ -30,6 +39,8 @@ type Service struct {
 	azureClient client
 	// azureBaseZoneClient is used as client for all baseDomain operations
 	azureBaseZoneClient client
+
+	//privateDNSClient privatedns.Client
 
 	publicIPsService *capzpublicips.Service
 }
@@ -47,11 +58,19 @@ func New(scope scope.DNSScope, publicIPsService *capzpublicips.Service) (*Servic
 		return nil, microerror.Mask(err)
 	}
 
+	/*
+		privateDNSClient, err := privatedns.NewPrivateDNSClient(scope)
+		if err != nil {
+			return nil, microerror.Mask(err)
+		}
+	*/
+
 	return &Service{
 		scope:               scope,
 		azureClient:         azureClient,
 		azureBaseZoneClient: azureBaseZoneClient,
 		publicIPsService:    publicIPsService,
+		//privateDNSClient:    privateDNSClient,
 	}, nil
 }
 

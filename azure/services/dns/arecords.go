@@ -131,7 +131,6 @@ func (s *Service) updateARecords(ctx context.Context, currentRecordSets []*armdn
 	return nil
 }
 
-// func (s *Service) getDesiredARecords() []azure.ARecordSetSpec {
 func (s *Service) getDesiredARecords(ctx context.Context) ([]*armdns.RecordSet, error) {
 
 	var armdnsRecordSet []*armdns.RecordSet

@@ -1,0 +1,69 @@
+@startuml
+!include <C4/C4_Container>
+
+LAYOUT_WITH_LEGEND()
+skinparam linetype polyline
+
+'Container(azure, "Azure")
+'System_Ext(systemExt, "system ext")
+
+'TODO: 
+'* describe arrows better
+'* describe containers
+'* play a bit with legend
+'* play a bit with colours and tags
+'* play a bit with arangement
+
+System(DNSOperatorAzure, "dns-operator-azure")
+
+Boundary(managementClusterResourceGroup, "resourceGroup/management Cluster"){
+    Boundary(managementClusterK8s, "CAPI management cluster"){
+
+        Container(azureClusterCR, "azureCluster", "CR on k8s", "the `azureCluster` CR on Kubernetes")
+        Container(azureMachineCR, "azureMachine", "CR on k8s", "the `azureCluster` CR on Kubernetes")
+    }
+
+    Boundary(privateDNSzone, "private DNS zone"){
+        Container(privateEndpointIP, "privateEndpoint IP", "", "DNS zone per WC")
+    }
+}
+
+Boundary(baseDomainResourceGroup, "resourceGroup/baseDomain"){
+
+    Boundary(baseDomain, "baseDomain"){
+        Container(workloadClusterNSRecord, "NS record", "", "e.g. azuretest.gigantic.io")
+    }
+}
+
+Boundary(workloadClusterResourceGroup, "resourceGroup/workload Cluster"){
+
+    Boundary(workloadClusterPublicDNSzone, "public DNS zone"){
+        Container(apiserverARecord, "k8s API" , "A Record", "point to the k8s API LB")
+        Container(bastionARecord, "bastion host" , "A Record", "point to the k8s API LB")
+    }
+    'Container(publicDNSzone, "public DNS zone", "", "cluster scoped public DNS zone")
+}
+
+Rel(DNSOperatorAzure, azureClusterCR, "Reads/Writes")
+Rel(DNSOperatorAzure, azureMachineCR, "Reads/Writes")
+
+Rel(DNSOperatorAzure,workloadClusterPublicDNSzone,"create/delete")
+Rel(DNSOperatorAzure,apiserverARecord,"create/delete")
+Rel(DNSOperatorAzure, bastionARecord, "create/delete/update")
+
+Rel(DNSOperatorAzure, workloadClusterNSRecord, "create/delete")
+
+Rel(DNSOperatorAzure,privateDNSzone,"create/delete")
+Rel(DNSOperatorAzure,privateEndpointIP,"create/delete")
+
+
+'Person(personAlias, "Label", "Optional Description")
+'Container(containerAlias, "Label", "Technology", "Optional Description")
+'System(systemAlias, "Label", "Optional Description")
+
+'Rel(personAlias, containerAlias, "Label", "Optional Technology")
+
+
+
+SHOW_LEGEND()
+@enduml
