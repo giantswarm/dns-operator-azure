@@ -105,8 +105,6 @@ func (s *Service) Reconcile(ctx context.Context) error {
 	// create DNS Zone
 	clusterRecordSets, err := s.azureClient.ListRecordSets(ctx, s.scope.ResourceGroup(), clusterZoneName)
 	if err != nil && !azure.IsParentResourceNotFound(err) {
-		log.V(1).Info("new error", "error", err.Error())
-
 		// dns_operator_api_request_errors_total{controller="dns-operator-azure",method="recordSets.NewListByDNSZonePager"}
 		metrics.AzureRequestError.WithLabelValues("recordSets.NewListByDNSZonePager").Inc()
 
@@ -115,6 +113,7 @@ func (s *Service) Reconcile(ctx context.Context) error {
 		log.V(1).Info("cluster specific DNS zone not found", "error", err.Error())
 		_, err = s.createClusterDNSZone(ctx)
 		if err != nil {
+			log.V(1).Info("private zone creation failed", "error", err.Error())
 			return microerror.Mask(err)
 		}
 	}

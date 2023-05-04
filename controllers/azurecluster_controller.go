@@ -47,9 +47,10 @@ import (
 )
 
 const (
-	AzureClusterControllerFinalizer string = "dns-operator-azure.giantswarm.io/azurecluster"
-	BastionHostIPAnnotation         string = "dns-operator-azure.giantswarm.io/bastion-ip"
-	privateLinkedAPIServerIP        string = "dns-operator-azure.giantswarm.io/private-link-apiserver-ip"
+	AzureClusterControllerFinalizer                 string = "dns-operator-azure.giantswarm.io/azurecluster"
+	BastionHostIPAnnotation                         string = "dns-operator-azure.giantswarm.io/bastion-ip"
+	privateLinkedAPIServerIP                        string = "dns-operator-azure.giantswarm.io/private-link-apiserver-ip"
+	azurePrivateEndpointOperatorApiserverAnnotation string = "azure-private-endpoint-operator.giantswarm.io/private-link-apiserver-ip"
 )
 
 // AzureClusterReconciler reconciles a AzureCluster object
@@ -272,11 +273,19 @@ func (r *AzureClusterReconciler) reconcileNormal(ctx context.Context, clusterSco
 			ManagementClusterSpec:                   managementCluster.Spec,
 			ManagementClusterAzureIdentity:          *managementClusterAzureIdentity,
 			ManagementClusterServicePrincipalSecret: *managementClusterStaticServicePrincipalSecret,
+			VirtualNetworkID:                        managementCluster.Spec.NetworkSpec.Vnet.ID,
 		}
 
+		// TODO: delete once azure-private-endpoint-operator uses the desired annotation
 		if clusterAnnotations[privateLinkedAPIServerIP] != "" {
 			log.V(1).Info("private link api server IP annotation found")
 			privateParams.APIServerIP = clusterAnnotations[privateLinkedAPIServerIP]
+		}
+		// TODO end
+
+		if clusterAnnotations[azurePrivateEndpointOperatorApiserverAnnotation] != "" {
+			log.V(1).Info(fmt.Sprintf("annotation %s found", azurePrivateEndpointOperatorApiserverAnnotation))
+			privateParams.APIServerIP = clusterAnnotations[azurePrivateEndpointOperatorApiserverAnnotation]
 		}
 
 		privateDnsScope, err := scope.NewPrivateDNSScope(ctx, privateParams)
@@ -374,7 +383,7 @@ func (r *AzureClusterReconciler) reconcileDelete(ctx context.Context, clusterSco
 
 		privateParams := scope.PrivateDNSScopeParams{
 			BaseDomain:                              r.BaseDomain,
-			ClusterName:                             "todo",
+			ClusterName:                             clusterScope.Cluster.Name,
 			ManagementClusterSpec:                   managementCluster.Spec,
 			ManagementClusterAzureIdentity:          *managementClusterAzureIdentity,
 			ManagementClusterServicePrincipalSecret: *managementClusterStaticServicePrincipalSecret,

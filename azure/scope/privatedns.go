@@ -21,6 +21,8 @@ type PrivateDNSScopeParams struct {
 	ClusterName string
 	APIServerIP string
 
+	VirtualNetworkID string
+
 	ManagementClusterAzureIdentity          infrav1.AzureClusterIdentity
 	ManagementClusterServicePrincipalSecret corev1.Secret
 
@@ -32,6 +34,8 @@ type PrivateDNSScope struct {
 	baseDomain  string
 	clusterName string
 	apiServerIP string
+
+	virtualNetworkID string
 
 	managementClusterIdentity identity
 
@@ -57,6 +61,7 @@ func NewPrivateDNSScope(_ context.Context, params PrivateDNSScopeParams) (*Priva
 		},
 		managementClusterSpec: params.ManagementClusterSpec,
 		apiServerIP:           params.APIServerIP,
+		virtualNetworkID:      params.VirtualNetworkID,
 	}
 
 	return scope, nil
@@ -64,6 +69,14 @@ func NewPrivateDNSScope(_ context.Context, params PrivateDNSScopeParams) (*Priva
 
 func (s *PrivateDNSScope) ClusterZoneName() string {
 	return fmt.Sprintf("%s.%s", s.clusterName, s.baseDomain)
+}
+
+func (s *PrivateDNSScope) ClusterName() string {
+	return s.clusterName
+}
+
+func (s *PrivateDNSScope) GetManagementClusterVnetID() string {
+	return s.virtualNetworkID
 }
 
 func (s *PrivateDNSScope) GetManagementClusterResourceGroup() string {
@@ -106,7 +119,9 @@ func (s *PrivateDNSScope) getPrivateLinkedAPIServerIPFromManagementCluster() str
 	for _, subnet := range s.managementClusterSpec.NetworkSpec.Subnets {
 		for _, privateEndpoint := range subnet.PrivateEndpoints {
 			if privateEndpoint.Name == s.clusterName+apiPrivateLinkSuffix {
-				privateLinkedAPIServerIP = privateEndpoint.PrivateIPAddresses[0]
+				if len(privateEndpoint.PrivateIPAddresses) > 0 {
+					privateLinkedAPIServerIP = privateEndpoint.PrivateIPAddresses[0]
+				}
 			}
 		}
 	}

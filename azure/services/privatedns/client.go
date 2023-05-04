@@ -7,11 +7,14 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/privatedns/armprivatedns"
-	"github.com/giantswarm/dns-operator-azure/v2/azure/scope"
-	"github.com/giantswarm/dns-operator-azure/v2/pkg/metrics"
+	"github.com/Azure/go-autorest/autorest/to"
 	"github.com/giantswarm/microerror"
 
+	"github.com/giantswarm/dns-operator-azure/v2/azure/scope"
+	"github.com/giantswarm/dns-operator-azure/v2/pkg/metrics"
+
 	infrav1 "sigs.k8s.io/cluster-api-provider-azure/api/v1beta1"
+	capzazure "sigs.k8s.io/cluster-api-provider-azure/azure"
 )
 
 type Client interface {
@@ -20,13 +23,16 @@ type Client interface {
 	DeletePrivateZone(ctx context.Context, resourceGroupName string, zoneName string) error
 	ListPrivateRecordSets(ctx context.Context, resourceGroupName string, zoneName string) ([]*armprivatedns.RecordSet, error)
 
+	CreateOrUpdateVirtualNetworkLink(ctx context.Context, resourceGroupName, zoneName, workloadClusterName, vnetID string) error
+
 	ListRecordSets(ctx context.Context, resourceGroupName string, zoneName string) ([]*armprivatedns.RecordSet, error)
 	CreateOrUpdateRecordSet(ctx context.Context, resourceGroupName string, zoneName string, recordType armprivatedns.RecordType, recordSetName string, recordSet armprivatedns.RecordSet) (armprivatedns.RecordSet, error)
 }
 
 type azureClient struct {
-	privateZones      *armprivatedns.PrivateZonesClient
-	privateRecordSets *armprivatedns.RecordSetsClient
+	privateZones             *armprivatedns.PrivateZonesClient
+	privateRecordSets        *armprivatedns.RecordSetsClient
+	virtualNetworkLinkClient *armprivatedns.VirtualNetworkLinksClient
 }
 
 func newPrivateDNSClient(scope scope.PrivateDNSScope) (*azureClient, error) {
@@ -64,9 +70,15 @@ func newPrivateDNSClient(scope scope.PrivateDNSScope) (*azureClient, error) {
 		return nil, microerror.Mask(err)
 	}
 
+	virtualNetworkLinkClient, err := newVirtualNetworkLinkClient(scope.GetManagementClusterSubscriptionID(), cred)
+	if err != nil {
+		return nil, microerror.Mask(err)
+	}
+
 	return &azureClient{
-		privateZones:      privateZonesClient,
-		privateRecordSets: privateRecordSetsClient,
+		privateZones:             privateZonesClient,
+		privateRecordSets:        privateRecordSetsClient,
+		virtualNetworkLinkClient: virtualNetworkLinkClient,
 	}, nil
 
 }
@@ -77,6 +89,10 @@ func newPrivateZonesClient(subscriptionID string, cred azcore.TokenCredential) (
 
 func newPrivateRecordSetsClient(subscriptionID string, cred azcore.TokenCredential) (*armprivatedns.RecordSetsClient, error) {
 	return armprivatedns.NewRecordSetsClient(subscriptionID, cred, nil)
+}
+
+func newVirtualNetworkLinkClient(subscriptionID string, cred azcore.TokenCredential) (*armprivatedns.VirtualNetworkLinksClient, error) {
+	return armprivatedns.NewVirtualNetworkLinksClient(subscriptionID, cred, nil)
 }
 
 func (ac *azureClient) ListPrivateRecordSets(ctx context.Context, resourceGroupName string, zoneName string) ([]*armprivatedns.RecordSet, error) {
@@ -118,6 +134,37 @@ func (ac *azureClient) CreateOrUpdatePrivateZone(ctx context.Context, resourceGr
 	}
 
 	return nil
+}
+
+func (ac *azureClient) CreateOrUpdateVirtualNetworkLink(ctx context.Context, resourceGroupName, zoneName, workloadClusterName, vnetID string) error {
+	poller, err := ac.virtualNetworkLinkClient.BeginCreateOrUpdate(
+		ctx,
+		resourceGroupName,
+		zoneName,
+		workloadClusterName+"-dns-"+resourceGroupName+"-vnet-link",
+		armprivatedns.VirtualNetworkLink{
+			Location: to.StringPtr(capzazure.Global),
+			Properties: &armprivatedns.VirtualNetworkLinkProperties{
+				RegistrationEnabled: to.BoolPtr(false),
+				VirtualNetwork: &armprivatedns.SubResource{
+					ID: to.StringPtr(vnetID),
+				},
+			},
+		}, nil)
+
+	if err != nil {
+		fmt.Printf("%+v\n", err)
+		return microerror.Mask(err)
+	}
+
+	_, err = poller.PollUntilDone(ctx, nil)
+	if err != nil {
+		fmt.Printf("%+v\n", err)
+		return microerror.Mask(err)
+	}
+
+	return nil
+
 }
 
 func (ac *azureClient) GetPrivateZone(ctx context.Context, resourceGroupName string, zoneName string) (armprivatedns.PrivateZone, error) {
