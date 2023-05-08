@@ -95,6 +95,14 @@ func (s *PrivateDNSScope) GetManagementClusterSubscriptionID() string {
 	return s.managementClusterSpec.SubscriptionID
 }
 
+func (s *PrivateDNSScope) GetManagementClusterTenantID() string {
+	return s.managementClusterIdentity.clusterIdentity.Spec.TenantID
+}
+
+func (s *PrivateDNSScope) GetManagementClusterClientID() string {
+	return s.managementClusterIdentity.clusterIdentity.Spec.ClientID
+}
+
 func (s *PrivateDNSScope) GetPrivateLinkedAPIServerIP() string {
 
 	// the IP in the azureCluster CR takes precedence over the

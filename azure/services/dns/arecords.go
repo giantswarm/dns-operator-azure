@@ -67,6 +67,7 @@ func (s *Service) calculateMissingARecords(ctx context.Context, logger logr.Logg
 				// dns_operator_azure_record_set_info{controller="dns-operator-azure",fqdn="api.glippy.azuretest.gigantic.io",ip="20.4.101.180",ttl="300"} 1
 				metrics.RecordInfo.WithLabelValues(
 					s.scope.ClusterZoneName(), // label: zone
+					metrics.ZoneTypePublic,    // label: type
 					fmt.Sprintf("%s.%s", to.String(currentRecordSets[currentRecordSetIndex].Name), s.scope.ClusterZoneName()), // label: fqdn
 					to.String(ip.IPv4Address), // label: ip
 					fmt.Sprint(to.Int64(currentRecordSets[currentRecordSetIndex].Properties.TTL)), // label: ttl

@@ -11,6 +11,7 @@ import (
 
 	"github.com/giantswarm/dns-operator-azure/v2/azure"
 	"github.com/giantswarm/dns-operator-azure/v2/azure/scope"
+	"github.com/giantswarm/dns-operator-azure/v2/pkg/metrics"
 
 	capzazure "sigs.k8s.io/cluster-api-provider-azure/azure"
 )
@@ -41,6 +42,14 @@ func (s *Service) Reconcile(ctx context.Context) error {
 	managementClusterResourceGroup := s.scope.GetManagementClusterResourceGroup()
 
 	log.Info("Reconcile privateDNS", "privateDNSZone", clusterZoneName)
+
+	metrics.ZoneInfo.WithLabelValues(
+		clusterZoneName,                              // label: zone
+		metrics.ZoneTypePrivate,                      // label: type
+		managementClusterResourceGroup,               // label: resource_group
+		s.scope.GetManagementClusterTenantID(),       // label: tenant_id
+		s.scope.GetManagementClusterSubscriptionID(), // label: subscription_id
+	).Set(1)
 
 	privateClusterRecordSets, err := s.privateDNSClient.ListPrivateRecordSets(ctx, managementClusterResourceGroup, clusterZoneName)
 	if err != nil && !azure.IsParentResourceNotFound(err) {
@@ -83,12 +92,17 @@ func (s *Service) Reconcile(ctx context.Context) error {
 		}
 	}
 
-	// TODO: check what's to do with the privateZones here - monitoring - yes!
 	log.V(1).Info("get privateDNSZone Object", "privateDNSZone", clusterZoneName)
 	privateZones, err := s.privateDNSClient.GetPrivateZone(ctx, s.scope.GetManagementClusterResourceGroup(), clusterZoneName)
 	if err != nil {
 		log.V(1).Info("new error", "error", err.Error())
 	}
+
+	// dns_operator_zone_records_sum
+	metrics.ClusterZoneRecords.WithLabelValues(
+		clusterZoneName,
+		metrics.ZoneTypePrivate,
+	).Set(float64(to.Int64(privateZones.Properties.NumberOfRecordSets)))
 
 	log.V(1).Info("current known private Zones in management cluster", "privateZones", privateZones)
 

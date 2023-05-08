@@ -97,6 +97,7 @@ func (s *Service) Reconcile(ctx context.Context) error {
 	// dns_operator_cluster_zone_info{controller="dns-operator-azure",resource_group="np1014",subscription_id="6b1f6e4a-6d0e-4aa4-9a5a-fbaca65a23b3",tenant_id="31f75bf9-3d8c-4691-95c0-83dd71613db8",zone="np1014.azuretest.gigantic.io"} 1
 	metrics.ZoneInfo.WithLabelValues(
 		s.scope.ClusterDomain(),  // label: zone
+		metrics.ZoneTypePublic,   // label: type
 		s.scope.ResourceGroup(),  // label: resource_group
 		s.scope.TenantID(),       // label: tenant_id
 		s.scope.SubscriptionID(), // label: subscription_id
@@ -126,7 +127,10 @@ func (s *Service) Reconcile(ctx context.Context) error {
 	}
 
 	// dns_operator_zone_records_sum{controller="dns-operator-azure",zone="glippy.azuretest.gigantic.io"} 30
-	metrics.ClusterZoneRecords.WithLabelValues(s.scope.ClusterDomain()).Set(float64(to.Int64(clusterZone.Properties.NumberOfRecordSets)))
+	metrics.ClusterZoneRecords.WithLabelValues(
+		s.scope.ClusterDomain(),
+		metrics.ZoneTypePublic,
+	).Set(float64(to.Int64(clusterZone.Properties.NumberOfRecordSets)))
 
 	// create NS Record in base zone
 	log.V(1).Info("list NS records in basedomain", "resourcegroup", s.scope.BaseDomainResourceGroup(), "dns zone", s.scope.BaseDomain())
@@ -136,7 +140,10 @@ func (s *Service) Reconcile(ctx context.Context) error {
 	}
 
 	// dns_operator_zone_records_sum{controller="dns-operator-azure",zone="azuretest.gigantic.io"} 7
-	metrics.ClusterZoneRecords.WithLabelValues(s.scope.BaseDomain()).Set(float64(len(basedomainRecordSets)))
+	metrics.ClusterZoneRecords.WithLabelValues(
+		s.scope.BaseDomain(),
+		metrics.ZoneTypePublic,
+	).Set(float64(len(basedomainRecordSets)))
 
 	log.V(1).Info("range over received NS records")
 	clusterNSRecordExists := false

@@ -318,6 +318,7 @@ func (r *AzureClusterReconciler) reconcileNormal(ctx context.Context, clusterSco
 	// dns_operator_base_domain_info{controller="dns-operator-azure",resource_group="root_dns_zone_rg",subscription_id="1be3b2e6-xxxx-xxxx-xxxx-eb35cae23c6a",tenant_id="31f75bf9-xxxx-xxxx-xxxx-eb35cae23c6a",zone="azuretest.gigantic.io"}
 	metrics.ZoneInfo.WithLabelValues(
 		r.BaseDomain,              // label: zone
+		metrics.ZoneTypePublic,    // label: type
 		r.BaseDomainResourceGroup, // label: resource_group
 		r.BaseZoneTenantID,        // label: tenant_id
 		r.BaseZoneSubscriptionID,  // label: subscription_id
@@ -334,6 +335,8 @@ func (r *AzureClusterReconciler) reconcileNormal(ctx context.Context, clusterSco
 
 func (r *AzureClusterReconciler) reconcileDelete(ctx context.Context, clusterScope *capzscope.ClusterScope) (reconcile.Result, error) {
 	log := log.FromContext(ctx)
+
+	deletedMetrics := 0
 
 	log.Info("Reconciling AzureCluster DNS zones delete")
 
@@ -403,6 +406,11 @@ func (r *AzureClusterReconciler) reconcileDelete(ctx context.Context, clusterSco
 		if err != nil {
 			return reconcile.Result{}, microerror.Mask(err)
 		}
+
+		deletedMetrics += deleteClusterMetrics(
+			fmt.Sprintf("%s.%s", clusterScope.ClusterName(), r.BaseDomain),
+			metrics.ZoneTypePrivate,
+		)
 	}
 
 	dnsScope, err := scope.NewDNSScope(ctx, params)
@@ -425,7 +433,10 @@ func (r *AzureClusterReconciler) reconcileDelete(ctx context.Context, clusterSco
 		controllerutil.RemoveFinalizer(clusterScope.AzureCluster, AzureClusterControllerFinalizer)
 	}
 
-	deletedMetrics := deleteClusterMetrics(fmt.Sprintf("%s.%s", clusterScope.ClusterName(), r.BaseDomain))
+	deletedMetrics += deleteClusterMetrics(
+		fmt.Sprintf("%s.%s", clusterScope.ClusterName(), r.BaseDomain),
+		metrics.ZoneTypePublic,
+	)
 	log.V(1).Info(fmt.Sprintf("%d metrics for cluster %s got deleted", deletedMetrics, clusterScope.ClusterName()))
 
 	log.Info("Successfully reconciled AzureCluster DNS zones delete")
@@ -492,22 +503,24 @@ func (r *AzureClusterReconciler) getManagementClusterIdentity(ctx context.Contex
 }
 
 // deleteClusterMetrics delete all given metrics where
-// labelKey=zone match the given zonename
-func deleteClusterMetrics(zonename string) int {
+// labelKey=zone match the given zoneName
+func deleteClusterMetrics(zoneName, zoneType string) int {
 
-	labelKey := "zone"
 	deletedMetrics := 0
 
 	deletedMetrics += metrics.ZoneInfo.DeletePartialMatch(prometheus.Labels{
-		labelKey: zonename,
+		metrics.MetricZone: zoneName,
+		metrics.ZoneType:   zoneType,
 	})
 
 	deletedMetrics += metrics.ClusterZoneRecords.DeletePartialMatch(prometheus.Labels{
-		labelKey: zonename,
+		metrics.MetricZone: zoneName,
+		metrics.ZoneType:   zoneType,
 	})
 
 	deletedMetrics += metrics.RecordInfo.DeletePartialMatch(prometheus.Labels{
-		labelKey: zonename,
+		metrics.MetricZone: zoneName,
+		metrics.ZoneType:   zoneType,
 	})
 
 	return deletedMetrics

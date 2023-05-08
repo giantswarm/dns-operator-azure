@@ -97,8 +97,10 @@ func newVirtualNetworkLinkClient(subscriptionID string, cred azcore.TokenCredent
 
 func (ac *azureClient) ListPrivateRecordSets(ctx context.Context, resourceGroupName string, zoneName string) ([]*armprivatedns.RecordSet, error) {
 
-	recordsSetsResultPager := ac.privateRecordSets.NewListByTypePager(resourceGroupName, zoneName, armprivatedns.RecordTypeA, nil)
+	// dns_operator_api_request_total{controller="dns-operator-azure",method="privateRecordSets.NewListByTypePager"}
+	metrics.AzureRequest.WithLabelValues("privateRecordSets.NewListByTypePager").Inc()
 
+	recordsSetsResultPager := ac.privateRecordSets.NewListByTypePager(resourceGroupName, zoneName, armprivatedns.RecordTypeA, nil)
 	var recordSets []*armprivatedns.RecordSet
 	for recordsSetsResultPager.More() {
 		nextPage, err := recordsSetsResultPager.NextPage(ctx)
@@ -114,22 +116,23 @@ func (ac *azureClient) ListPrivateRecordSets(ctx context.Context, resourceGroupN
 
 func (ac *azureClient) CreateOrUpdatePrivateZone(ctx context.Context, resourceGroupName string, zoneName string, zone armprivatedns.PrivateZone) error {
 
-	poller, err := ac.privateZones.BeginCreateOrUpdate(ctx, resourceGroupName, zoneName, zone, nil)
+	// dns_operator_api_request_total{controller="dns-operator-azure",method="privateZones.BeginCreateOrUpdate"}
+	metrics.AzureRequest.WithLabelValues("privateZones.BeginCreateOrUpdate").Inc()
 
-	// dns_operator_api_request_total{controller="dns-operator-azure",method="zones.CreateOrUpdate"}
-	// metrics.AzureRequest.WithLabelValues("zones.CreateOrUpdate").Inc()
+	poller, err := ac.privateZones.BeginCreateOrUpdate(ctx, resourceGroupName, zoneName, zone, nil)
 	if err != nil {
-		// dns_operator_api_request_errors_total{controller="dns-operator-azure",method="zones.CreateOrUpdate"}
-		// metrics.AzureRequestError.WithLabelValues("zones.CreateOrUpdate").Inc()
+		// dns_operator_api_request_errors_total{controller="dns-operator-azure",method="privateZones.BeginCreateOrUpdate"}
+		metrics.AzureRequestError.WithLabelValues("privateZones.BeginCreateOrUpdate").Inc()
 		fmt.Printf("%+v\n", err)
 		return microerror.Mask(err)
 	}
 
 	_, err = poller.PollUntilDone(ctx, nil)
+	// dns_operator_api_request_total{controller="dns-operator-azure",method="poller.PollUntilDone"}
+	metrics.AzureRequest.WithLabelValues("poller.PollUntilDone").Inc()
 	if err != nil {
-		// dns_operator_api_request_errors_total{controller="dns-operator-azure",method="zones.CreateOrUpdate"}
-		// metrics.AzureRequestError.WithLabelValues("zones.CreateOrUpdate").Inc()
-		fmt.Printf("%+v\n", err)
+		// dns_operator_api_request_errors_total{controller="dns-operator-azure",method="poller.PollUntilDone"}
+		metrics.AzureRequestError.WithLabelValues("poller.PollUntilDone").Inc()
 		return microerror.Mask(err)
 	}
 
@@ -137,6 +140,10 @@ func (ac *azureClient) CreateOrUpdatePrivateZone(ctx context.Context, resourceGr
 }
 
 func (ac *azureClient) CreateOrUpdateVirtualNetworkLink(ctx context.Context, resourceGroupName, zoneName, workloadClusterName, vnetID string) error {
+
+	// dns_operator_api_request_total{controller="dns-operator-azure",method="virtualNetworkLinkClient.BeginCreateOrUpdate"}
+	metrics.AzureRequest.WithLabelValues("virtualNetworkLinkClient.BeginCreateOrUpdate").Inc()
+
 	poller, err := ac.virtualNetworkLinkClient.BeginCreateOrUpdate(
 		ctx,
 		resourceGroupName,
@@ -151,15 +158,18 @@ func (ac *azureClient) CreateOrUpdateVirtualNetworkLink(ctx context.Context, res
 				},
 			},
 		}, nil)
-
 	if err != nil {
-		fmt.Printf("%+v\n", err)
+		// dns_operator_api_request_errors_total{controller="dns-operator-azure",method="virtualNetworkLinkClient.BeginCreateOrUpdate"}
+		metrics.AzureRequestError.WithLabelValues("virtualNetworkLinkClient.BeginCreateOrUpdate").Inc()
 		return microerror.Mask(err)
 	}
 
 	_, err = poller.PollUntilDone(ctx, nil)
+	// dns_operator_api_request_total{controller="dns-operator-azure",method="poller.PollUntilDone"}
+	metrics.AzureRequest.WithLabelValues("poller.PollUntilDone").Inc()
 	if err != nil {
-		fmt.Printf("%+v\n", err)
+		// dns_operator_api_request_total{controller="dns-operator-azure",method="poller.PollUntilDone"}
+		metrics.AzureRequestError.WithLabelValues("poller.PollUntilDone").Inc()
 		return microerror.Mask(err)
 	}
 
@@ -168,6 +178,9 @@ func (ac *azureClient) CreateOrUpdateVirtualNetworkLink(ctx context.Context, res
 }
 
 func (ac *azureClient) ListVirtualNetworkLink(ctx context.Context, resourceGroupName, zoneName string) ([]*armprivatedns.VirtualNetworkLink, error) {
+
+	// dns_operator_api_request_total{controller="dns-operator-azure",method="virtualNetworkLinkClient.NewListPager"}
+	metrics.AzureRequest.WithLabelValues("virtualNetworkLinkClient.NewListPager").Inc()
 
 	networkLinkPager := ac.virtualNetworkLinkClient.NewListPager(resourceGroupName, zoneName, nil)
 
@@ -184,9 +197,14 @@ func (ac *azureClient) ListVirtualNetworkLink(ctx context.Context, resourceGroup
 }
 
 func (ac *azureClient) GetPrivateZone(ctx context.Context, resourceGroupName string, zoneName string) (armprivatedns.PrivateZone, error) {
-	resp, err := ac.privateZones.Get(ctx, resourceGroupName, zoneName, nil)
 
+	// dns_operator_api_request_total{controller="dns-operator-azure",method="privateZones.Get"}
+	metrics.AzureRequest.WithLabelValues("privateZones.Get").Inc()
+
+	resp, err := ac.privateZones.Get(ctx, resourceGroupName, zoneName, nil)
 	if err != nil {
+		// dns_operator_api_request_errors_total{controller="dns-operator-azure",method="privateZones.Get"}
+		metrics.AzureRequestError.WithLabelValues("privateZones.Get").Inc()
 		return armprivatedns.PrivateZone{}, microerror.Mask(err)
 	}
 
@@ -195,19 +213,33 @@ func (ac *azureClient) GetPrivateZone(ctx context.Context, resourceGroupName str
 }
 
 func (ac *azureClient) DeletePrivateZone(ctx context.Context, resourceGroupName string, zoneName string) error {
+
+	// dns_operator_api_request_total{controller="dns-operator-azure",method="privateZones.BeginDelete"}
+	metrics.AzureRequest.WithLabelValues("privateZones.BeginDelete").Inc()
+
 	poller, err := ac.privateZones.BeginDelete(ctx, resourceGroupName, zoneName, nil)
 	if err != nil {
+		// dns_operator_api_request_errors_total{controller="dns-operator-azure",method="privateZones.BeginDelete"}
+		metrics.AzureRequestError.WithLabelValues("privateZones.BeginDelete").Inc()
 		return microerror.Mask(err)
 	}
 
 	_, err = poller.PollUntilDone(ctx, nil)
+	// dns_operator_api_request_total{controller="dns-operator-azure",method="poller.PollUntilDone"}
+	metrics.AzureRequest.WithLabelValues("poller.PollUntilDone").Inc()
 	if err != nil {
+		// dns_operator_api_request_errors_total{controller="dns-operator-azure",method="poller.PollUntilDone"}
+		metrics.AzureRequestError.WithLabelValues("poller.PollUntilDone").Inc()
 		return microerror.Mask(err)
 	}
 	return nil
 }
 
 func (ac *azureClient) ListRecordSets(ctx context.Context, resourceGroupName string, zoneName string) ([]*armprivatedns.RecordSet, error) {
+
+	// dns_operator_api_request_total{controller="dns-operator-azure",method="recordSets.NewListByDNSZonePager"}
+	metrics.AzureRequest.WithLabelValues("privateRecordSets.NewListPager").Inc()
+
 	recordsSetsResultPager := ac.privateRecordSets.NewListPager(resourceGroupName, zoneName, nil)
 
 	var recordSets []*armprivatedns.RecordSet
@@ -223,10 +255,14 @@ func (ac *azureClient) ListRecordSets(ctx context.Context, resourceGroupName str
 }
 
 func (ac *azureClient) CreateOrUpdateRecordSet(ctx context.Context, resourceGroupName string, zoneName string, recordType armprivatedns.RecordType, recordSetName string, recordSet armprivatedns.RecordSet) (armprivatedns.RecordSet, error) {
-	resp, err := ac.privateRecordSets.CreateOrUpdate(ctx, resourceGroupName, zoneName, recordType, recordSetName, recordSet, nil)
 
+	// dns_operator_api_request_total{controller="dns-operator-azure",method="recordSets.CreateOrUpdate"}
+	metrics.AzureRequest.WithLabelValues("privateRecordSets.CreateOrUpdate").Inc()
+
+	resp, err := ac.privateRecordSets.CreateOrUpdate(ctx, resourceGroupName, zoneName, recordType, recordSetName, recordSet, nil)
 	if err != nil {
-		metrics.AzureRequestError.WithLabelValues("recordSets.CreateOrUpdate").Inc()
+		// dns_operator_api_request_errors_total{controller="dns-operator-azure",method="privateRecordSets.CreateOrUpdate"}
+		metrics.AzureRequestError.WithLabelValues("privateRecordSets.CreateOrUpdate").Inc()
 		return armprivatedns.RecordSet{}, microerror.Mask(err)
 	}
 

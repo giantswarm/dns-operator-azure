@@ -16,6 +16,8 @@ import (
 	"github.com/giantswarm/microerror"
 	"github.com/go-logr/logr"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+
+	"github.com/giantswarm/dns-operator-azure/v2/pkg/metrics"
 )
 
 const (
@@ -53,6 +55,17 @@ func (s *Service) calculateMissingARecords(ctx context.Context, logger logr.Logg
 			if !reflect.DeepEqual(desiredRecordSet.Properties.TTL, currentRecordSets[currentRecordSetIndex].Properties.TTL) {
 				logger.V(1).Info(fmt.Sprintf("TTL for %s is not equal - force update", *desiredRecordSet.Name))
 				recordsToCreate = append(recordsToCreate, desiredRecordSet)
+			}
+
+			for _, ip := range currentRecordSets[currentRecordSetIndex].Properties.ARecords {
+				// dns_operator_azure_record_set_info{controller="dns-operator-azure",fqdn="api.glippy.azuretest.gigantic.io",ip="20.4.101.180",ttl="300",type="private"} 1
+				metrics.RecordInfo.WithLabelValues(
+					s.scope.ClusterZoneName(), // label: zone
+					metrics.ZoneTypePrivate,   // label: type
+					fmt.Sprintf("%s.%s", to.String(currentRecordSets[currentRecordSetIndex].Name), s.scope.ClusterZoneName()), // label: fqdn
+					to.String(ip.IPv4Address), // label: ip
+					fmt.Sprint(to.Int64(currentRecordSets[currentRecordSetIndex].Properties.TTL)), // label: ttl
+				).Set(1)
 			}
 		}
 
