@@ -24,6 +24,7 @@ type Client interface {
 	ListPrivateRecordSets(ctx context.Context, resourceGroupName string, zoneName string) ([]*armprivatedns.RecordSet, error)
 
 	CreateOrUpdateVirtualNetworkLink(ctx context.Context, resourceGroupName, zoneName, workloadClusterName, vnetID string) error
+	ListVirtualNetworkLink(ctx context.Context, resourceGroupName, zoneName string) ([]*armprivatedns.VirtualNetworkLink, error)
 
 	ListRecordSets(ctx context.Context, resourceGroupName string, zoneName string) ([]*armprivatedns.RecordSet, error)
 	CreateOrUpdateRecordSet(ctx context.Context, resourceGroupName string, zoneName string, recordType armprivatedns.RecordType, recordSetName string, recordSet armprivatedns.RecordSet) (armprivatedns.RecordSet, error)
@@ -165,6 +166,22 @@ func (ac *azureClient) CreateOrUpdateVirtualNetworkLink(ctx context.Context, res
 
 	return nil
 
+}
+
+func (ac *azureClient) ListVirtualNetworkLink(ctx context.Context, resourceGroupName, zoneName string) ([]*armprivatedns.VirtualNetworkLink, error) {
+
+	networkLinkPager := ac.virtualNetworkLinkClient.NewListPager(resourceGroupName, zoneName, nil)
+
+	var networkLinks []*armprivatedns.VirtualNetworkLink
+	for networkLinkPager.More() {
+		nextPage, err := networkLinkPager.NextPage(ctx)
+		if err != nil {
+			return nil, err
+		}
+		networkLinks = append(networkLinks, nextPage.VirtualNetworkLinkListResult.Value...)
+	}
+
+	return networkLinks, nil
 }
 
 func (ac *azureClient) GetPrivateZone(ctx context.Context, resourceGroupName string, zoneName string) (armprivatedns.PrivateZone, error) {

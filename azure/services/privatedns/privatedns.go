@@ -6,6 +6,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/privatedns/armprivatedns"
 	"github.com/Azure/go-autorest/autorest/to"
 	"github.com/giantswarm/microerror"
+	"golang.org/x/exp/slices"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/giantswarm/dns-operator-azure/v2/azure"
@@ -54,8 +55,22 @@ func (s *Service) Reconcile(ctx context.Context) error {
 			return microerror.Mask(err)
 		}
 
-		// TODO: move this into an on condition to be independent of the IsParentResourceNotFound
-		log.V(1).Info("cluster specific private DNS zone not found, creating a new one")
+	}
+
+	log.Info("list virtualNetworkLinks")
+	networkLinks, err := s.privateDNSClient.ListVirtualNetworkLink(ctx, managementClusterResourceGroup, clusterZoneName)
+	if err != nil {
+		return microerror.Mask(err)
+	}
+	log.V(1).Info("list of all network links", "virtualNetworkLinks", networkLinks)
+
+	operatorGeneratedVirtualNetworkLinkIndex := slices.IndexFunc(networkLinks, func(virtualNetworkLink *armprivatedns.VirtualNetworkLink) bool {
+		return *virtualNetworkLink.Name == *to.StringPtr(s.scope.ClusterName() + "-dns-" + managementClusterResourceGroup + "-vnet-link")
+	})
+
+	if operatorGeneratedVirtualNetworkLinkIndex == -1 {
+		log.V(1).Info("virtual network link not found, creating a new one")
+
 		err = s.privateDNSClient.CreateOrUpdateVirtualNetworkLink(
 			ctx,
 			managementClusterResourceGroup,
