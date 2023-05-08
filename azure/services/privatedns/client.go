@@ -25,6 +25,7 @@ type Client interface {
 
 	CreateOrUpdateVirtualNetworkLink(ctx context.Context, resourceGroupName, zoneName, workloadClusterName, vnetID string) error
 	ListVirtualNetworkLink(ctx context.Context, resourceGroupName, zoneName string) ([]*armprivatedns.VirtualNetworkLink, error)
+	DeleteVirtualNetworkLink(ctx context.Context, resourceGroupName, zoneName, workloadClusterName string) error
 
 	ListRecordSets(ctx context.Context, resourceGroupName string, zoneName string) ([]*armprivatedns.RecordSet, error)
 	CreateOrUpdateRecordSet(ctx context.Context, resourceGroupName string, zoneName string, recordType armprivatedns.RecordType, recordSetName string, recordSet armprivatedns.RecordSet) (armprivatedns.RecordSet, error)
@@ -194,6 +195,29 @@ func (ac *azureClient) ListVirtualNetworkLink(ctx context.Context, resourceGroup
 	}
 
 	return networkLinks, nil
+}
+
+func (ac *azureClient) DeleteVirtualNetworkLink(ctx context.Context, resourceGroupName, zoneName, workloadClusterName string) error {
+
+	poller, err := ac.virtualNetworkLinkClient.BeginDelete(ctx, resourceGroupName, zoneName, workloadClusterName+"-dns-"+resourceGroupName+"-vnet-link", nil)
+
+	if err != nil {
+		// dns_operator_api_request_errors_total{controller="dns-operator-azure",method="virtualNetworkLinkClient.BeginDelete"}
+		metrics.AzureRequestError.WithLabelValues("virtualNetworkLinkClient.BeginDelete").Inc()
+		return microerror.Mask(err)
+	}
+
+	_, err = poller.PollUntilDone(ctx, nil)
+	// dns_operator_api_request_total{controller="dns-operator-azure",method="poller.PollUntilDone"}
+	metrics.AzureRequest.WithLabelValues("poller.PollUntilDone").Inc()
+	if err != nil {
+		// dns_operator_api_request_total{controller="dns-operator-azure",method="poller.PollUntilDone"}
+		metrics.AzureRequestError.WithLabelValues("poller.PollUntilDone").Inc()
+		return microerror.Mask(err)
+	}
+
+	return nil
+
 }
 
 func (ac *azureClient) GetPrivateZone(ctx context.Context, resourceGroupName string, zoneName string) (armprivatedns.PrivateZone, error) {

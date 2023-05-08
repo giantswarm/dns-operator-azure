@@ -118,6 +118,10 @@ func (s *Service) ReconcileDelete(ctx context.Context) error {
 	clusterZoneName := s.scope.ClusterZoneName()
 	log.Info("Reconcile DNS deletion", "privateDNSZone", clusterZoneName)
 
+	if err := s.privateDNSClient.DeleteVirtualNetworkLink(ctx, s.scope.GetManagementClusterResourceGroup(), clusterZoneName, s.scope.ClusterName()); err != nil {
+		return microerror.Mask(err)
+	}
+
 	if err := s.privateDNSClient.DeletePrivateZone(ctx, s.scope.GetManagementClusterResourceGroup(), clusterZoneName); err != nil {
 		return microerror.Mask(err)
 	}
