@@ -83,7 +83,7 @@ func (s *Service) Reconcile(ctx context.Context) error {
 		}
 	}
 
-	// TODO: check what's to do with the privateZones here - monitoring?
+	// TODO: check what's to do with the privateZones here - monitoring - yes!
 	log.V(1).Info("get privateDNSZone Object", "privateDNSZone", clusterZoneName)
 	privateZones, err := s.privateDNSClient.GetPrivateZone(ctx, s.scope.GetManagementClusterResourceGroup(), clusterZoneName)
 	if err != nil {

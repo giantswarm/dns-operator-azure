@@ -81,7 +81,6 @@ func newPrivateDNSClient(scope scope.PrivateDNSScope) (*azureClient, error) {
 		privateRecordSets:        privateRecordSetsClient,
 		virtualNetworkLinkClient: virtualNetworkLinkClient,
 	}, nil
-
 }
 
 func newPrivateZonesClient(subscriptionID string, cred azcore.TokenCredential) (*armprivatedns.PrivateZonesClient, error) {

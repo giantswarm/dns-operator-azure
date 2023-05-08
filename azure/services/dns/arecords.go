@@ -33,14 +33,14 @@ const (
 )
 
 func (s *Service) calculateMissingARecords(ctx context.Context, logger logr.Logger, currentRecordSets []*armdns.RecordSet) ([]*armdns.RecordSet, error) {
-	desiredRecordSet, err := s.getDesiredARecords(ctx)
+	desiredRecordSets, err := s.getDesiredARecords(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	var recordsToCreate []*armdns.RecordSet
 
-	for _, desiredRecordSet := range desiredRecordSet {
+	for _, desiredRecordSet := range desiredRecordSets {
 
 		logger.V(1).Info(fmt.Sprintf("compare entries individually - %s", *desiredRecordSet.Name))
 

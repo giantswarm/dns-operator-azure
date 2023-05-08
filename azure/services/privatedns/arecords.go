@@ -3,6 +3,7 @@ package privatedns
 import (
 	"context"
 	"fmt"
+	"reflect"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/privatedns/armprivatedns"
 	"golang.org/x/exp/slices"
@@ -28,12 +29,37 @@ const (
 )
 
 func (s *Service) calculateMissingARecords(ctx context.Context, logger logr.Logger, currentRecordSets []*armprivatedns.RecordSet) ([]*armprivatedns.RecordSet, error) {
-	desiredRecordSet, err := s.getDesiredPrivateARecords(ctx)
+	desiredRecordSets, err := s.getDesiredPrivateARecords(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	return desiredRecordSet, nil
+	var recordsToCreate []*armprivatedns.RecordSet
+
+	for _, desiredRecordSet := range desiredRecordSets {
+		logger.V(1).Info(fmt.Sprintf("compare entries individually - %s", *desiredRecordSet.Name))
+
+		currentRecordSetIndex := slices.IndexFunc(currentRecordSets, func(recordSet *armprivatedns.RecordSet) bool { return *recordSet.Name == *desiredRecordSet.Name })
+		if currentRecordSetIndex == -1 {
+			recordsToCreate = append(recordsToCreate, desiredRecordSet)
+		} else {
+			// compare ARecords[].IPv4Address
+			if !reflect.DeepEqual(desiredRecordSet.Properties.ARecords, currentRecordSets[currentRecordSetIndex].Properties.ARecords) {
+				logger.V(1).Info(fmt.Sprintf("A Records for %s are not equal - force update", *desiredRecordSet.Name))
+				recordsToCreate = append(recordsToCreate, desiredRecordSet)
+			}
+
+			// compare TTL
+			if !reflect.DeepEqual(desiredRecordSet.Properties.TTL, currentRecordSets[currentRecordSetIndex].Properties.TTL) {
+				logger.V(1).Info(fmt.Sprintf("TTL for %s is not equal - force update", *desiredRecordSet.Name))
+				recordsToCreate = append(recordsToCreate, desiredRecordSet)
+			}
+		}
+
+		recordsToCreate = append(recordsToCreate, desiredRecordSet)
+	}
+
+	return recordsToCreate, nil
 }
 
 func (s *Service) updateARecords(ctx context.Context, currentRecordSets []*armprivatedns.RecordSet) error {
