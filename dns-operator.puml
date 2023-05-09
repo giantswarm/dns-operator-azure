@@ -1,8 +1,8 @@
 @startuml
 autonumber
 
-database "Cluster API Infra CR" as capiInfraCR #blue
 database "Cluster API AzureMachine CR" as capzMachineCR #blue
+database "Cluster API Infra CR" as capiInfraCR #blue
 
 control "machine controller" as dnsOperatorMachineController #blue
 control "cluster controller" as dnsOperatorClusterController #blue
