@@ -3,21 +3,39 @@ autonumber
 
 database "Cluster API Infra CR" as capiInfraCR #blue
 database "Cluster API AzureMachine CR" as capzMachineCR #blue
-control "dns-operator-azure" as dnsOperator #blue
+
+control "machine controller" as dnsOperatorMachineController #blue
+control "cluster controller" as dnsOperatorClusterController #blue
+
+
 participant "Azure DNS basedomain zone" as azureDNSBasedomainZone #DeepSkyBlue
 participant "Azure DNS cluster zone" as azureDNSClusterZone #DeepSkyBlue
 
-dnsOperator -> capiInfraCR: reconcile on ""AzureCluster"" CR
-dnsOperator -> capiInfraCR: set the finalizer
-dnsOperator -> capzMachineCR: reconcile on ""AzureMachine"" CR
-dnsOperator -> capzMachineCR: set the finalizer
-dnsOperator -> capzMachineCR: get the bastion host IP
-dnsOperator -> capiInfraCR: write the bastion host IP as annotation
-dnsOperator -> azureDNSClusterZone: create a public DNS zone ""<clusterName>.<baseDomain>""
-dnsOperator -> azureDNSBasedomainZone: create ""NS record"" in ""<baseDomain>"" for zone delegation to ""<clusterName>.<baseDomain>""
-dnsOperator -> capiInfraCR: get controlPlane IP address
-dnsOperator -> capiInfraCR: get bastion IP addresses
-dnsOperator -> azureDNSClusterZone: create ""A record"" ( ""api.<clusterName>.<baseDomain>"" ) for controlPlane IP address
-dnsOperator -> azureDNSClusterZone: create ""A record"" ( ""bastion.<clusterName>.<baseDomain>"" ) for bastion IP address
+participant "Azure private DNS cluster zone" as azurePrivateDNSClusterZone #DeepSkyBlue
+
+dnsOperatorMachineController -> capzMachineCR: reconcile on ""AzureMachine"" CR
+dnsOperatorMachineController -> capzMachineCR: set the finalizer
+dnsOperatorMachineController -> capzMachineCR: get the bastion host IP
+dnsOperatorMachineController -> capiInfraCR: write the bastion host IP as annotation\n ""dns-operator-azure.giantswarm.io/bastion-ip""
+
+dnsOperatorClusterController -> capiInfraCR: reconcile on ""AzureCluster"" CR
+dnsOperatorClusterController -> capiInfraCR: set the finalizer
+dnsOperatorClusterController -> azureDNSClusterZone: create a public DNS zone ""<clusterName>.<baseDomain>""
+dnsOperatorClusterController -> azureDNSBasedomainZone: create ""NS record"" in ""<baseDomain>"" for zone delegation to ""<clusterName>.<baseDomain>""
+
+
+dnsOperatorClusterController -> capiInfraCR: get controlPlane IP address from ""azureCluster.spec"""
+dnsOperatorClusterController -> capiInfraCR: get bastion IP addresses from annotation\n ""dns-operator-azure.giantswarm.io/bastion-ip""
+dnsOperatorClusterController -> azureDNSClusterZone: create ""A record"" ( ""api.<clusterName>.<baseDomain>"" ) for controlPlane IP address
+dnsOperatorClusterController -> azureDNSClusterZone: create ""A record"" ( ""bastion.<clusterName>.<baseDomain>"" ) for bastion IP address
+
+group private Clusters only
+
+dnsOperatorClusterController -[#red]> capiInfraCR: get the privateLinked IP from annotation\n ""azure-private-endpoint-operator.giantswarm.io/private-link-apiserver-ip""
+dnsOperatorClusterController -[#red]> azurePrivateDNSClusterZone: create a private DNS zone ""<clusterName>.<baseDomain>""
+dnsOperatorClusterController -[#red]> azurePrivateDNSClusterZone: create ""A record"" ( ""api.<clusterName>.<baseDomain>"" ) for controlPlane IP address
+
+end
+
 
 @enduml
