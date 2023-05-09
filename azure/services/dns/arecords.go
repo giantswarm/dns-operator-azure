@@ -32,53 +32,6 @@ const (
 	bastionRecordTTL = 300
 )
 
-func (s *Service) calculateMissingARecords(ctx context.Context, logger logr.Logger, currentRecordSets []*armdns.RecordSet) ([]*armdns.RecordSet, error) {
-	desiredRecordSets, err := s.getDesiredARecords(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	var recordsToCreate []*armdns.RecordSet
-
-	for _, desiredRecordSet := range desiredRecordSets {
-
-		logger.V(1).Info(fmt.Sprintf("compare entries individually - %s", *desiredRecordSet.Name))
-
-		currentRecordSetIndex := slices.IndexFunc(currentRecordSets, func(recordSet *armdns.RecordSet) bool { return *recordSet.Name == *desiredRecordSet.Name })
-		if currentRecordSetIndex == -1 {
-			recordsToCreate = append(recordsToCreate, desiredRecordSet)
-		} else {
-			// remove ProvisioningState from currentRecordSet to make further comparison easier
-			currentRecordSets[currentRecordSetIndex].Properties.ProvisioningState = nil
-
-			// compare ARecords[].IPv4Address
-			if !reflect.DeepEqual(desiredRecordSet.Properties.ARecords, currentRecordSets[currentRecordSetIndex].Properties.ARecords) {
-				logger.V(1).Info(fmt.Sprintf("A Records for %s are not equal - force update", *desiredRecordSet.Name))
-				recordsToCreate = append(recordsToCreate, desiredRecordSet)
-			}
-
-			// compare TTL
-			if !reflect.DeepEqual(desiredRecordSet.Properties.TTL, currentRecordSets[currentRecordSetIndex].Properties.TTL) {
-				logger.V(1).Info(fmt.Sprintf("TTL for %s is not equal - force update", *desiredRecordSet.Name))
-				recordsToCreate = append(recordsToCreate, desiredRecordSet)
-			}
-
-			for _, ip := range currentRecordSets[currentRecordSetIndex].Properties.ARecords {
-				// dns_operator_azure_record_set_info{controller="dns-operator-azure",fqdn="api.glippy.azuretest.gigantic.io",ip="20.4.101.180",ttl="300"} 1
-				metrics.RecordInfo.WithLabelValues(
-					s.scope.ClusterDomain(), // label: zone
-					metrics.ZoneTypePublic,  // label: type
-					fmt.Sprintf("%s.%s", to.String(currentRecordSets[currentRecordSetIndex].Name), s.scope.ClusterDomain()), // label: fqdn
-					to.String(ip.IPv4Address), // label: ip
-					fmt.Sprint(to.Int64(currentRecordSets[currentRecordSetIndex].Properties.TTL)), // label: ttl
-				).Set(1)
-			}
-		}
-	}
-
-	return recordsToCreate, nil
-}
-
 func (s *Service) updateARecords(ctx context.Context, currentRecordSets []*armdns.RecordSet) error {
 	logger := log.FromContext(ctx).WithName("arecords")
 
@@ -130,6 +83,59 @@ func (s *Service) updateARecords(ctx context.Context, currentRecordSets []*armdn
 	}
 
 	return nil
+}
+
+func (s *Service) calculateMissingARecords(ctx context.Context, logger logr.Logger, currentRecordSets []*armdns.RecordSet) ([]*armdns.RecordSet, error) {
+	desiredRecordSets, err := s.getDesiredARecords(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var recordsToCreate []*armdns.RecordSet
+
+	for _, desiredRecordSet := range desiredRecordSets {
+
+		logger.V(1).Info(fmt.Sprintf("compare entries individually - %s", *desiredRecordSet.Name))
+
+		currentRecordSetIndex := slices.IndexFunc(currentRecordSets, func(recordSet *armdns.RecordSet) bool { return *recordSet.Name == *desiredRecordSet.Name })
+		if currentRecordSetIndex == -1 {
+			recordsToCreate = append(recordsToCreate, desiredRecordSet)
+		} else {
+			// remove ProvisioningState from currentRecordSet to make further comparison easier
+			currentRecordSets[currentRecordSetIndex].Properties.ProvisioningState = nil
+
+			switch {
+			// compare ARecords[].IPv4Address
+			case !reflect.DeepEqual(
+				desiredRecordSet.Properties.ARecords,
+				currentRecordSets[currentRecordSetIndex].Properties.ARecords,
+			):
+				logger.V(1).Info(fmt.Sprintf("A Records for %s are not equal - force update", *desiredRecordSet.Name))
+				recordsToCreate = append(recordsToCreate, desiredRecordSet)
+			// compare TTL
+			case !reflect.DeepEqual(
+				desiredRecordSet.Properties.TTL,
+				currentRecordSets[currentRecordSetIndex].Properties.TTL,
+			):
+				logger.V(1).Info(fmt.Sprintf("TTL for %s is not equal - force update", *desiredRecordSet.Name))
+				recordsToCreate = append(recordsToCreate, desiredRecordSet)
+
+			}
+
+			for _, ip := range currentRecordSets[currentRecordSetIndex].Properties.ARecords {
+				// dns_operator_azure_record_set_info{controller="dns-operator-azure",fqdn="api.glippy.azuretest.gigantic.io",ip="20.4.101.180",ttl="300"} 1
+				metrics.RecordInfo.WithLabelValues(
+					s.scope.ClusterDomain(), // label: zone
+					metrics.ZoneTypePublic,  // label: type
+					fmt.Sprintf("%s.%s", to.String(currentRecordSets[currentRecordSetIndex].Name), s.scope.ClusterDomain()), // label: fqdn
+					to.String(ip.IPv4Address), // label: ip
+					fmt.Sprint(to.Int64(currentRecordSets[currentRecordSetIndex].Properties.TTL)), // label: ttl
+				).Set(1)
+			}
+		}
+	}
+
+	return recordsToCreate, nil
 }
 
 func (s *Service) getDesiredARecords(ctx context.Context) ([]*armdns.RecordSet, error) {

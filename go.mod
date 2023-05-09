@@ -12,12 +12,15 @@ require (
 	github.com/Azure/go-autorest/autorest/to v0.4.0
 	github.com/giantswarm/microerror v0.4.0
 	github.com/go-logr/logr v1.2.4
+	github.com/google/uuid v1.3.0
 	github.com/prometheus/client_golang v1.15.0
 	go.uber.org/zap v1.24.0
 	golang.org/x/exp v0.0.0-20230131160201-f062dba9d201
 	k8s.io/api v0.26.2
 	k8s.io/apimachinery v0.26.2
 	k8s.io/client-go v0.26.2
+	k8s.io/kubectl v0.26.1
+	k8s.io/utils v0.0.0-20230220204549-a5ecb0141aa5
 	sigs.k8s.io/cluster-api v1.3.5
 	sigs.k8s.io/cluster-api-provider-azure v1.6.1
 	sigs.k8s.io/controller-runtime v0.13.1
@@ -70,7 +73,6 @@ require (
 	github.com/google/go-cmp v0.5.9 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
-	github.com/google/uuid v1.3.0 // indirect
 	github.com/gregjones/httpcache v0.0.0-20180305231024-9cad4c3443a7 // indirect
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
 	github.com/imdario/mergo v0.3.13 // indirect
@@ -130,8 +132,6 @@ require (
 	k8s.io/component-helpers v0.26.1 // indirect
 	k8s.io/klog/v2 v2.90.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20221012153701-172d655c2280 // indirect
-	k8s.io/kubectl v0.26.1 // indirect
-	k8s.io/utils v0.0.0-20230220204549-a5ecb0141aa5 // indirect
 	sigs.k8s.io/cloud-provider-azure v1.25.5 // indirect
 	sigs.k8s.io/json v0.0.0-20220713155537-f223a00ba0e2 // indirect
 	sigs.k8s.io/kustomize/api v0.12.1 // indirect
