@@ -39,7 +39,7 @@ type azureClient struct {
 
 func newPrivateDNSClient(scope scope.PrivateDNSScope) (*azureClient, error) {
 
-	managementClusterIdentity := scope.GetManagementClusterAzureIdentity()
+	managementClusterIdentity := scope.ManagementClusterAzureIdentity()
 
 	var cred azcore.TokenCredential
 	var err error
@@ -54,7 +54,7 @@ func newPrivateDNSClient(scope scope.PrivateDNSScope) (*azureClient, error) {
 		}
 
 	case infrav1.ManualServicePrincipal:
-		secret := scope.GetManagementClusterAzureClientSecret()
+		secret := scope.ManagementClusterAzureClientSecret()
 
 		cred, err = azidentity.NewClientSecretCredential(managementClusterIdentity.Spec.TenantID, managementClusterIdentity.Spec.ClientID, secret, nil)
 		if err != nil {
@@ -62,17 +62,17 @@ func newPrivateDNSClient(scope scope.PrivateDNSScope) (*azureClient, error) {
 		}
 	}
 
-	privateZonesClient, err := newPrivateZonesClient(scope.GetManagementClusterSubscriptionID(), cred)
+	privateZonesClient, err := newPrivateZonesClient(scope.ManagementClusterSubscriptionID(), cred)
 	if err != nil {
 		return nil, microerror.Mask(err)
 	}
 
-	privateRecordSetsClient, err := newPrivateRecordSetsClient(scope.GetManagementClusterSubscriptionID(), cred)
+	privateRecordSetsClient, err := newPrivateRecordSetsClient(scope.ManagementClusterSubscriptionID(), cred)
 	if err != nil {
 		return nil, microerror.Mask(err)
 	}
 
-	virtualNetworkLinkClient, err := newVirtualNetworkLinkClient(scope.GetManagementClusterSubscriptionID(), cred)
+	virtualNetworkLinkClient, err := newVirtualNetworkLinkClient(scope.ManagementClusterSubscriptionID(), cred)
 	if err != nil {
 		return nil, microerror.Mask(err)
 	}
@@ -112,7 +112,6 @@ func (ac *azureClient) ListPrivateRecordSets(ctx context.Context, resourceGroupN
 	}
 
 	return recordSets, nil
-
 }
 
 func (ac *azureClient) CreateOrUpdatePrivateZone(ctx context.Context, resourceGroupName string, zoneName string, zone armprivatedns.PrivateZone) error {
@@ -175,7 +174,6 @@ func (ac *azureClient) CreateOrUpdateVirtualNetworkLink(ctx context.Context, res
 	}
 
 	return nil
-
 }
 
 func (ac *azureClient) ListVirtualNetworkLink(ctx context.Context, resourceGroupName, zoneName string) ([]*armprivatedns.VirtualNetworkLink, error) {
@@ -217,7 +215,6 @@ func (ac *azureClient) DeleteVirtualNetworkLink(ctx context.Context, resourceGro
 	}
 
 	return nil
-
 }
 
 func (ac *azureClient) GetPrivateZone(ctx context.Context, resourceGroupName string, zoneName string) (armprivatedns.PrivateZone, error) {
@@ -233,7 +230,6 @@ func (ac *azureClient) GetPrivateZone(ctx context.Context, resourceGroupName str
 	}
 
 	return resp.PrivateZone, nil
-
 }
 
 func (ac *azureClient) DeletePrivateZone(ctx context.Context, resourceGroupName string, zoneName string) error {

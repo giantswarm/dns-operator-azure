@@ -33,10 +33,10 @@ type AzureMachineReconciler struct {
 	Recorder record.EventRecorder
 }
 
-// +kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=azuremachine,verbs=get;list;watch;update;patch
-// +kubebuilder:rbac:groups=cluster.x-k8s.io,resources=machine,verbs=get;list;watch;update;patch
-// +kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=azurecluster,verbs=get;list;watch;update;patch
-// +kubebuilder:rbac:groups=cluster.x-k8s.io,resources=cluster,verbs=get;list;watch;update;patch
+// +kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=azuremachines,verbs=get;list;watch;update;patch
+// +kubebuilder:rbac:groups=cluster.x-k8s.io,resources=machines,verbs=get;list;watch;update;patch
+// +kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=azureclusters,verbs=get;list;watch;update;patch
+// +kubebuilder:rbac:groups=cluster.x-k8s.io,resources=clusters,verbs=get;list;watch;update;patch
 
 func (r *AzureMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_ ctrl.Result, reterr error) {
 

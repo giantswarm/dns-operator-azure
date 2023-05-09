@@ -40,8 +40,6 @@ type Service struct {
 	// azureBaseZoneClient is used as client for all baseDomain operations
 	azureBaseZoneClient client
 
-	//privateDNSClient privatedns.Client
-
 	publicIPsService *capzpublicips.Service
 }
 
@@ -58,19 +56,11 @@ func New(scope scope.DNSScope, publicIPsService *capzpublicips.Service) (*Servic
 		return nil, microerror.Mask(err)
 	}
 
-	/*
-		privateDNSClient, err := privatedns.NewPrivateDNSClient(scope)
-		if err != nil {
-			return nil, microerror.Mask(err)
-		}
-	*/
-
 	return &Service{
 		scope:               scope,
 		azureClient:         azureClient,
 		azureBaseZoneClient: azureBaseZoneClient,
 		publicIPsService:    publicIPsService,
-		//privateDNSClient:    privateDNSClient,
 	}, nil
 }
 
@@ -114,7 +104,7 @@ func (s *Service) Reconcile(ctx context.Context) error {
 		log.V(1).Info("cluster specific DNS zone not found", "error", err.Error())
 		_, err = s.createClusterDNSZone(ctx)
 		if err != nil {
-			log.V(1).Info("private zone creation failed", "error", err.Error())
+			log.V(1).Info("zone creation failed", "error", err.Error())
 			return microerror.Mask(err)
 		}
 	}

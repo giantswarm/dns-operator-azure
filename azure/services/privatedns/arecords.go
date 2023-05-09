@@ -21,13 +21,9 @@ import (
 )
 
 const (
-	bastionRecordName   = "bastion"
-	bastion1RecordName  = "bastion1"
-	apiRecordName       = "api"
 	apiserverRecordName = "apiserver"
 
-	apiRecordTTL     = 300
-	bastionRecordTTL = 300
+	apiRecordTTL = 300
 )
 
 func (s *Service) calculateMissingARecords(ctx context.Context, logger logr.Logger, currentRecordSets []*armprivatedns.RecordSet) ([]*armprivatedns.RecordSet, error) {
@@ -60,9 +56,9 @@ func (s *Service) calculateMissingARecords(ctx context.Context, logger logr.Logg
 			for _, ip := range currentRecordSets[currentRecordSetIndex].Properties.ARecords {
 				// dns_operator_azure_record_set_info{controller="dns-operator-azure",fqdn="api.glippy.azuretest.gigantic.io",ip="20.4.101.180",ttl="300",type="private"} 1
 				metrics.RecordInfo.WithLabelValues(
-					s.scope.ClusterZoneName(), // label: zone
-					metrics.ZoneTypePrivate,   // label: type
-					fmt.Sprintf("%s.%s", to.String(currentRecordSets[currentRecordSetIndex].Name), s.scope.ClusterZoneName()), // label: fqdn
+					s.scope.ClusterDomain(), // label: zone
+					metrics.ZoneTypePrivate, // label: type
+					fmt.Sprintf("%s.%s", to.String(currentRecordSets[currentRecordSetIndex].Name), s.scope.ClusterDomain()), // label: fqdn
 					to.String(ip.IPv4Address), // label: ip
 					fmt.Sprint(to.Int64(currentRecordSets[currentRecordSetIndex].Properties.TTL)), // label: ttl
 				).Set(1)
@@ -91,7 +87,7 @@ func (s *Service) updateARecords(ctx context.Context, currentRecordSets []*armpr
 	if len(recordsToCreate) == 0 {
 		logger.Info(
 			"All DNS A records have already been created",
-			"DNSZone", s.scope.ClusterZoneName())
+			"DNSZone", s.scope.ClusterDomain())
 		return nil
 	}
 
@@ -99,19 +95,19 @@ func (s *Service) updateARecords(ctx context.Context, currentRecordSets []*armpr
 
 		logger.Info(
 			fmt.Sprintf("DNS A record %s is missing, it will be created", to.String(aRecord.Name)),
-			"DNSZone", s.scope.ClusterZoneName(),
-			"FQDN", fmt.Sprintf("%s.%s", *aRecord.Name, s.scope.ClusterZoneName()))
+			"DNSZone", s.scope.ClusterDomain(),
+			"FQDN", fmt.Sprintf("%s.%s", *aRecord.Name, s.scope.ClusterDomain()))
 
 		logger.Info(
 			"Creating DNS A record",
-			"DNSZone", s.scope.ClusterZoneName(),
+			"DNSZone", s.scope.ClusterDomain(),
 			"hostname", aRecord.Name,
 			"ipv4", aRecord.Properties.ARecords)
 
 		createdRecordSet, err := s.privateDNSClient.CreateOrUpdateRecordSet(
 			ctx,
-			s.scope.GetManagementClusterResourceGroup(),
-			s.scope.ClusterZoneName(),
+			s.scope.ManagementClusterResourceGroup(),
+			s.scope.ClusterDomain(),
 			armprivatedns.RecordTypeA,
 			*aRecord.Name,
 			*aRecord)
@@ -121,7 +117,7 @@ func (s *Service) updateARecords(ctx context.Context, currentRecordSets []*armpr
 
 		logger.Info(
 			"Successfully created DNS A record",
-			"DNSZone", s.scope.ClusterZoneName(),
+			"DNSZone", s.scope.ClusterDomain(),
 			"hostname", aRecord.Name,
 			"id", createdRecordSet.ID)
 	}
@@ -133,7 +129,7 @@ func (s *Service) getDesiredPrivateARecords(ctx context.Context) ([]*armprivated
 
 	var armprivatednsRecordSet []*armprivatedns.RecordSet
 
-	if len(s.scope.GetPrivateLinkedAPIServerIP()) > 0 {
+	if len(s.scope.PrivateLinkedAPIServerIP()) > 0 {
 
 		armprivatednsRecordSet = append(armprivatednsRecordSet,
 
@@ -149,7 +145,7 @@ func (s *Service) getDesiredPrivateARecords(ctx context.Context) ([]*armprivated
 		privateAPIIndex := slices.IndexFunc(armprivatednsRecordSet, func(recordSet *armprivatedns.RecordSet) bool { return *recordSet.Name == apiserverRecordName })
 
 		armprivatednsRecordSet[privateAPIIndex].Properties.ARecords = append(armprivatednsRecordSet[privateAPIIndex].Properties.ARecords, &armprivatedns.ARecord{
-			IPv4Address: to.StringPtr(s.scope.GetPrivateLinkedAPIServerIP()),
+			IPv4Address: to.StringPtr(s.scope.PrivateLinkedAPIServerIP()),
 		})
 
 	}

@@ -38,17 +38,17 @@ func New(scope scope.PrivateDNSScope) (*Service, error) {
 func (s *Service) Reconcile(ctx context.Context) error {
 	log := log.FromContext(ctx).WithName("azure-private-dns-create")
 
-	clusterZoneName := s.scope.ClusterZoneName()
-	managementClusterResourceGroup := s.scope.GetManagementClusterResourceGroup()
+	clusterZoneName := s.scope.ClusterDomain()
+	managementClusterResourceGroup := s.scope.ManagementClusterResourceGroup()
 
 	log.Info("Reconcile privateDNS", "privateDNSZone", clusterZoneName)
 
 	metrics.ZoneInfo.WithLabelValues(
-		clusterZoneName,                              // label: zone
-		metrics.ZoneTypePrivate,                      // label: type
-		managementClusterResourceGroup,               // label: resource_group
-		s.scope.GetManagementClusterTenantID(),       // label: tenant_id
-		s.scope.GetManagementClusterSubscriptionID(), // label: subscription_id
+		clusterZoneName,                           // label: zone
+		metrics.ZoneTypePrivate,                   // label: type
+		managementClusterResourceGroup,            // label: resource_group
+		s.scope.ManagementClusterTenantID(),       // label: tenant_id
+		s.scope.ManagementClusterSubscriptionID(), // label: subscription_id
 	).Set(1)
 
 	privateClusterRecordSets, err := s.privateDNSClient.ListPrivateRecordSets(ctx, managementClusterResourceGroup, clusterZoneName)
@@ -63,7 +63,6 @@ func (s *Service) Reconcile(ctx context.Context) error {
 		if err != nil {
 			return microerror.Mask(err)
 		}
-
 	}
 
 	log.Info("list virtualNetworkLinks")
@@ -85,7 +84,7 @@ func (s *Service) Reconcile(ctx context.Context) error {
 			managementClusterResourceGroup,
 			clusterZoneName,
 			s.scope.ClusterName(),
-			s.scope.GetManagementClusterVnetID(),
+			s.scope.ManagementClusterVnetID(),
 		)
 		if err != nil {
 			return microerror.Mask(err)
@@ -93,7 +92,7 @@ func (s *Service) Reconcile(ctx context.Context) error {
 	}
 
 	log.V(1).Info("get privateDNSZone Object", "privateDNSZone", clusterZoneName)
-	privateZones, err := s.privateDNSClient.GetPrivateZone(ctx, s.scope.GetManagementClusterResourceGroup(), clusterZoneName)
+	privateZones, err := s.privateDNSClient.GetPrivateZone(ctx, s.scope.ManagementClusterResourceGroup(), clusterZoneName)
 	if err != nil {
 		log.V(1).Info("new error", "error", err.Error())
 	}
@@ -115,14 +114,14 @@ func (s *Service) Reconcile(ctx context.Context) error {
 
 func (s *Service) ReconcileDelete(ctx context.Context) error {
 	log := log.FromContext(ctx).WithName("azure-private-dns-delete")
-	clusterZoneName := s.scope.ClusterZoneName()
+	clusterZoneName := s.scope.ClusterDomain()
 	log.Info("Reconcile DNS deletion", "privateDNSZone", clusterZoneName)
 
-	if err := s.privateDNSClient.DeleteVirtualNetworkLink(ctx, s.scope.GetManagementClusterResourceGroup(), clusterZoneName, s.scope.ClusterName()); err != nil {
+	if err := s.privateDNSClient.DeleteVirtualNetworkLink(ctx, s.scope.ManagementClusterResourceGroup(), clusterZoneName, s.scope.ClusterName()); err != nil {
 		return microerror.Mask(err)
 	}
 
-	if err := s.privateDNSClient.DeletePrivateZone(ctx, s.scope.GetManagementClusterResourceGroup(), clusterZoneName); err != nil {
+	if err := s.privateDNSClient.DeletePrivateZone(ctx, s.scope.ManagementClusterResourceGroup(), clusterZoneName); err != nil {
 		return microerror.Mask(err)
 	}
 

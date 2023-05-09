@@ -67,7 +67,7 @@ func NewPrivateDNSScope(_ context.Context, params PrivateDNSScopeParams) (*Priva
 	return scope, nil
 }
 
-func (s *PrivateDNSScope) ClusterZoneName() string {
+func (s *PrivateDNSScope) ClusterDomain() string {
 	return fmt.Sprintf("%s.%s", s.clusterName, s.baseDomain)
 }
 
@@ -75,35 +75,35 @@ func (s *PrivateDNSScope) ClusterName() string {
 	return s.clusterName
 }
 
-func (s *PrivateDNSScope) GetManagementClusterVnetID() string {
+func (s *PrivateDNSScope) ManagementClusterVnetID() string {
 	return s.virtualNetworkID
 }
 
-func (s *PrivateDNSScope) GetManagementClusterResourceGroup() string {
+func (s *PrivateDNSScope) ManagementClusterResourceGroup() string {
 	return s.managementClusterSpec.ResourceGroup
 }
 
-func (s *PrivateDNSScope) GetManagementClusterAzureIdentity() infrav1.AzureClusterIdentity {
+func (s *PrivateDNSScope) ManagementClusterAzureIdentity() infrav1.AzureClusterIdentity {
 	return s.managementClusterIdentity.clusterIdentity
 }
 
-func (s *PrivateDNSScope) GetManagementClusterAzureClientSecret() string {
+func (s *PrivateDNSScope) ManagementClusterAzureClientSecret() string {
 	return string(s.managementClusterIdentity.secret.Data[clientSecretKeyName])
 }
 
-func (s *PrivateDNSScope) GetManagementClusterSubscriptionID() string {
+func (s *PrivateDNSScope) ManagementClusterSubscriptionID() string {
 	return s.managementClusterSpec.SubscriptionID
 }
 
-func (s *PrivateDNSScope) GetManagementClusterTenantID() string {
+func (s *PrivateDNSScope) ManagementClusterTenantID() string {
 	return s.managementClusterIdentity.clusterIdentity.Spec.TenantID
 }
 
-func (s *PrivateDNSScope) GetManagementClusterClientID() string {
+func (s *PrivateDNSScope) ManagementClusterClientID() string {
 	return s.managementClusterIdentity.clusterIdentity.Spec.ClientID
 }
 
-func (s *PrivateDNSScope) GetPrivateLinkedAPIServerIP() string {
+func (s *PrivateDNSScope) PrivateLinkedAPIServerIP() string {
 
 	// the IP in the azureCluster CR takes precedence over the
 	// IP from the managementCluster azureCluster CR
@@ -111,16 +111,16 @@ func (s *PrivateDNSScope) GetPrivateLinkedAPIServerIP() string {
 	var privateLinkedAPIServerIP string
 
 	switch {
-	case len(s.getPrivateLinkedAPIServerIPFromClusterAnnotation()) > 0:
-		privateLinkedAPIServerIP = s.getPrivateLinkedAPIServerIPFromClusterAnnotation()
-	case len(s.getPrivateLinkedAPIServerIPFromManagementCluster()) > 0:
-		privateLinkedAPIServerIP = s.getPrivateLinkedAPIServerIPFromManagementCluster()
+	case len(s.privateLinkedAPIServerIPFromClusterAnnotation()) > 0:
+		privateLinkedAPIServerIP = s.privateLinkedAPIServerIPFromClusterAnnotation()
+	case len(s.privateLinkedAPIServerIPFromManagementCluster()) > 0:
+		privateLinkedAPIServerIP = s.privateLinkedAPIServerIPFromManagementCluster()
 	}
 
 	return privateLinkedAPIServerIP
 }
 
-func (s *PrivateDNSScope) getPrivateLinkedAPIServerIPFromManagementCluster() string {
+func (s *PrivateDNSScope) privateLinkedAPIServerIPFromManagementCluster() string {
 
 	var privateLinkedAPIServerIP string
 
@@ -136,6 +136,6 @@ func (s *PrivateDNSScope) getPrivateLinkedAPIServerIPFromManagementCluster() str
 	return privateLinkedAPIServerIP
 }
 
-func (s *PrivateDNSScope) getPrivateLinkedAPIServerIPFromClusterAnnotation() string {
+func (s *PrivateDNSScope) privateLinkedAPIServerIPFromClusterAnnotation() string {
 	return s.apiServerIP
 }

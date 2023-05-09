@@ -66,9 +66,9 @@ func (s *Service) calculateMissingARecords(ctx context.Context, logger logr.Logg
 			for _, ip := range currentRecordSets[currentRecordSetIndex].Properties.ARecords {
 				// dns_operator_azure_record_set_info{controller="dns-operator-azure",fqdn="api.glippy.azuretest.gigantic.io",ip="20.4.101.180",ttl="300"} 1
 				metrics.RecordInfo.WithLabelValues(
-					s.scope.ClusterZoneName(), // label: zone
-					metrics.ZoneTypePublic,    // label: type
-					fmt.Sprintf("%s.%s", to.String(currentRecordSets[currentRecordSetIndex].Name), s.scope.ClusterZoneName()), // label: fqdn
+					s.scope.ClusterDomain(), // label: zone
+					metrics.ZoneTypePublic,  // label: type
+					fmt.Sprintf("%s.%s", to.String(currentRecordSets[currentRecordSetIndex].Name), s.scope.ClusterDomain()), // label: fqdn
 					to.String(ip.IPv4Address), // label: ip
 					fmt.Sprint(to.Int64(currentRecordSets[currentRecordSetIndex].Properties.TTL)), // label: ttl
 				).Set(1)
@@ -94,7 +94,7 @@ func (s *Service) updateARecords(ctx context.Context, currentRecordSets []*armdn
 	if len(recordsToCreate) == 0 {
 		logger.Info(
 			"All DNS A records have already been created",
-			"DNSZone", s.scope.ClusterZoneName())
+			"DNSZone", s.scope.ClusterDomain())
 		return nil
 	}
 
@@ -102,19 +102,19 @@ func (s *Service) updateARecords(ctx context.Context, currentRecordSets []*armdn
 
 		logger.Info(
 			fmt.Sprintf("DNS A record %s is missing, it will be created", to.String(aRecord.Name)),
-			"DNSZone", s.scope.ClusterZoneName(),
+			"DNSZone", s.scope.ClusterDomain(),
 			"FQDN", fmt.Sprintf("%s.%s", *aRecord.Name, s.scope.ClusterDomain()))
 
 		logger.Info(
 			"Creating DNS A record",
-			"DNSZone", s.scope.ClusterZoneName(),
+			"DNSZone", s.scope.ClusterDomain(),
 			"hostname", aRecord.Name,
 			"ipv4", aRecord.Properties.ARecords)
 
 		createdRecordSet, err := s.azureClient.CreateOrUpdateRecordSet(
 			ctx,
 			s.scope.ResourceGroup(),
-			s.scope.ClusterZoneName(),
+			s.scope.ClusterDomain(),
 			armdns.RecordTypeA,
 			*aRecord.Name,
 			*aRecord)
@@ -124,7 +124,7 @@ func (s *Service) updateARecords(ctx context.Context, currentRecordSets []*armdn
 
 		logger.Info(
 			"Successfully created DNS A record",
-			"DNSZone", s.scope.ClusterZoneName(),
+			"DNSZone", s.scope.ClusterDomain(),
 			"hostname", aRecord.Name,
 			"id", createdRecordSet.ID)
 	}

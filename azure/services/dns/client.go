@@ -15,15 +15,6 @@ import (
 	"github.com/giantswarm/dns-operator-azure/v2/pkg/metrics"
 )
 
-//type client interface {
-//	GetZone(ctx context.Context, resourceGroupName string, zoneName string) (armdns.Zone, error)
-//	CreateOrUpdateZone(ctx context.Context, resourceGroupName string, zoneName string, zone armdns.Zone) (armdns.Zone, error)
-//	DeleteZone(ctx context.Context, resourceGroupName string, zoneName string) error
-//	CreateOrUpdateRecordSet(ctx context.Context, resourceGroupName string, zoneName string, recordType armdns.RecordType, name string, recordSet armdns.RecordSet) (armdns.RecordSet, error)
-//	DeleteRecordSet(ctx context.Context, resourceGroupName string, zoneName string, recordType armdns.RecordType, recordSetName string) error
-//	ListRecordSets(ctx context.Context, resourceGroupName string, zoneName string) ([]*armdns.RecordSet, error)
-//}
-
 type azureClient struct {
 	zones      *armdns.ZonesClient
 	recordSets *armdns.RecordSetsClient
@@ -33,7 +24,7 @@ var _ client = (*azureClient)(nil)
 
 func newAzureClient(scope scope.DNSScope) (*azureClient, error) {
 
-	clusterIdentity := scope.GetAzureClusterIdentity()
+	clusterIdentity := scope.AzureClusterIdentity()
 
 	var cred azcore.TokenCredential
 	var err error
@@ -48,7 +39,7 @@ func newAzureClient(scope scope.DNSScope) (*azureClient, error) {
 		}
 
 	case infrav1.ManualServicePrincipal:
-		secret := scope.GetAzureClientSecret()
+		secret := scope.AzureClientSecret()
 
 		cred, err = azidentity.NewClientSecretCredential(clusterIdentity.Spec.TenantID, clusterIdentity.Spec.ClientID, secret, nil)
 		if err != nil {

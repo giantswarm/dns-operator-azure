@@ -113,12 +113,7 @@ func (s *DNSScope) BaseDomain() string {
 	return s.baseDomain
 }
 
-// TODO: drop either ClusterDomain or ClusterZoneName
 func (s *DNSScope) ClusterDomain() string {
-	return fmt.Sprintf("%s.%s", s.ClusterName(), s.baseDomain)
-}
-
-func (s *DNSScope) ClusterZoneName() string {
 	return fmt.Sprintf("%s.%s", s.ClusterName(), s.baseDomain)
 }
 
@@ -134,10 +129,10 @@ func (s *DNSScope) BaseZoneCredentials() BaseZoneCredentials {
 	return s.baseZoneCredentials
 }
 
-func (s *DNSScope) GetAzureClusterIdentity() infrav1.AzureClusterIdentity {
+func (s *DNSScope) AzureClusterIdentity() infrav1.AzureClusterIdentity {
 	return s.identity.clusterIdentity
 }
 
-func (s *DNSScope) GetAzureClientSecret() string {
+func (s *DNSScope) AzureClientSecret() string {
 	return string(s.identity.secret.Data[clientSecretKeyName])
 }
