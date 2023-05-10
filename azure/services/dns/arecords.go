@@ -8,11 +8,11 @@ import (
 
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/dns/armdns"
 	"golang.org/x/exp/slices"
+	"k8s.io/utils/pointer"
 
 	// Latest capz controller still depends on this library
 	// https://github.com/kubernetes-sigs/cluster-api-provider-azure/blob/v1.6.0/azure/services/publicips/client.go#L56
 	"github.com/Azure/azure-sdk-for-go/services/network/mgmt/2021-08-01/network" //nolint
-	"github.com/Azure/go-autorest/autorest/to"
 
 	"github.com/giantswarm/microerror"
 	"github.com/go-logr/logr"
@@ -54,7 +54,7 @@ func (s *Service) updateARecords(ctx context.Context, currentRecordSets []*armdn
 	for _, aRecord := range recordsToCreate {
 
 		logger.Info(
-			fmt.Sprintf("DNS A record %s is missing, it will be created", to.String(aRecord.Name)),
+			fmt.Sprintf("DNS A record %s is missing, it will be created", *aRecord.Name),
 			"DNSZone", s.scope.ClusterDomain(),
 			"FQDN", fmt.Sprintf("%s.%s", *aRecord.Name, s.scope.ClusterDomain()))
 
@@ -127,9 +127,9 @@ func (s *Service) calculateMissingARecords(ctx context.Context, logger logr.Logg
 				metrics.RecordInfo.WithLabelValues(
 					s.scope.ClusterDomain(), // label: zone
 					metrics.ZoneTypePublic,  // label: type
-					fmt.Sprintf("%s.%s", to.String(currentRecordSets[currentRecordSetIndex].Name), s.scope.ClusterDomain()), // label: fqdn
-					to.String(ip.IPv4Address), // label: ip
-					fmt.Sprint(to.Int64(currentRecordSets[currentRecordSetIndex].Properties.TTL)), // label: ttl
+					fmt.Sprintf("%s.%s", *currentRecordSets[currentRecordSetIndex].Name, s.scope.ClusterDomain()), // label: fqdn
+					*ip.IPv4Address, // label: ip
+					fmt.Sprint(*currentRecordSets[currentRecordSetIndex].Properties.TTL), // label: ttl
 				).Set(1)
 			}
 		}
@@ -145,18 +145,18 @@ func (s *Service) getDesiredARecords(ctx context.Context) ([]*armdns.RecordSet, 
 	armdnsRecordSet = append(armdnsRecordSet,
 		// api A-Record
 		&armdns.RecordSet{
-			Name: to.StringPtr(apiRecordName),
-			Type: to.StringPtr(string(armdns.RecordTypeA)),
+			Name: pointer.String(apiRecordName),
+			Type: pointer.String(string(armdns.RecordTypeA)),
 			Properties: &armdns.RecordSetProperties{
-				TTL: to.Int64Ptr(apiRecordTTL),
+				TTL: pointer.Int64(apiRecordTTL),
 			},
 		},
 		// apiserver A-Record
 		&armdns.RecordSet{
-			Name: to.StringPtr(apiserverRecordName),
-			Type: to.StringPtr(string(armdns.RecordTypeA)),
+			Name: pointer.String(apiserverRecordName),
+			Type: pointer.String(string(armdns.RecordTypeA)),
 			Properties: &armdns.RecordSetProperties{
-				TTL: to.Int64Ptr(apiRecordTTL),
+				TTL: pointer.Int64(apiRecordTTL),
 			},
 		})
 
@@ -167,11 +167,11 @@ func (s *Service) getDesiredARecords(ctx context.Context) ([]*armdns.RecordSet, 
 	case s.scope.IsAPIServerPrivate():
 
 		armdnsRecordSet[apiIndex].Properties.ARecords = append(armdnsRecordSet[apiIndex].Properties.ARecords, &armdns.ARecord{
-			IPv4Address: to.StringPtr(s.scope.APIServerPrivateIP()),
+			IPv4Address: pointer.String(s.scope.APIServerPrivateIP()),
 		})
 
 		armdnsRecordSet[apiserverIndex].Properties.ARecords = append(armdnsRecordSet[apiserverIndex].Properties.ARecords, &armdns.ARecord{
-			IPv4Address: to.StringPtr(s.scope.APIServerPrivateIP()),
+			IPv4Address: pointer.String(s.scope.APIServerPrivateIP()),
 		})
 
 	case !s.scope.IsAPIServerPrivate():
@@ -182,11 +182,11 @@ func (s *Service) getDesiredARecords(ctx context.Context) ([]*armdns.RecordSet, 
 		}
 
 		armdnsRecordSet[apiIndex].Properties.ARecords = append(armdnsRecordSet[apiIndex].Properties.ARecords, &armdns.ARecord{
-			IPv4Address: to.StringPtr(publicIP),
+			IPv4Address: pointer.String(publicIP),
 		})
 
 		armdnsRecordSet[apiserverIndex].Properties.ARecords = append(armdnsRecordSet[apiserverIndex].Properties.ARecords, &armdns.ARecord{
-			IPv4Address: to.StringPtr(publicIP),
+			IPv4Address: pointer.String(publicIP),
 		})
 
 	}
@@ -197,18 +197,18 @@ func (s *Service) getDesiredARecords(ctx context.Context) ([]*armdns.RecordSet, 
 		armdnsRecordSet = append(armdnsRecordSet,
 			// bastion A-Record
 			&armdns.RecordSet{
-				Name: to.StringPtr(bastionRecordName),
-				Type: to.StringPtr(string(armdns.RecordTypeA)),
+				Name: pointer.String(bastionRecordName),
+				Type: pointer.String(string(armdns.RecordTypeA)),
 				Properties: &armdns.RecordSetProperties{
-					TTL: to.Int64Ptr(bastionRecordTTL),
+					TTL: pointer.Int64(bastionRecordTTL),
 				},
 			},
 			// bastion1 A-Record
 			&armdns.RecordSet{
-				Name: to.StringPtr(bastion1RecordName),
-				Type: to.StringPtr(string(armdns.RecordTypeA)),
+				Name: pointer.String(bastion1RecordName),
+				Type: pointer.String(string(armdns.RecordTypeA)),
 				Properties: &armdns.RecordSetProperties{
-					TTL: to.Int64Ptr(bastionRecordTTL),
+					TTL: pointer.Int64(bastionRecordTTL),
 				},
 			})
 
@@ -218,11 +218,11 @@ func (s *Service) getDesiredARecords(ctx context.Context) ([]*armdns.RecordSet, 
 		for _, bastionIP := range s.scope.BastionIP() {
 
 			armdnsRecordSet[bastionIndex].Properties.ARecords = append(armdnsRecordSet[bastionIndex].Properties.ARecords, &armdns.ARecord{
-				IPv4Address: to.StringPtr(bastionIP),
+				IPv4Address: pointer.String(bastionIP),
 			})
 
 			armdnsRecordSet[bastion1Index].Properties.ARecords = append(armdnsRecordSet[bastion1Index].Properties.ARecords, &armdns.ARecord{
-				IPv4Address: to.StringPtr(bastionIP),
+				IPv4Address: pointer.String(bastionIP),
 			})
 		}
 	}

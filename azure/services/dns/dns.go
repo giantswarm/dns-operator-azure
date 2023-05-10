@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/dns/armdns"
-	"github.com/Azure/go-autorest/autorest/to"
 	"github.com/giantswarm/microerror"
+	"k8s.io/utils/pointer"
 	capzazure "sigs.k8s.io/cluster-api-provider-azure/azure"
 	capzpublicips "sigs.k8s.io/cluster-api-provider-azure/azure/services/publicips"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -120,7 +120,7 @@ func (s *Service) Reconcile(ctx context.Context) error {
 	metrics.ClusterZoneRecords.WithLabelValues(
 		s.scope.ClusterDomain(),
 		metrics.ZoneTypePublic,
-	).Set(float64(to.Int64(clusterZone.Properties.NumberOfRecordSets)))
+	).Set(float64(*clusterZone.Properties.NumberOfRecordSets))
 
 	// create NS Record in base zone
 	log.V(1).Info("list NS records in basedomain", "resourcegroup", s.scope.BaseDomainResourceGroup(), "dns zone", s.scope.BaseDomain())
@@ -200,7 +200,7 @@ func (s *Service) createClusterDNSZone(ctx context.Context) (armdns.Zone, error)
 	// Type is Public if not specified
 	dnsZoneParams := armdns.Zone{
 		Name:     &zoneName,
-		Location: to.StringPtr(capzazure.Global),
+		Location: pointer.String(capzazure.Global),
 	}
 	dnsZone, err := s.azureClient.CreateOrUpdateZone(ctx, s.scope.ResourceGroup(), zoneName, dnsZoneParams)
 	if err != nil {

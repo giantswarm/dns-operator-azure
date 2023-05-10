@@ -7,8 +7,8 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/privatedns/armprivatedns"
-	"github.com/Azure/go-autorest/autorest/to"
 	"github.com/giantswarm/microerror"
+	"k8s.io/utils/pointer"
 
 	"github.com/giantswarm/dns-operator-azure/v2/azure/scope"
 	"github.com/giantswarm/dns-operator-azure/v2/pkg/metrics"
@@ -150,11 +150,11 @@ func (ac *azureClient) CreateOrUpdateVirtualNetworkLink(ctx context.Context, res
 		zoneName,
 		workloadClusterName+"-dns-"+resourceGroupName+"-vnet-link",
 		armprivatedns.VirtualNetworkLink{
-			Location: to.StringPtr(capzazure.Global),
+			Location: pointer.String(capzazure.Global),
 			Properties: &armprivatedns.VirtualNetworkLinkProperties{
-				RegistrationEnabled: to.BoolPtr(false),
+				RegistrationEnabled: pointer.Bool(false),
 				VirtualNetwork: &armprivatedns.SubResource{
-					ID: to.StringPtr(vnetID),
+					ID: pointer.String(vnetID),
 				},
 			},
 		}, nil)

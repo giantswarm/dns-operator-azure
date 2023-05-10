@@ -7,11 +7,11 @@ import (
 
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/privatedns/armprivatedns"
 	"golang.org/x/exp/slices"
+	"k8s.io/utils/pointer"
 
 	// Latest capz controller still depends on this library
 	// https://github.com/kubernetes-sigs/cluster-api-provider-azure/blob/v1.6.0/azure/services/publicips/client.go#L56
 	//nolint
-	"github.com/Azure/go-autorest/autorest/to"
 
 	"github.com/giantswarm/microerror"
 	"github.com/go-logr/logr"
@@ -46,7 +46,7 @@ func (s *Service) updateARecords(ctx context.Context, currentRecordSets []*armpr
 	for _, aRecord := range recordsToCreate {
 
 		logger.Info(
-			fmt.Sprintf("DNS A record %s is missing, it will be created", to.String(aRecord.Name)),
+			fmt.Sprintf("DNS A record %s is missing, it will be created", *aRecord.Name),
 			"DNSZone", s.scope.ClusterDomain(),
 			"FQDN", fmt.Sprintf("%s.%s", *aRecord.Name, s.scope.ClusterDomain()))
 
@@ -110,9 +110,9 @@ func (s *Service) calculateMissingARecords(ctx context.Context, logger logr.Logg
 				metrics.RecordInfo.WithLabelValues(
 					s.scope.ClusterDomain(), // label: zone
 					metrics.ZoneTypePrivate, // label: type
-					fmt.Sprintf("%s.%s", to.String(currentRecordSets[currentRecordSetIndex].Name), s.scope.ClusterDomain()), // label: fqdn
-					to.String(ip.IPv4Address), // label: ip
-					fmt.Sprint(to.Int64(currentRecordSets[currentRecordSetIndex].Properties.TTL)), // label: ttl
+					fmt.Sprintf("%s.%s", *currentRecordSets[currentRecordSetIndex].Name, s.scope.ClusterDomain()), // label: fqdn
+					*ip.IPv4Address, // label: ip
+					fmt.Sprint(*currentRecordSets[currentRecordSetIndex].Properties.TTL), // label: ttl
 				).Set(1)
 			}
 		}
@@ -130,10 +130,10 @@ func (s *Service) getDesiredPrivateARecords(ctx context.Context) []*armprivatedn
 		armprivatednsRecordSet = append(armprivatednsRecordSet,
 
 			&armprivatedns.RecordSet{
-				Name: to.StringPtr(apiserverRecordName),
-				Type: to.StringPtr(string(armprivatedns.RecordTypeA)),
+				Name: pointer.String(apiserverRecordName),
+				Type: pointer.String(string(armprivatedns.RecordTypeA)),
 				Properties: &armprivatedns.RecordSetProperties{
-					TTL: to.Int64Ptr(apiRecordTTL),
+					TTL: pointer.Int64(apiRecordTTL),
 				},
 			},
 		)
@@ -141,7 +141,7 @@ func (s *Service) getDesiredPrivateARecords(ctx context.Context) []*armprivatedn
 		privateAPIIndex := slices.IndexFunc(armprivatednsRecordSet, func(recordSet *armprivatedns.RecordSet) bool { return *recordSet.Name == apiserverRecordName })
 
 		armprivatednsRecordSet[privateAPIIndex].Properties.ARecords = append(armprivatednsRecordSet[privateAPIIndex].Properties.ARecords, &armprivatedns.ARecord{
-			IPv4Address: to.StringPtr(s.scope.PrivateLinkedAPIServerIP()),
+			IPv4Address: pointer.String(s.scope.PrivateLinkedAPIServerIP()),
 		})
 
 	}

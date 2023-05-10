@@ -4,9 +4,9 @@ import (
 	"context"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/privatedns/armprivatedns"
-	"github.com/Azure/go-autorest/autorest/to"
 	"github.com/giantswarm/microerror"
 	"golang.org/x/exp/slices"
+	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/giantswarm/dns-operator-azure/v2/azure"
@@ -58,7 +58,7 @@ func (s *Service) Reconcile(ctx context.Context) error {
 		log.V(1).Info("cluster specific private DNS zone not found, creating a new one")
 		err = s.privateDNSClient.CreateOrUpdatePrivateZone(ctx, managementClusterResourceGroup, clusterZoneName, armprivatedns.PrivateZone{
 			Name:     &clusterZoneName,
-			Location: to.StringPtr(capzazure.Global),
+			Location: pointer.String(capzazure.Global),
 		})
 		if err != nil {
 			return microerror.Mask(err)
@@ -73,7 +73,7 @@ func (s *Service) Reconcile(ctx context.Context) error {
 	log.V(1).Info("list of all network links", "virtualNetworkLinks", networkLinks)
 
 	operatorGeneratedVirtualNetworkLinkIndex := slices.IndexFunc(networkLinks, func(virtualNetworkLink *armprivatedns.VirtualNetworkLink) bool {
-		return *virtualNetworkLink.Name == *to.StringPtr(s.scope.ClusterName() + "-dns-" + managementClusterResourceGroup + "-vnet-link")
+		return *virtualNetworkLink.Name == *pointer.String(s.scope.ClusterName() + "-dns-" + managementClusterResourceGroup + "-vnet-link")
 	})
 
 	if operatorGeneratedVirtualNetworkLinkIndex == -1 {
@@ -101,7 +101,7 @@ func (s *Service) Reconcile(ctx context.Context) error {
 	metrics.ClusterZoneRecords.WithLabelValues(
 		clusterZoneName,
 		metrics.ZoneTypePrivate,
-	).Set(float64(to.Int64(privateZones.Properties.NumberOfRecordSets)))
+	).Set(float64(*privateZones.Properties.NumberOfRecordSets))
 
 	log.V(1).Info("current known private Zones in management cluster", "privateZones", privateZones)
 

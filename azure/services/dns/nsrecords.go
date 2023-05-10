@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/dns/armdns"
-	"github.com/Azure/go-autorest/autorest/to"
+	"k8s.io/utils/pointer"
 )
 
 const (
@@ -39,7 +39,7 @@ func (s *Service) createClusterNSRecord(ctx context.Context, nameServerRecords [
 		s.scope.ClusterName(),
 		armdns.RecordSet{
 			Properties: &armdns.RecordSetProperties{
-				TTL:       to.Int64Ptr(zoneRecordTTL),
+				TTL:       pointer.Int64(zoneRecordTTL),
 				NsRecords: nameServerRecords,
 			},
 		},
