@@ -102,15 +102,6 @@ func TestAzureMachineReconciler_Reconcile(t *testing.T) {
 						},
 					},
 				},
-				&v1beta1.Machine{
-					ObjectMeta: v1.ObjectMeta{
-						Name:      "test-cluster-bastion-ldkjf",
-						Namespace: clusterNamespace,
-						Labels: map[string]string{
-							"cluster.x-k8s.io/cluster-name": clusterName,
-						},
-					},
-				},
 			},
 			want: map[string]string{
 				"another-operator.giantswarm.io/whatever-annotation": "guess-who",
@@ -172,15 +163,6 @@ func TestAzureMachineReconciler_Reconcile(t *testing.T) {
 					},
 					Spec:   infrav1.AzureMachineSpec{},
 					Status: infrav1.AzureMachineStatus{},
-				},
-				&v1beta1.Machine{
-					ObjectMeta: v1.ObjectMeta{
-						Name:      "test-cluster-bastion-ldkjf",
-						Namespace: clusterNamespace,
-						Labels: map[string]string{
-							"cluster.x-k8s.io/cluster-name": clusterName,
-						},
-					},
 				},
 			},
 			want: map[string]string{
