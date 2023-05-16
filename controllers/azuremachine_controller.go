@@ -64,6 +64,10 @@ func (r *AzureMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		// Fetch the Cluster
 		cluster, err := util.GetClusterFromMetadata(ctx, r.Client, azureMachine.ObjectMeta)
 		if err != nil {
+			if apierrors.IsNotFound(err) {
+				log.V(1).Info("cluster object was not found", "error", err)
+				return reconcile.Result{}, nil
+			}
 			return reconcile.Result{}, microerror.Mask(err)
 		}
 
