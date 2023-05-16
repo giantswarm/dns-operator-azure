@@ -10,6 +10,7 @@ workflows:
         context: architect
         name: go-build
         binary: dns-operator-azure
+        resource_class: large
         filters:
           tags:
             only: /^v.*/
@@ -20,6 +21,7 @@ workflows:
         image: "quay.io/giantswarm/dns-operator-azure"
         username_envar: "QUAY_USERNAME"
         password_envar: "QUAY_PASSWORD"
+        resource_class: medium
         requires:
         - go-build
         filters:

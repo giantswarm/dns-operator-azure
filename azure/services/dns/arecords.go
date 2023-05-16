@@ -8,11 +8,11 @@ import (
 
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/dns/armdns"
 	"golang.org/x/exp/slices"
+	"k8s.io/utils/pointer"
 
 	// Latest capz controller still depends on this library
 	// https://github.com/kubernetes-sigs/cluster-api-provider-azure/blob/v1.6.0/azure/services/publicips/client.go#L56
 	"github.com/Azure/azure-sdk-for-go/services/network/mgmt/2021-08-01/network" //nolint
-	"github.com/Azure/go-autorest/autorest/to"
 
 	"github.com/giantswarm/microerror"
 	"github.com/go-logr/logr"
@@ -32,52 +32,6 @@ const (
 	bastionRecordTTL = 300
 )
 
-func (s *Service) calculateMissingARecords(ctx context.Context, logger logr.Logger, currentRecordSets []*armdns.RecordSet) ([]*armdns.RecordSet, error) {
-	desiredRecordSet, err := s.getDesiredARecords(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	var recordsToCreate []*armdns.RecordSet
-
-	for _, desiredRecordSet := range desiredRecordSet {
-
-		logger.V(1).Info(fmt.Sprintf("compare entries individually - %s", *desiredRecordSet.Name))
-
-		currentRecordSetIndex := slices.IndexFunc(currentRecordSets, func(recordSet *armdns.RecordSet) bool { return *recordSet.Name == *desiredRecordSet.Name })
-		if currentRecordSetIndex == -1 {
-			recordsToCreate = append(recordsToCreate, desiredRecordSet)
-		} else {
-			// remove ProvisioningState from currentRecordSet to make further comparison easier
-			currentRecordSets[currentRecordSetIndex].Properties.ProvisioningState = nil
-
-			// compare ARecords[].IPv4Address
-			if !reflect.DeepEqual(desiredRecordSet.Properties.ARecords, currentRecordSets[currentRecordSetIndex].Properties.ARecords) {
-				logger.V(1).Info(fmt.Sprintf("A Records for %s are not equal - force update", *desiredRecordSet.Name))
-				recordsToCreate = append(recordsToCreate, desiredRecordSet)
-			}
-
-			// compare TTL
-			if !reflect.DeepEqual(desiredRecordSet.Properties.TTL, currentRecordSets[currentRecordSetIndex].Properties.TTL) {
-				logger.V(1).Info(fmt.Sprintf("TTL for %s is not equal - force update", *desiredRecordSet.Name))
-				recordsToCreate = append(recordsToCreate, desiredRecordSet)
-			}
-
-			for _, ip := range currentRecordSets[currentRecordSetIndex].Properties.ARecords {
-				// dns_operator_azure_record_set_info{controller="dns-operator-azure",fqdn="api.glippy.azuretest.gigantic.io",ip="20.4.101.180",ttl="300"} 1
-				metrics.RecordInfo.WithLabelValues(
-					s.scope.ClusterZoneName(), // label: zone
-					fmt.Sprintf("%s.%s", to.String(currentRecordSets[currentRecordSetIndex].Name), s.scope.ClusterZoneName()), // label: fqdn
-					to.String(ip.IPv4Address), // label: ip
-					fmt.Sprint(to.Int64(currentRecordSets[currentRecordSetIndex].Properties.TTL)), // label: ttl
-				).Set(1)
-			}
-		}
-	}
-
-	return recordsToCreate, nil
-}
-
 func (s *Service) updateARecords(ctx context.Context, currentRecordSets []*armdns.RecordSet) error {
 	logger := log.FromContext(ctx).WithName("arecords")
 
@@ -93,27 +47,27 @@ func (s *Service) updateARecords(ctx context.Context, currentRecordSets []*armdn
 	if len(recordsToCreate) == 0 {
 		logger.Info(
 			"All DNS A records have already been created",
-			"DNSZone", s.scope.ClusterZoneName())
+			"DNSZone", s.scope.ClusterDomain())
 		return nil
 	}
 
 	for _, aRecord := range recordsToCreate {
 
 		logger.Info(
-			fmt.Sprintf("DNS A record %s is missing, it will be created", to.String(aRecord.Name)),
-			"DNSZone", s.scope.ClusterZoneName(),
+			fmt.Sprintf("DNS A record %s is missing, it will be created", *aRecord.Name),
+			"DNSZone", s.scope.ClusterDomain(),
 			"FQDN", fmt.Sprintf("%s.%s", *aRecord.Name, s.scope.ClusterDomain()))
 
 		logger.Info(
 			"Creating DNS A record",
-			"DNSZone", s.scope.ClusterZoneName(),
+			"DNSZone", s.scope.ClusterDomain(),
 			"hostname", aRecord.Name,
 			"ipv4", aRecord.Properties.ARecords)
 
 		createdRecordSet, err := s.azureClient.CreateOrUpdateRecordSet(
 			ctx,
 			s.scope.ResourceGroup(),
-			s.scope.ClusterZoneName(),
+			s.scope.ClusterDomain(),
 			armdns.RecordTypeA,
 			*aRecord.Name,
 			*aRecord)
@@ -123,7 +77,7 @@ func (s *Service) updateARecords(ctx context.Context, currentRecordSets []*armdn
 
 		logger.Info(
 			"Successfully created DNS A record",
-			"DNSZone", s.scope.ClusterZoneName(),
+			"DNSZone", s.scope.ClusterDomain(),
 			"hostname", aRecord.Name,
 			"id", createdRecordSet.ID)
 	}
@@ -131,7 +85,59 @@ func (s *Service) updateARecords(ctx context.Context, currentRecordSets []*armdn
 	return nil
 }
 
-// func (s *Service) getDesiredARecords() []azure.ARecordSetSpec {
+func (s *Service) calculateMissingARecords(ctx context.Context, logger logr.Logger, currentRecordSets []*armdns.RecordSet) ([]*armdns.RecordSet, error) {
+	desiredRecordSets, err := s.getDesiredARecords(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var recordsToCreate []*armdns.RecordSet
+
+	for _, desiredRecordSet := range desiredRecordSets {
+
+		logger.V(1).Info(fmt.Sprintf("compare entries individually - %s", *desiredRecordSet.Name))
+
+		currentRecordSetIndex := slices.IndexFunc(currentRecordSets, func(recordSet *armdns.RecordSet) bool { return *recordSet.Name == *desiredRecordSet.Name })
+		if currentRecordSetIndex == -1 {
+			recordsToCreate = append(recordsToCreate, desiredRecordSet)
+		} else {
+			// remove ProvisioningState from currentRecordSet to make further comparison easier
+			currentRecordSets[currentRecordSetIndex].Properties.ProvisioningState = nil
+
+			switch {
+			// compare ARecords[].IPv4Address
+			case !reflect.DeepEqual(
+				desiredRecordSet.Properties.ARecords,
+				currentRecordSets[currentRecordSetIndex].Properties.ARecords,
+			):
+				logger.V(1).Info(fmt.Sprintf("A Records for %s are not equal - force update", *desiredRecordSet.Name))
+				recordsToCreate = append(recordsToCreate, desiredRecordSet)
+			// compare TTL
+			case !reflect.DeepEqual(
+				desiredRecordSet.Properties.TTL,
+				currentRecordSets[currentRecordSetIndex].Properties.TTL,
+			):
+				logger.V(1).Info(fmt.Sprintf("TTL for %s is not equal - force update", *desiredRecordSet.Name))
+				recordsToCreate = append(recordsToCreate, desiredRecordSet)
+
+			}
+
+			for _, ip := range currentRecordSets[currentRecordSetIndex].Properties.ARecords {
+				// dns_operator_azure_record_set_info{controller="dns-operator-azure",fqdn="api.glippy.azuretest.gigantic.io",ip="20.4.101.180",ttl="300"} 1
+				metrics.RecordInfo.WithLabelValues(
+					s.scope.ClusterDomain(), // label: zone
+					metrics.ZoneTypePublic,  // label: type
+					fmt.Sprintf("%s.%s", *currentRecordSets[currentRecordSetIndex].Name, s.scope.ClusterDomain()), // label: fqdn
+					*ip.IPv4Address, // label: ip
+					fmt.Sprint(*currentRecordSets[currentRecordSetIndex].Properties.TTL), // label: ttl
+				).Set(1)
+			}
+		}
+	}
+
+	return recordsToCreate, nil
+}
+
 func (s *Service) getDesiredARecords(ctx context.Context) ([]*armdns.RecordSet, error) {
 
 	var armdnsRecordSet []*armdns.RecordSet
@@ -139,18 +145,18 @@ func (s *Service) getDesiredARecords(ctx context.Context) ([]*armdns.RecordSet, 
 	armdnsRecordSet = append(armdnsRecordSet,
 		// api A-Record
 		&armdns.RecordSet{
-			Name: to.StringPtr(apiRecordName),
-			Type: to.StringPtr(string(armdns.RecordTypeA)),
+			Name: pointer.String(apiRecordName),
+			Type: pointer.String(string(armdns.RecordTypeA)),
 			Properties: &armdns.RecordSetProperties{
-				TTL: to.Int64Ptr(apiRecordTTL),
+				TTL: pointer.Int64(apiRecordTTL),
 			},
 		},
 		// apiserver A-Record
 		&armdns.RecordSet{
-			Name: to.StringPtr(apiserverRecordName),
-			Type: to.StringPtr(string(armdns.RecordTypeA)),
+			Name: pointer.String(apiserverRecordName),
+			Type: pointer.String(string(armdns.RecordTypeA)),
 			Properties: &armdns.RecordSetProperties{
-				TTL: to.Int64Ptr(apiRecordTTL),
+				TTL: pointer.Int64(apiRecordTTL),
 			},
 		})
 
@@ -161,11 +167,11 @@ func (s *Service) getDesiredARecords(ctx context.Context) ([]*armdns.RecordSet, 
 	case s.scope.IsAPIServerPrivate():
 
 		armdnsRecordSet[apiIndex].Properties.ARecords = append(armdnsRecordSet[apiIndex].Properties.ARecords, &armdns.ARecord{
-			IPv4Address: to.StringPtr(s.scope.APIServerPrivateIP()),
+			IPv4Address: pointer.String(s.scope.APIServerPrivateIP()),
 		})
 
 		armdnsRecordSet[apiserverIndex].Properties.ARecords = append(armdnsRecordSet[apiserverIndex].Properties.ARecords, &armdns.ARecord{
-			IPv4Address: to.StringPtr(s.scope.APIServerPrivateIP()),
+			IPv4Address: pointer.String(s.scope.APIServerPrivateIP()),
 		})
 
 	case !s.scope.IsAPIServerPrivate():
@@ -176,11 +182,11 @@ func (s *Service) getDesiredARecords(ctx context.Context) ([]*armdns.RecordSet, 
 		}
 
 		armdnsRecordSet[apiIndex].Properties.ARecords = append(armdnsRecordSet[apiIndex].Properties.ARecords, &armdns.ARecord{
-			IPv4Address: to.StringPtr(publicIP),
+			IPv4Address: pointer.String(publicIP),
 		})
 
 		armdnsRecordSet[apiserverIndex].Properties.ARecords = append(armdnsRecordSet[apiserverIndex].Properties.ARecords, &armdns.ARecord{
-			IPv4Address: to.StringPtr(publicIP),
+			IPv4Address: pointer.String(publicIP),
 		})
 
 	}
@@ -191,18 +197,18 @@ func (s *Service) getDesiredARecords(ctx context.Context) ([]*armdns.RecordSet, 
 		armdnsRecordSet = append(armdnsRecordSet,
 			// bastion A-Record
 			&armdns.RecordSet{
-				Name: to.StringPtr(bastionRecordName),
-				Type: to.StringPtr(string(armdns.RecordTypeA)),
+				Name: pointer.String(bastionRecordName),
+				Type: pointer.String(string(armdns.RecordTypeA)),
 				Properties: &armdns.RecordSetProperties{
-					TTL: to.Int64Ptr(bastionRecordTTL),
+					TTL: pointer.Int64(bastionRecordTTL),
 				},
 			},
 			// bastion1 A-Record
 			&armdns.RecordSet{
-				Name: to.StringPtr(bastion1RecordName),
-				Type: to.StringPtr(string(armdns.RecordTypeA)),
+				Name: pointer.String(bastion1RecordName),
+				Type: pointer.String(string(armdns.RecordTypeA)),
 				Properties: &armdns.RecordSetProperties{
-					TTL: to.Int64Ptr(bastionRecordTTL),
+					TTL: pointer.Int64(bastionRecordTTL),
 				},
 			})
 
@@ -212,11 +218,11 @@ func (s *Service) getDesiredARecords(ctx context.Context) ([]*armdns.RecordSet, 
 		for _, bastionIP := range s.scope.BastionIP() {
 
 			armdnsRecordSet[bastionIndex].Properties.ARecords = append(armdnsRecordSet[bastionIndex].Properties.ARecords, &armdns.ARecord{
-				IPv4Address: to.StringPtr(bastionIP),
+				IPv4Address: pointer.String(bastionIP),
 			})
 
 			armdnsRecordSet[bastion1Index].Properties.ARecords = append(armdnsRecordSet[bastion1Index].Properties.ARecords, &armdns.ARecord{
-				IPv4Address: to.StringPtr(bastionIP),
+				IPv4Address: pointer.String(bastionIP),
 			})
 		}
 	}

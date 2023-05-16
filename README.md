@@ -10,6 +10,11 @@
 
 > the TTL is set to 5m for the A records and 1h for the NS record. This might change in the future or will became configurable.
 
+
+## architecture
+
+![](dns-operator-architecture.png)
+
 ## reconciliation loop
 
 This is a simplified version of the reconciliation loop:

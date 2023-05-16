@@ -34,6 +34,8 @@ spec:
         - --base-domain-resource-group={{ .Values.azure.baseDNSZone.resourceGroup }}
         - --zap-log-level=info
         - --metrics-addr=:8666
+        - --management-cluster-name={{ .Values.managementCluster.name }}
+        - --management-cluster-namespace={{ .Values.managementCluster.namespace }}
         env:
         - name: AZURE_TENANT_ID
           valueFrom:

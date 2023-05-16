@@ -11,23 +11,28 @@ const (
 
 	metricNamespace = "dns_operator_azure"
 
-	metricZone      = "zone"
+	MetricZone      = "zone"
 	metricRecordSet = "record_set"
 	metricAzure     = "api_request"
+
+	ZoneType        = "type"
+	ZoneTypePrivate = "private"
+	ZoneTypePublic  = "public"
 )
 
 var (
 	ZoneInfo = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Namespace: metricNamespace,
-			Subsystem: metricZone,
+			Subsystem: MetricZone,
 			Name:      "info",
 			Help:      "Info about cluster DNS zone",
 			ConstLabels: prometheus.Labels{
 				metricControllerLabel: metricControllerValue,
 			},
 		}, []string{
-			metricZone,
+			MetricZone,
+			ZoneType,
 			"resource_group",
 			"tenant_id",
 			"subscription_id",
@@ -36,13 +41,16 @@ var (
 	ClusterZoneRecords = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Namespace: metricNamespace,
-			Subsystem: metricZone,
+			Subsystem: MetricZone,
 			Name:      "records_sum",
 			Help:      "Info about cluster",
 			ConstLabels: prometheus.Labels{
 				metricControllerLabel: metricControllerValue,
 			},
-		}, []string{metricZone})
+		}, []string{
+			MetricZone,
+			ZoneType,
+		})
 
 	RecordInfo = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
@@ -55,7 +63,8 @@ var (
 			},
 		},
 		[]string{
-			metricZone,
+			MetricZone,
+			ZoneType,
 			"fqdn",
 			"ip",
 			"ttl",

@@ -16,6 +16,16 @@ rules:
   - update
   - watch
 - apiGroups:
+  - cluster.x-k8s.io
+  resources:
+  - machines
+  verbs:
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
   - infrastructure.cluster.x-k8s.io
   resources:
   - azureclusters
@@ -32,5 +42,6 @@ rules:
   verbs:
   - get
   - list
+  - patch
+  - update
   - watch
-

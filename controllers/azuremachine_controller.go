@@ -11,8 +11,9 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
-	capz "sigs.k8s.io/cluster-api-provider-azure/api/v1beta1"
+	infrav1 "sigs.k8s.io/cluster-api-provider-azure/api/v1beta1"
 	capzscope "sigs.k8s.io/cluster-api-provider-azure/azure/scope"
+	"sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/annotations"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -21,6 +22,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	corev1 "k8s.io/api/core/v1"
 )
 
 const (
@@ -33,17 +36,17 @@ type AzureMachineReconciler struct {
 	Recorder record.EventRecorder
 }
 
-// +kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=azuremachine,verbs=get;list;watch;update;patch
-// +kubebuilder:rbac:groups=cluster.x-k8s.io,resources=machine,verbs=get;list;watch;update;patch
-// +kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=azurecluster,verbs=get;list;watch;update;patch
-// +kubebuilder:rbac:groups=cluster.x-k8s.io,resources=cluster,verbs=get;list;watch;update;patch
+// +kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=azuremachines,verbs=get;list;watch;update;patch
+// +kubebuilder:rbac:groups=cluster.x-k8s.io,resources=machines,verbs=get;list;watch;update;patch
+// +kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=azureclusters,verbs=get;list;watch;update;patch
+// +kubebuilder:rbac:groups=cluster.x-k8s.io,resources=clusters,verbs=get;list;watch;update;patch
 
 func (r *AzureMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_ ctrl.Result, reterr error) {
 
 	log := log.FromContext(ctx)
 
 	// Fetch the AzureMachine instance
-	azureMachine := &capz.AzureMachine{}
+	azureMachine := &infrav1.AzureMachine{}
 	err := r.Get(ctx, req.NamespacedName, azureMachine)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -53,33 +56,30 @@ func (r *AzureMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return reconcile.Result{}, microerror.Mask(err)
 	}
 
-	// Fetch the Cluster.
-	machine, err := util.GetOwnerMachine(ctx, r.Client, azureMachine.ObjectMeta)
-	if err != nil {
-		return reconcile.Result{}, microerror.Mask(err)
-	}
-	if machine == nil {
-		log.Info("Machine Controller has not yet set OwnerRef")
-		return reconcile.Result{}, microerror.Mask(err)
-	}
-
 	// only continue reconcilation if the bastion label is set
 	azureMachineLabels := azureMachine.GetLabels()
 	// TODO: change the role label as `cluster.x-k8s.io/role` sounds very CAPI common (which is not)
 	if azureMachineLabels["cluster.x-k8s.io/role"] == "bastion" {
 
+		// Fetch the Cluster
 		cluster, err := util.GetClusterFromMetadata(ctx, r.Client, azureMachine.ObjectMeta)
 		if err != nil {
+			if apierrors.IsNotFound(err) {
+				log.V(1).Info("cluster object was not found", "error", err)
+				return reconcile.Result{}, nil
+			}
 			return reconcile.Result{}, microerror.Mask(err)
 		}
 
 		// Return early if the objects or Cluster is paused.
-		if annotations.IsPaused(cluster, azureMachine) || annotations.IsPaused(cluster, machine) {
-			log.Info("Machine, AzureMachine or linked Cluster is marked as paused. Won't reconcile")
+		if annotations.IsPaused(cluster, azureMachine) {
+			log.Info("AzureMachine or linked Cluster is marked as paused. Won't reconcile")
 			return ctrl.Result{}, nil
 		}
 
 		// Create the scope.
+		machine := &v1beta1.Machine{}
+
 		machineScope, err := capzscope.NewMachineScope(capzscope.MachineScopeParams{
 			Client:       r.Client,
 			Machine:      machine,
@@ -96,7 +96,7 @@ func (r *AzureMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			}
 		}()
 
-		azureCluster := &capz.AzureCluster{}
+		azureCluster := &infrav1.AzureCluster{}
 		log.V(1).Info(fmt.Sprintf("try to get the cluster - %s", cluster.Spec.InfrastructureRef.Name))
 
 		err = r.Client.Get(ctx, types.NamespacedName{
@@ -130,14 +130,14 @@ func (r *AzureMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		}()
 
 		// Handle deleted machines
-		if !machine.DeletionTimestamp.IsZero() || !azureMachine.DeletionTimestamp.IsZero() {
+		if !azureMachine.DeletionTimestamp.IsZero() {
 			return r.reconcileDelete(ctx, machineScope, clusterScope)
 		}
 
 		// only act on Machines where the NetworkInterfacesReady condition is true
-		azureMachineConditions := machineScope.AzureMachine.GetConditions()
+		azureMachineConditions := azureMachine.GetConditions()
 		for _, condition := range azureMachineConditions {
-			if condition.Type == capz.NetworkInterfaceReadyCondition {
+			if condition.Type == infrav1.NetworkInterfaceReadyCondition && condition.Status == corev1.ConditionTrue {
 				log.V(1).Info("machine has NetworkInterfacesReady condition", "machine", machineScope.AzureMachine.Name)
 				return r.reconcileNormal(ctx, machineScope, clusterScope)
 			}
@@ -151,7 +151,7 @@ func (r *AzureMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 func (r *AzureMachineReconciler) SetupWithManager(mgr ctrl.Manager, options controller.Options) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&capz.AzureMachine{}).
+		For(&infrav1.AzureMachine{}).
 		WithOptions(options).
 		Complete(r)
 }

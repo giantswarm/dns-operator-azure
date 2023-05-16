@@ -29,7 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	capz "sigs.k8s.io/cluster-api-provider-azure/api/v1beta1"
+	infrav1 "sigs.k8s.io/cluster-api-provider-azure/api/v1beta1"
 	capi "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/cluster-api/util/record"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -57,7 +57,7 @@ func init() {
 	_ = clientgoscheme.AddToScheme(scheme)
 
 	_ = capi.AddToScheme(scheme)
-	_ = capz.AddToScheme(scheme)
+	_ = infrav1.AddToScheme(scheme)
 	// +kubebuilder:scaffold:scheme
 
 	// Add aadpodidentity v1 to the scheme.
@@ -81,16 +81,18 @@ func main() {
 
 func mainError() error {
 	var (
-		metricsAddr             string
-		enableLeaderElection    bool
-		baseDomain              string
-		baseDomainResourceGroup string
-		baseZoneClientID        string
-		baseZoneClientSecret    string
-		baseZoneSubscriptionID  string
-		baseZoneTenantID        string
-		syncPeriod              time.Duration
-		clusterConcurrency      int
+		metricsAddr                string
+		enableLeaderElection       bool
+		baseDomain                 string
+		baseDomainResourceGroup    string
+		baseZoneClientID           string
+		baseZoneClientSecret       string
+		baseZoneSubscriptionID     string
+		baseZoneTenantID           string
+		syncPeriod                 time.Duration
+		clusterConcurrency         int
+		managementClusterName      string
+		managementClusterNamespace string
 	)
 
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
@@ -106,6 +108,10 @@ func mainError() error {
 		"The minimum interval at which watched resources are reconciled (e.g. 15m)")
 	flag.IntVar(&clusterConcurrency, "cluster-concurrency", 5,
 		"Number of clusters to process simultaneously")
+	flag.StringVar(&managementClusterName, "management-cluster-name", "",
+		"The name of the management cluster where this operator is running (also MC AzureCluster CR name)")
+	flag.StringVar(&managementClusterNamespace, "management-cluster-namespace", "",
+		"The namespace where the management cluster AzureCluster CR is deployed")
 
 	// configure the logger
 	opts := zap.Options{
@@ -153,14 +159,16 @@ func mainError() error {
 	}
 
 	if err = (&controllers.AzureClusterReconciler{
-		Client:                  mgr.GetClient(),
-		BaseDomain:              baseDomain,
-		BaseDomainResourceGroup: baseDomainResourceGroup,
-		BaseZoneClientID:        baseZoneClientID,
-		BaseZoneClientSecret:    baseZoneClientSecret,
-		BaseZoneSubscriptionID:  baseZoneSubscriptionID,
-		BaseZoneTenantID:        baseZoneTenantID,
-		Recorder:                mgr.GetEventRecorderFor("azurecluster-reconciler"),
+		Client:                     mgr.GetClient(),
+		BaseDomain:                 baseDomain,
+		BaseDomainResourceGroup:    baseDomainResourceGroup,
+		BaseZoneClientID:           baseZoneClientID,
+		BaseZoneClientSecret:       baseZoneClientSecret,
+		BaseZoneSubscriptionID:     baseZoneSubscriptionID,
+		BaseZoneTenantID:           baseZoneTenantID,
+		Recorder:                   mgr.GetEventRecorderFor("azurecluster-reconciler"),
+		ManagementClusterName:      managementClusterName,
+		ManagementClusterNamespace: managementClusterNamespace,
 	}).SetupWithManager(mgr, controller.Options{MaxConcurrentReconciles: clusterConcurrency}); err != nil {
 		setupLog.Error(errors.FatalError, "unable to create controller AzureCluster")
 		return microerror.Mask(err)

@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/dns/armdns"
-	"github.com/Azure/go-autorest/autorest/to"
 	"github.com/giantswarm/microerror"
+	"k8s.io/utils/pointer"
 	capzazure "sigs.k8s.io/cluster-api-provider-azure/azure"
 	capzpublicips "sigs.k8s.io/cluster-api-provider-azure/azure/services/publicips"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -15,6 +15,15 @@ import (
 
 	"github.com/giantswarm/dns-operator-azure/v2/pkg/metrics"
 )
+
+type client interface {
+	GetZone(ctx context.Context, resourceGroupName string, zoneName string) (armdns.Zone, error)
+	CreateOrUpdateZone(ctx context.Context, resourceGroupName string, zoneName string, zone armdns.Zone) (armdns.Zone, error)
+	DeleteZone(ctx context.Context, resourceGroupName string, zoneName string) error
+	CreateOrUpdateRecordSet(ctx context.Context, resourceGroupName string, zoneName string, recordType armdns.RecordType, name string, recordSet armdns.RecordSet) (armdns.RecordSet, error)
+	DeleteRecordSet(ctx context.Context, resourceGroupName string, zoneName string, recordType armdns.RecordType, recordSetName string) error
+	ListRecordSets(ctx context.Context, resourceGroupName string, zoneName string) ([]*armdns.RecordSet, error)
+}
 
 const (
 	RecordSetTypePrefix = "Microsoft.Network/dnszones/"
@@ -78,6 +87,7 @@ func (s *Service) Reconcile(ctx context.Context) error {
 	// dns_operator_cluster_zone_info{controller="dns-operator-azure",resource_group="np1014",subscription_id="6b1f6e4a-6d0e-4aa4-9a5a-fbaca65a23b3",tenant_id="31f75bf9-3d8c-4691-95c0-83dd71613db8",zone="np1014.azuretest.gigantic.io"} 1
 	metrics.ZoneInfo.WithLabelValues(
 		s.scope.ClusterDomain(),  // label: zone
+		metrics.ZoneTypePublic,   // label: type
 		s.scope.ResourceGroup(),  // label: resource_group
 		s.scope.TenantID(),       // label: tenant_id
 		s.scope.SubscriptionID(), // label: subscription_id
@@ -86,8 +96,6 @@ func (s *Service) Reconcile(ctx context.Context) error {
 	// create DNS Zone
 	clusterRecordSets, err := s.azureClient.ListRecordSets(ctx, s.scope.ResourceGroup(), clusterZoneName)
 	if err != nil && !azure.IsParentResourceNotFound(err) {
-		log.V(1).Info("new error", "error", err.Error())
-
 		// dns_operator_api_request_errors_total{controller="dns-operator-azure",method="recordSets.NewListByDNSZonePager"}
 		metrics.AzureRequestError.WithLabelValues("recordSets.NewListByDNSZonePager").Inc()
 
@@ -96,6 +104,7 @@ func (s *Service) Reconcile(ctx context.Context) error {
 		log.V(1).Info("cluster specific DNS zone not found", "error", err.Error())
 		_, err = s.createClusterDNSZone(ctx)
 		if err != nil {
+			log.V(1).Info("zone creation failed", "error", err.Error())
 			return microerror.Mask(err)
 		}
 	}
@@ -108,7 +117,10 @@ func (s *Service) Reconcile(ctx context.Context) error {
 	}
 
 	// dns_operator_zone_records_sum{controller="dns-operator-azure",zone="glippy.azuretest.gigantic.io"} 30
-	metrics.ClusterZoneRecords.WithLabelValues(s.scope.ClusterDomain()).Set(float64(to.Int64(clusterZone.Properties.NumberOfRecordSets)))
+	metrics.ClusterZoneRecords.WithLabelValues(
+		s.scope.ClusterDomain(),
+		metrics.ZoneTypePublic,
+	).Set(float64(*clusterZone.Properties.NumberOfRecordSets))
 
 	// create NS Record in base zone
 	log.V(1).Info("list NS records in basedomain", "resourcegroup", s.scope.BaseDomainResourceGroup(), "dns zone", s.scope.BaseDomain())
@@ -118,7 +130,10 @@ func (s *Service) Reconcile(ctx context.Context) error {
 	}
 
 	// dns_operator_zone_records_sum{controller="dns-operator-azure",zone="azuretest.gigantic.io"} 7
-	metrics.ClusterZoneRecords.WithLabelValues(s.scope.BaseDomain()).Set(float64(len(basedomainRecordSets)))
+	metrics.ClusterZoneRecords.WithLabelValues(
+		s.scope.BaseDomain(),
+		metrics.ZoneTypePublic,
+	).Set(float64(len(basedomainRecordSets)))
 
 	log.V(1).Info("range over received NS records")
 	clusterNSRecordExists := false
@@ -185,7 +200,7 @@ func (s *Service) createClusterDNSZone(ctx context.Context) (armdns.Zone, error)
 	// Type is Public if not specified
 	dnsZoneParams := armdns.Zone{
 		Name:     &zoneName,
-		Location: to.StringPtr(capzazure.Global),
+		Location: pointer.String(capzazure.Global),
 	}
 	dnsZone, err := s.azureClient.CreateOrUpdateZone(ctx, s.scope.ResourceGroup(), zoneName, dnsZoneParams)
 	if err != nil {

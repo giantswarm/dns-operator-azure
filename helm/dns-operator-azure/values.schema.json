@@ -41,6 +41,17 @@
                 }
             }
         },
+        "managementCluster": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "namespace": {
+                    "type": "string"
+                }
+            }
+        },
         "pod": {
             "type": "object",
             "properties": {

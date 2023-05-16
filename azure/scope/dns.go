@@ -37,6 +37,11 @@ type DNSScopeParams struct {
 
 	AzureClusterIdentity               infrav1.AzureClusterIdentity
 	AzureClusterServicePrincipalSecret corev1.Secret
+
+	ManagementClusterAzureIdentity          infrav1.AzureClusterIdentity
+	ManagementClusterServicePrincipalSecret corev1.Secret
+
+	ManagementClusterSpec infrav1.AzureClusterSpec
 }
 
 // DNSScope defines the basic context for an actuator to operate upon.
@@ -48,7 +53,10 @@ type DNSScope struct {
 	baseZoneCredentials     BaseZoneCredentials
 	bastionIP               string
 
-	identity Identity
+	identity                  Identity
+	managementClusterIdentity Identity
+
+	managementClusterSpec infrav1.AzureClusterSpec
 }
 
 type Identity struct {
@@ -79,6 +87,11 @@ func NewDNSScope(_ context.Context, params DNSScopeParams) (*DNSScope, error) {
 			clusterIdentity: params.AzureClusterIdentity,
 			secret:          params.AzureClusterServicePrincipalSecret,
 		},
+		managementClusterIdentity: Identity{
+			clusterIdentity: params.ManagementClusterAzureIdentity,
+			secret:          params.ManagementClusterServicePrincipalSecret,
+		},
+		managementClusterSpec: params.ManagementClusterSpec,
 	}
 
 	return scope, nil
@@ -104,10 +117,6 @@ func (s *DNSScope) ClusterDomain() string {
 	return fmt.Sprintf("%s.%s", s.ClusterName(), s.baseDomain)
 }
 
-func (s *DNSScope) ClusterZoneName() string {
-	return fmt.Sprintf("%s.%s", s.ClusterName(), s.baseDomain)
-}
-
 func (s *DNSScope) ResourceGroup() string {
 	return s.ClusterName()
 }
@@ -120,10 +129,10 @@ func (s *DNSScope) BaseZoneCredentials() BaseZoneCredentials {
 	return s.baseZoneCredentials
 }
 
-func (s *DNSScope) GetAzureClusterIdentity() infrav1.AzureClusterIdentity {
+func (s *DNSScope) AzureClusterIdentity() infrav1.AzureClusterIdentity {
 	return s.identity.clusterIdentity
 }
 
-func (s *DNSScope) GetAzureClientSecret() string {
+func (s *DNSScope) AzureClientSecret() string {
 	return string(s.identity.secret.Data[clientSecretKeyName])
 }
