@@ -25,7 +25,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
-	capz "sigs.k8s.io/cluster-api-provider-azure/api/v1beta1"
+	infrav1 "sigs.k8s.io/cluster-api-provider-azure/api/v1beta1"
 	capzscope "sigs.k8s.io/cluster-api-provider-azure/azure/scope"
 	"sigs.k8s.io/cluster-api-provider-azure/azure/services/publicips"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -76,7 +76,7 @@ func (r *AzureClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	log := log.FromContext(ctx)
 
 	// Fetch the AzureCluster instance
-	azureCluster := &capz.AzureCluster{}
+	azureCluster := &infrav1.AzureCluster{}
 	err := r.Get(ctx, req.NamespacedName, azureCluster)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -134,7 +134,7 @@ func (r *AzureClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	// only act on Clusters where the LoadBalancersReady condition is true
 	clusterConditions := clusterScope.AzureCluster.GetConditions()
 	for _, condition := range clusterConditions {
-		if condition.Type == capz.LoadBalancersReadyCondition {
+		if condition.Type == infrav1.LoadBalancersReadyCondition {
 			return r.reconcileNormal(ctx, clusterScope)
 		}
 	}
@@ -144,7 +144,7 @@ func (r *AzureClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 func (r *AzureClusterReconciler) SetupWithManager(mgr ctrl.Manager, options controller.Options) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&capz.AzureCluster{}).
+		For(&infrav1.AzureCluster{}).
 		WithOptions(options).
 		Complete(r)
 }
@@ -177,7 +177,7 @@ func (r *AzureClusterReconciler) reconcileNormal(ctx context.Context, clusterSco
 	// Reconcile workload cluster DNS records
 	publicIPsService := publicips.New(clusterScope)
 
-	azureClusterIdentity := &capz.AzureClusterIdentity{}
+	azureClusterIdentity := &infrav1.AzureClusterIdentity{}
 	log.V(1).Info(fmt.Sprintf("try to get the clusterClusterIdentity - %s", clusterScope.AzureCluster.Spec.IdentityRef.Name))
 
 	err = r.Client.Get(ctx, types.NamespacedName{
@@ -199,7 +199,7 @@ func (r *AzureClusterReconciler) reconcileNormal(ctx context.Context, clusterSco
 	)
 
 	staticServicePrincipalSecret := &corev1.Secret{}
-	if azureClusterIdentity.Spec.Type == capz.ManualServicePrincipal {
+	if azureClusterIdentity.Spec.Type == infrav1.ManualServicePrincipal {
 		log.V(1).Info(fmt.Sprintf("try to get the referenced secret - %s/%s", azureClusterIdentity.Spec.ClientSecret.Namespace, azureClusterIdentity.Spec.ClientSecret.Name))
 
 		err = r.Client.Get(ctx, types.NamespacedName{
@@ -251,7 +251,7 @@ func (r *AzureClusterReconciler) reconcileNormal(ctx context.Context, clusterSco
 		}
 
 		managementClusterStaticServicePrincipalSecret := &corev1.Secret{}
-		if managementClusterAzureIdentity.Spec.Type == capz.ManualServicePrincipal {
+		if managementClusterAzureIdentity.Spec.Type == infrav1.ManualServicePrincipal {
 			log.V(1).Info(fmt.Sprintf("try to get the referenced secret - %s/%s", managementClusterAzureIdentity.Spec.ClientSecret.Namespace, managementClusterAzureIdentity.Spec.ClientSecret.Name))
 
 			err = r.Client.Get(ctx, types.NamespacedName{
@@ -355,6 +355,7 @@ func (r *AzureClusterReconciler) reconcileDelete(ctx context.Context, clusterSco
 	azureCluster := clusterScope.AzureCluster
 	// `azureCluster.spec.networkSpec.apiServerLB.privateLinks` is the current identifier
 	// for private DNS zone creation in the management cluster
+
 	if len(azureCluster.Spec.NetworkSpec.APIServerLB.PrivateLinks) > 0 {
 
 		managementCluster, err := r.getManagementAzureClusterCR(ctx)
@@ -368,7 +369,7 @@ func (r *AzureClusterReconciler) reconcileDelete(ctx context.Context, clusterSco
 		}
 
 		managementClusterStaticServicePrincipalSecret := &corev1.Secret{}
-		if managementClusterAzureIdentity.Spec.Type == capz.ManualServicePrincipal {
+		if managementClusterAzureIdentity.Spec.Type == infrav1.ManualServicePrincipal {
 			log.V(1).Info(fmt.Sprintf("try to get the referenced secret - %s/%s", managementClusterAzureIdentity.Spec.ClientSecret.Namespace, managementClusterAzureIdentity.Spec.ClientSecret.Name))
 
 			err = r.Client.Get(ctx, types.NamespacedName{
@@ -443,12 +444,12 @@ func (r *AzureClusterReconciler) reconcileDelete(ctx context.Context, clusterSco
 	return reconcile.Result{}, nil
 }
 
-func (r *AzureClusterReconciler) getManagementAzureClusterCR(ctx context.Context) (*capz.AzureCluster, error) {
+func (r *AzureClusterReconciler) getManagementAzureClusterCR(ctx context.Context) (*infrav1.AzureCluster, error) {
 
 	log := log.FromContext(ctx)
 	log.V(1).Info(fmt.Sprintf("try to get the azureCluster - %s/%s", r.ManagementClusterNamespace, r.ManagementClusterName))
 
-	managementCluster := &capz.AzureCluster{}
+	managementCluster := &infrav1.AzureCluster{}
 
 	err := r.Client.Get(ctx, types.NamespacedName{
 		Name:      r.ManagementClusterName,
@@ -472,12 +473,12 @@ func (r *AzureClusterReconciler) getManagementAzureClusterCR(ctx context.Context
 
 }
 
-func (r *AzureClusterReconciler) getManagementClusterIdentity(ctx context.Context, managementCluster *capz.AzureCluster) (*capz.AzureClusterIdentity, error) {
+func (r *AzureClusterReconciler) getManagementClusterIdentity(ctx context.Context, managementCluster *infrav1.AzureCluster) (*infrav1.AzureClusterIdentity, error) {
 
 	log := log.FromContext(ctx)
 	log.V(1).Info(fmt.Sprintf("try to get the azureClusterIdentity - %s/%s", managementCluster.Spec.IdentityRef.Namespace, managementCluster.Spec.IdentityRef.Name))
 
-	managementClusterAzureIdentity := &capz.AzureClusterIdentity{}
+	managementClusterAzureIdentity := &infrav1.AzureClusterIdentity{}
 
 	err := r.Client.Get(ctx, types.NamespacedName{
 		Name:      managementCluster.Spec.IdentityRef.Name,

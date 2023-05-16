@@ -11,7 +11,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
-	capz "sigs.k8s.io/cluster-api-provider-azure/api/v1beta1"
+	infrav1 "sigs.k8s.io/cluster-api-provider-azure/api/v1beta1"
 	capzscope "sigs.k8s.io/cluster-api-provider-azure/azure/scope"
 	"sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/annotations"
@@ -43,7 +43,7 @@ func (r *AzureMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	log := log.FromContext(ctx)
 
 	// Fetch the AzureMachine instance
-	azureMachine := &capz.AzureMachine{}
+	azureMachine := &infrav1.AzureMachine{}
 	err := r.Get(ctx, req.NamespacedName, azureMachine)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -96,7 +96,7 @@ func (r *AzureMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			}
 		}()
 
-		azureCluster := &capz.AzureCluster{}
+		azureCluster := &infrav1.AzureCluster{}
 		log.V(1).Info(fmt.Sprintf("try to get the cluster - %s", cluster.Spec.InfrastructureRef.Name))
 
 		err = r.Client.Get(ctx, types.NamespacedName{
@@ -137,7 +137,7 @@ func (r *AzureMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		// only act on Machines where the NetworkInterfacesReady condition is true
 		azureMachineConditions := machineScope.AzureMachine.GetConditions()
 		for _, condition := range azureMachineConditions {
-			if condition.Type == capz.NetworkInterfaceReadyCondition {
+			if condition.Type == infrav1.NetworkInterfaceReadyCondition {
 				log.V(1).Info("machine has NetworkInterfacesReady condition", "machine", machineScope.AzureMachine.Name)
 				return r.reconcileNormal(ctx, machineScope, clusterScope)
 			}
@@ -151,7 +151,7 @@ func (r *AzureMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 func (r *AzureMachineReconciler) SetupWithManager(mgr ctrl.Manager, options controller.Options) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&capz.AzureMachine{}).
+		For(&infrav1.AzureMachine{}).
 		WithOptions(options).
 		Complete(r)
 }
