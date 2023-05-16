@@ -59,7 +59,7 @@ func TestService_calculateMissingARecords(t *testing.T) {
 				Spec: infrav1.AzureClusterSpec{
 					ResourceGroup: "flkjd",
 					AzureClusterClassSpec: infrav1.AzureClusterClassSpec{
-						SubscriptionID: "lkjdldj",
+						SubscriptionID: uuid.New().String(),
 					},
 					ControlPlaneEndpoint: v1beta1.APIEndpoint{
 						Host: "api-server.mydomain.io",
@@ -172,7 +172,7 @@ func TestService_calculateMissingARecords(t *testing.T) {
 				Spec: infrav1.AzureClusterSpec{
 					ResourceGroup: "flkjd",
 					AzureClusterClassSpec: infrav1.AzureClusterClassSpec{
-						SubscriptionID: "lkjdldj",
+						SubscriptionID: uuid.New().String(),
 					},
 					ControlPlaneEndpoint: v1beta1.APIEndpoint{
 						Host: "api-server.mydomain.io",
