@@ -28,3 +28,7 @@ managementCluster:
 
 verticalPodAutoscaler:
   enabled: false
+
+global:
+  podSecurityStandards:
+    enforced: false
