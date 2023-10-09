@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `PolicyException` for `kyverno` policies.
+
 ## [1.3.0] - 2023-05-16
 
 ### Added

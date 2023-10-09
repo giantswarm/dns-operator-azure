@@ -28,3 +28,8 @@ managementCluster:
 
 verticalPodAutoscaler:
   enabled: false
+
+# Enable Kyverno PolicyException
+kyvernoPolicyExceptions:
+  enabled: true
+  namespace: giantswarm
