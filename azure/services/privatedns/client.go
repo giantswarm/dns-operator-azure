@@ -148,7 +148,7 @@ func (ac *azureClient) CreateOrUpdateVirtualNetworkLink(ctx context.Context, res
 		ctx,
 		resourceGroupName,
 		zoneName,
-		workloadClusterName+"-dns-"+resourceGroupName+"-vnet-link",
+		virtualNetworkLinkName(workloadClusterName, resourceGroupName),
 		armprivatedns.VirtualNetworkLink{
 			Location: pointer.String(capzazure.Global),
 			Properties: &armprivatedns.VirtualNetworkLinkProperties{
@@ -197,7 +197,7 @@ func (ac *azureClient) ListVirtualNetworkLink(ctx context.Context, resourceGroup
 
 func (ac *azureClient) DeleteVirtualNetworkLink(ctx context.Context, resourceGroupName, zoneName, workloadClusterName string) error {
 
-	poller, err := ac.virtualNetworkLinkClient.BeginDelete(ctx, resourceGroupName, zoneName, workloadClusterName+"-dns-"+resourceGroupName+"-vnet-link", nil)
+	poller, err := ac.virtualNetworkLinkClient.BeginDelete(ctx, resourceGroupName, zoneName, virtualNetworkLinkName(workloadClusterName, resourceGroupName), nil)
 
 	if err != nil {
 		// dns_operator_api_request_errors_total{controller="dns-operator-azure",method="virtualNetworkLinkClient.BeginDelete"}
@@ -287,4 +287,8 @@ func (ac *azureClient) CreateOrUpdateRecordSet(ctx context.Context, resourceGrou
 	}
 
 	return resp.RecordSet, nil
+}
+
+func virtualNetworkLinkName(clusterName, resourceGroupName string) string {
+	return fmt.Sprintf("%s-dns-%s-%s", clusterName, resourceGroupName, "vnet-link")
 }
