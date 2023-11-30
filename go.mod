@@ -147,7 +147,7 @@ replace (
 	github.com/containerd/containerd => github.com/containerd/containerd v1.6.18
 	github.com/coreos/etcd v3.3.13+incompatible => github.com/coreos/etcd v3.3.24+incompatible
 	github.com/dgrijalva/jwt-go => github.com/dgrijalva/jwt-go/v4 v4.0.0-preview1
-	golang.org/x/net => golang.org/x/net v0.16.0
+	golang.org/x/net => golang.org/x/net v0.17.0
 	helm.sh/helm/v3 => helm.sh/helm/v3 v3.12.0
 
 	// use v0.25 client-go
