@@ -24,6 +24,8 @@ spec:
         runAsNonRoot: true
         runAsUser: {{ .Values.pod.user.id }}
         runAsGroup: {{ .Values.pod.group.id }}
+        seccompProfile:
+          type: RuntimeDefault
       hostNetwork: true
       containers:
       - name: {{ .Chart.Name }}
