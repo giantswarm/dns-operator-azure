@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Add seccomp annotation to PSP. 
+
 ## [1.3.2] - 2024-01-22
 
 ### Changed
