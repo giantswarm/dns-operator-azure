@@ -37,6 +37,7 @@
                     "type": "object",
                     "properties": {
                         "enforced": {
+                            "default": false,
                             "type": "boolean"
                         }
                     }
