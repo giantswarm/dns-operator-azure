@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/dns/armdns"
+
 	"github.com/go-logr/logr"
 	"github.com/google/uuid"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
