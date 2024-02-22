@@ -96,7 +96,7 @@ func (s *Service) calculateMissingCnameRecords(logger logr.Logger, currentRecord
 func desiredCnameRecords(clusterZoneName string) []*armdns.RecordSet {
 	return []*armdns.RecordSet{
 		{
-			Name: pointer.String(fmt.Sprintf("*.%s", clusterZoneName)),
+			Name: pointer.String("*"),
 			Type: pointer.String(string(armdns.RecordTypeCNAME)),
 			Properties: &armdns.RecordSetProperties{
 				TTL: pointer.Int64(cnameRecordTTL),
