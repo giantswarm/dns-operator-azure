@@ -15,10 +15,11 @@ import (
 	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/utils/pointer"
 	infrav1 "sigs.k8s.io/cluster-api-provider-azure/api/v1beta1"
-	capzscope "sigs.k8s.io/cluster-api-provider-azure/azure/scope"
 	"sigs.k8s.io/cluster-api-provider-azure/azure/services/publicips"
 	"sigs.k8s.io/cluster-api/api/v1beta1"
 	fakeclient "sigs.k8s.io/controller-runtime/pkg/client/fake"
+
+	capzscope "sigs.k8s.io/cluster-api-provider-azure/azure/scope"
 )
 
 func Test_CnameRecords(t *testing.T) {
