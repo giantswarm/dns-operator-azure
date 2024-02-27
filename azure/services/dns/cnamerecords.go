@@ -25,7 +25,7 @@ func (s *Service) updateCnameRecords(ctx context.Context, currentRecordSets []*a
 
 	if len(recordsToCreate) == 0 {
 		logger.Info(
-			"All DNS A records have already been created",
+			"All DNS CNAME records have already been created",
 			"DNSZone", s.scope.ClusterDomain())
 		return nil
 	}
@@ -37,7 +37,7 @@ func (s *Service) updateCnameRecords(ctx context.Context, currentRecordSets []*a
 			"FQDN", fmt.Sprintf("%s.%s", *cnameRecord.Name, s.scope.ClusterDomain()))
 
 		logger.Info(
-			"Creating DNS A record",
+			"Creating DNS CNAME record",
 			"DNSZone", s.scope.ClusterDomain(),
 			"name", cnameRecord.Name,
 			"value", cnameRecord.Properties.CnameRecord)
