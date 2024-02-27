@@ -3,12 +3,13 @@ package privatedns
 import (
 	"context"
 	"fmt"
+	"reflect"
+
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/dns/armdns"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/privatedns/armprivatedns"
 	"github.com/go-logr/logr"
 	"golang.org/x/exp/slices"
 	"k8s.io/utils/pointer"
-	"reflect"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
