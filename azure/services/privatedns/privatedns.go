@@ -109,6 +109,10 @@ func (s *Service) Reconcile(ctx context.Context) error {
 		return microerror.Mask(err)
 	}
 
+	if err = s.updateCnameRecords(ctx, privateClusterRecordSets); err != nil {
+		return microerror.Mask(err)
+	}
+
 	return nil
 }
 

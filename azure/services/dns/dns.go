@@ -168,6 +168,11 @@ func (s *Service) Reconcile(ctx context.Context) error {
 		return microerror.Mask(err)
 	}
 
+	// Create required CNAME records
+	if err = s.updateCnameRecords(ctx, clusterRecordSets); err != nil {
+		return microerror.Mask(err)
+	}
+
 	log.Info("Successfully reconciled DNS", "DNSZone", clusterZoneName)
 	return nil
 }
