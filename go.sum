@@ -479,8 +479,8 @@ k8s.io/kube-openapi v0.0.0-20221012153701-172d655c2280 h1:+70TFaan3hfJzs+7VK2o+O
 k8s.io/kube-openapi v0.0.0-20221012153701-172d655c2280/go.mod h1:+Axhij7bCpeqhklhUTe3xmOn6bWxolyZEeyaFpjGtl4=
 k8s.io/kubectl v0.26.1 h1:K8A0Jjlwg8GqrxOXxAbjY5xtmXYeYjLU96cHp2WMQ7s=
 k8s.io/kubectl v0.26.1/go.mod h1:miYFVzldVbdIiXMrHZYmL/EDWwJKM+F0sSsdxsATFPo=
-k8s.io/utils v0.0.0-20230220204549-a5ecb0141aa5 h1:kmDqav+P+/5e1i9tFfHq1qcF3sOrDp+YEkVDAHu7Jwk=
-k8s.io/utils v0.0.0-20230220204549-a5ecb0141aa5/go.mod h1:OLgZIPagt7ERELqWJFomSt595RzquPNLL48iOWgYOg0=
+k8s.io/utils v0.0.0-20240310230437-4693a0247e57 h1:gbqbevonBh57eILzModw6mrkbwM0gQBEuevE/AaBsHY=
+k8s.io/utils v0.0.0-20240310230437-4693a0247e57/go.mod h1:OLgZIPagt7ERELqWJFomSt595RzquPNLL48iOWgYOg0=
 sigs.k8s.io/cloud-provider-azure v1.25.5 h1:YRq/wStyUtxgtMrAuRg+4FS0Gylt6MRatA8z5uag0/s=
 sigs.k8s.io/cloud-provider-azure v1.25.5/go.mod h1:estRnm6TL3dWLQTVoej4+0ygXyhIZmpszBXipHrfuZ0=
 sigs.k8s.io/cluster-api v1.3.5 h1:Chg56Piv5ip0AFRN83H1I8uIn6qsdk+mr9hdq5Cxkf0=
