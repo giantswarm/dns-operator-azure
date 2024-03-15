@@ -3,7 +3,6 @@ package scope
 import (
 	"context"
 	"fmt"
-	"github.com/giantswarm/dns-operator-azure/v2/pkg/infracluster"
 	"strings"
 
 	"github.com/giantswarm/microerror"
@@ -11,6 +10,7 @@ import (
 	infrav1 "sigs.k8s.io/cluster-api-provider-azure/api/v1beta1"
 
 	"github.com/giantswarm/dns-operator-azure/v2/pkg/errors"
+	"github.com/giantswarm/dns-operator-azure/v2/pkg/infracluster"
 )
 
 const (

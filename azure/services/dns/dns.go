@@ -2,18 +2,17 @@ package dns
 
 import (
 	"context"
-	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resources/armresources"
-	"sigs.k8s.io/cluster-api-provider-azure/azure/services/async"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/dns/armdns"
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resources/armresources"
 	"github.com/giantswarm/microerror"
 	"k8s.io/utils/pointer"
 	capzazure "sigs.k8s.io/cluster-api-provider-azure/azure"
+	"sigs.k8s.io/cluster-api-provider-azure/azure/services/async"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/giantswarm/dns-operator-azure/v2/azure"
 	"github.com/giantswarm/dns-operator-azure/v2/azure/scope"
-
 	"github.com/giantswarm/dns-operator-azure/v2/pkg/metrics"
 )
 

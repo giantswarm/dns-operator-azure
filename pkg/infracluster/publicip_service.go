@@ -3,9 +3,10 @@ package infracluster
 import (
 	"context"
 	"fmt"
+	"net"
+
 	"github.com/Azure/azure-sdk-for-go/services/network/mgmt/2021-08-01/network"
 	"k8s.io/utils/pointer"
-	"net"
 	"sigs.k8s.io/cluster-api-provider-azure/azure"
 	capi "sigs.k8s.io/cluster-api/api/v1beta1"
 )

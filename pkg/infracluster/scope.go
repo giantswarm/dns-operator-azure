@@ -2,6 +2,7 @@ package infracluster
 
 import (
 	"context"
+
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
 	infrav1 "sigs.k8s.io/cluster-api-provider-azure/api/v1beta1"

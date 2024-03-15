@@ -17,11 +17,8 @@ package controllers
 import (
 	"context"
 	"fmt"
-	azurescope "github.com/giantswarm/dns-operator-azure/v2/azure/scope"
-	"github.com/giantswarm/dns-operator-azure/v2/azure/services/dns"
-	"github.com/giantswarm/dns-operator-azure/v2/azure/services/privatedns"
-	infracluster "github.com/giantswarm/dns-operator-azure/v2/pkg/infracluster"
-	"github.com/giantswarm/dns-operator-azure/v2/pkg/metrics"
+	"time"
+
 	"github.com/giantswarm/microerror"
 	"github.com/prometheus/client_golang/prometheus"
 	corev1 "k8s.io/api/core/v1"
@@ -39,7 +36,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"time"
+
+	azurescope "github.com/giantswarm/dns-operator-azure/v2/azure/scope"
+	"github.com/giantswarm/dns-operator-azure/v2/azure/services/dns"
+	"github.com/giantswarm/dns-operator-azure/v2/azure/services/privatedns"
+	"github.com/giantswarm/dns-operator-azure/v2/pkg/infracluster"
+	"github.com/giantswarm/dns-operator-azure/v2/pkg/metrics"
 )
 
 const (
