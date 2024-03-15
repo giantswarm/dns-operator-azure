@@ -164,17 +164,17 @@ func (s *Service) getDesiredARecords(ctx context.Context) ([]*armdns.RecordSet, 
 	apiserverIndex := slices.IndexFunc(armdnsRecordSet, func(recordSet *armdns.RecordSet) bool { return *recordSet.Name == apiserverRecordName })
 
 	switch {
-	case s.scope.IsAPIServerPrivate():
+	case s.scope.Patcher.IsAPIServerPrivate():
 
 		armdnsRecordSet[apiIndex].Properties.ARecords = append(armdnsRecordSet[apiIndex].Properties.ARecords, &armdns.ARecord{
-			IPv4Address: pointer.String(s.scope.APIServerPrivateIP()),
+			IPv4Address: pointer.String(s.scope.Patcher.APIServerPrivateIP()),
 		})
 
 		armdnsRecordSet[apiserverIndex].Properties.ARecords = append(armdnsRecordSet[apiserverIndex].Properties.ARecords, &armdns.ARecord{
-			IPv4Address: pointer.String(s.scope.APIServerPrivateIP()),
+			IPv4Address: pointer.String(s.scope.Patcher.APIServerPrivateIP()),
 		})
 
-	case !s.scope.IsAPIServerPrivate():
+	case !s.scope.Patcher.IsAPIServerPrivate():
 
 		publicIP, err := s.getIPAddressForPublicDNS(ctx)
 		if err != nil {
@@ -233,11 +233,11 @@ func (s *Service) getDesiredARecords(ctx context.Context) ([]*armdns.RecordSet, 
 func (s *Service) getIPAddressForPublicDNS(ctx context.Context) (string, error) {
 	logger := log.FromContext(ctx).WithName("getIPAddressForPublicDNS")
 
-	logger.V(1).Info(fmt.Sprintf("resolve IP for %s/%s", s.scope.APIServerPublicIP().Name, s.scope.APIServerPublicIP().DNSName))
+	logger.V(1).Info(fmt.Sprintf("resolve IP for %s/%s", s.scope.Patcher.APIServerPublicIP().Name, s.scope.Patcher.APIServerPublicIP().DNSName))
 
-	if net.ParseIP(s.scope.APIServerPublicIP().Name) == nil {
+	if net.ParseIP(s.scope.Patcher.APIServerPublicIP().Name) == nil {
 		publicIPIface, err := s.publicIPsService.Get(ctx, &capzpublicips.PublicIPSpec{
-			Name:          s.scope.APIServerPublicIP().Name,
+			Name:          s.scope.Patcher.APIServerPublicIP().Name,
 			ResourceGroup: s.scope.ResourceGroup(),
 		})
 		if err != nil {
@@ -249,10 +249,10 @@ func (s *Service) getIPAddressForPublicDNS(ctx context.Context) (string, error) 
 			return "", microerror.Mask(fmt.Errorf("%T is not a network.PublicIPAddress", publicIPIface))
 		}
 
-		logger.V(1).Info(fmt.Sprintf("got IP %v for %s/%s", *publicIPIface.(network.PublicIPAddress).IPAddress, s.scope.APIServerPublicIP().Name, s.scope.APIServerPublicIP().DNSName))
+		logger.V(1).Info(fmt.Sprintf("got IP %v for %s/%s", *publicIPIface.(network.PublicIPAddress).IPAddress, s.scope.Patcher.APIServerPublicIP().Name, s.scope.Patcher.APIServerPublicIP().DNSName))
 
 		return *publicIPIface.(network.PublicIPAddress).IPAddress, nil
 	}
 
-	return "", nil
+	return s.scope.Patcher.APIServerPublicIP().Name, nil
 }

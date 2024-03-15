@@ -2,12 +2,13 @@ package dns
 
 import (
 	"context"
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resources/armresources"
+	"sigs.k8s.io/cluster-api-provider-azure/azure/services/async"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/dns/armdns"
 	"github.com/giantswarm/microerror"
 	"k8s.io/utils/pointer"
 	capzazure "sigs.k8s.io/cluster-api-provider-azure/azure"
-	capzpublicips "sigs.k8s.io/cluster-api-provider-azure/azure/services/publicips"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/giantswarm/dns-operator-azure/v2/azure"
@@ -23,6 +24,8 @@ type client interface {
 	CreateOrUpdateRecordSet(ctx context.Context, resourceGroupName string, zoneName string, recordType armdns.RecordType, name string, recordSet armdns.RecordSet) (armdns.RecordSet, error)
 	DeleteRecordSet(ctx context.Context, resourceGroupName string, zoneName string, recordType armdns.RecordType, recordSetName string) error
 	ListRecordSets(ctx context.Context, resourceGroupName string, zoneName string) ([]*armdns.RecordSet, error)
+	CreateOrUpdateResourceGroup(ctx context.Context, resourceGroupName string, resourceGroup armresources.ResourceGroup) (armresources.ResourceGroup, error)
+	DeleteResourceGroup(ctx context.Context, resourceGroupName string) error
 }
 
 const (
@@ -40,11 +43,11 @@ type Service struct {
 	// azureBaseZoneClient is used as client for all baseDomain operations
 	azureBaseZoneClient client
 
-	publicIPsService *capzpublicips.Service
+	publicIPsService async.Getter
 }
 
 // New creates a new dns service.
-func New(scope scope.DNSScope, publicIPsService *capzpublicips.Service) (*Service, error) {
+func New(scope scope.DNSScope, publicIPsService async.Getter) (*Service, error) {
 	azureClient, err := newAzureClient(scope)
 
 	if err != nil {
@@ -77,20 +80,28 @@ func (s *Service) Reconcile(ctx context.Context) error {
 		"subscriptionID", s.scope.BaseZoneCredentials().SubscriptionID,
 	)
 	log.V(1).Info("client information for cluster Zone",
-		"clientID", s.scope.AzureClients.ClientID(),
-		"tenantID", s.scope.AzureClients.TenantID(),
-		"subscriptionID", s.scope.AzureClients.SubscriptionID(),
+		"clientID", s.scope.Patcher.ClientID(),
+		"tenantID", s.scope.Patcher.TenantID(),
+		"subscriptionID", s.scope.Patcher.SubscriptionID(),
 	)
+
+	// create resource group for non-Azure clusters
+	if !s.scope.IsAzureCluster() {
+		_, err := s.createClusterResourceGroup(ctx)
+		if err != nil {
+			return microerror.Mask(err)
+		}
+	}
 
 	// create info metric
 	// dns_operator_cluster_zone_info{controller="dns-operator-azure",resource_group="glippy",subscription_id="6b1f6e4a-6d0e-4aa4-9a5a-fbaca65a23b3",tenant_id="31f75bf9-3d8c-4691-95c0-83dd71613db8",zone="glippy.azuretest.gigantic.io"} 1
 	// dns_operator_cluster_zone_info{controller="dns-operator-azure",resource_group="np1014",subscription_id="6b1f6e4a-6d0e-4aa4-9a5a-fbaca65a23b3",tenant_id="31f75bf9-3d8c-4691-95c0-83dd71613db8",zone="np1014.azuretest.gigantic.io"} 1
 	metrics.ZoneInfo.WithLabelValues(
-		s.scope.ClusterDomain(),  // label: zone
-		metrics.ZoneTypePublic,   // label: type
-		s.scope.ResourceGroup(),  // label: resource_group
-		s.scope.TenantID(),       // label: tenant_id
-		s.scope.SubscriptionID(), // label: subscription_id
+		s.scope.ClusterDomain(),          // label: zone
+		metrics.ZoneTypePublic,           // label: type
+		s.scope.ResourceGroup(),          // label: resource_group
+		s.scope.Patcher.TenantID(),       // label: tenant_id
+		s.scope.Patcher.SubscriptionID(), // label: subscription_id
 	).Set(1)
 
 	// create DNS Zone
@@ -156,11 +167,11 @@ func (s *Service) Reconcile(ctx context.Context) error {
 	}
 
 	if !clusterNSRecordExists {
-		log.Info("Creating NS records", "NSrecord", s.scope.ClusterName(), "DNS zone", s.scope.BaseDomain())
+		log.Info("Creating NS records", "NSrecord", s.scope.Patcher.ClusterName(), "DNS zone", s.scope.BaseDomain())
 		if err := s.createClusterNSRecord(ctx, clusterZoneNameServers); err != nil {
 			return microerror.Mask(err)
 		}
-		log.Info("Successfully created NS records", "NSrecord", s.scope.ClusterName(), "DNS zone", s.scope.BaseDomain())
+		log.Info("Successfully created NS records", "NSrecord", s.scope.Patcher.ClusterName(), "DNS zone", s.scope.BaseDomain())
 	}
 
 	// Create required A records.
@@ -182,14 +193,22 @@ func (s *Service) ReconcileDelete(ctx context.Context) error {
 	clusterZoneName := s.scope.ClusterDomain()
 	log.Info("Reconcile DNS deletion", "DNSZone", clusterZoneName)
 
-	log.Info("Deleting NS record", "NSrecord", s.scope.ClusterName(), "DNS zone", s.scope.BaseDomain())
+	log.Info("Deleting NS record", "NSrecord", s.scope.Patcher.ClusterName(), "DNS zone", s.scope.BaseDomain())
 
 	// delete cluster NS records
 	if err := s.deleteClusterNSRecords(ctx); err != nil {
 		return microerror.Mask(err)
 	}
 
-	log.Info("Successfully deleted NS record", "NSrecord", s.scope.ClusterName(), "DNS zone", s.scope.BaseDomain())
+	// delete non-Azure cluster's resource group
+	if !s.scope.IsAzureCluster() {
+		err := s.deleteClusterResourceGroup(ctx)
+		if err != nil {
+			return microerror.Mask(err)
+		}
+	}
+
+	log.Info("Successfully deleted NS record", "NSrecord", s.scope.Patcher.ClusterName(), "DNS zone", s.scope.BaseDomain())
 
 	log.Info("Successfully reconciled DNS", "DNSZone", clusterZoneName)
 	return nil

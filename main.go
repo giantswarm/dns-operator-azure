@@ -158,7 +158,7 @@ func mainError() error {
 		return microerror.Mask(fmt.Errorf("environment variable %s not set", TenantId))
 	}
 
-	if err = (&controllers.AzureClusterReconciler{
+	if err := (&controllers.ClusterReconcilerx{
 		Client:                     mgr.GetClient(),
 		BaseDomain:                 baseDomain,
 		BaseDomainResourceGroup:    baseDomainResourceGroup,
