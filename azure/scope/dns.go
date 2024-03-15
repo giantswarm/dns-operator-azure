@@ -3,6 +3,7 @@ package scope
 import (
 	"context"
 	"fmt"
+	"github.com/giantswarm/dns-operator-azure/v2/pkg/infracluster"
 	"strings"
 
 	"github.com/giantswarm/microerror"
@@ -25,7 +26,7 @@ type BaseZoneCredentials struct {
 
 // ClusterScopeParams defines the input parameters used to create a new ClusterScope.
 type DNSScopeParams struct {
-	ClusterScope *infracluster.InfraClusterScope
+	ClusterScope *infracluster.Scope
 
 	BaseDomain              string
 	BaseDomainResourceGroup string
@@ -44,7 +45,7 @@ type DNSScopeParams struct {
 
 // DNSScope defines the basic context for an actuator to operate upon.
 type DNSScope struct {
-	infracluster.InfraClusterScope
+	infracluster.Scope
 
 	baseDomain              string
 	baseDomainResourceGroup string
@@ -76,7 +77,7 @@ func NewDNSScope(_ context.Context, params DNSScopeParams) (*DNSScope, error) {
 	}
 
 	scope := &DNSScope{
-		InfraClusterScope:       *params.ClusterScope,
+		Scope:                   *params.ClusterScope,
 		baseDomain:              params.BaseDomain,
 		baseDomainResourceGroup: params.BaseDomainResourceGroup,
 		baseZoneCredentials:     params.BaseZoneCredentials,
