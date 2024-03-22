@@ -38,6 +38,7 @@ import (
 
 	"github.com/giantswarm/dns-operator-azure/v2/controllers"
 	"github.com/giantswarm/dns-operator-azure/v2/pkg/errors"
+	"github.com/giantswarm/dns-operator-azure/v2/pkg/infracluster"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -51,6 +52,12 @@ const (
 	TenantId       = "AZURE_TENANT_ID"
 	ClientId       = "AZURE_CLIENT_ID"
 	ClientSecret   = "AZURE_CLIENT_SECRET" //nolint
+
+	InfraClusterSubscriptionID = "CLUSTER_AZURE_SUBSCRIPTION_ID"
+	InfraClusterClientID       = "CLUSTER_AZURE_CLIENT_ID"
+	InfraClusterClientSecret   = "CLUSTER_AZURE_CLIENT_SECRET" //nolint
+	InfraClusterTenantID       = "CLUSTER_AZURE_TENANT_ID"
+	InfraClusterLocation       = "CLUSTER_AZURE_LOCATION"
 )
 
 func init() {
@@ -93,6 +100,8 @@ func mainError() error {
 		clusterConcurrency         int
 		managementClusterName      string
 		managementClusterNamespace string
+		azureIdentityRefName       string
+		azureIdentityRefNamespace  string
 	)
 
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
@@ -112,6 +121,10 @@ func mainError() error {
 		"The name of the management cluster where this operator is running (also MC AzureCluster CR name)")
 	flag.StringVar(&managementClusterNamespace, "management-cluster-namespace", "",
 		"The namespace where the management cluster AzureCluster CR is deployed")
+	flag.StringVar(&azureIdentityRefName, "azure-identity-ref-name", "",
+		"The name of the Azure Cluster Identity reference to be used when reconciling non-Azure clusters")
+	flag.StringVar(&azureIdentityRefNamespace, "azure-identity-ref-namespace", "",
+		"The namespace of the Azure Cluster Identity reference to be used when reconciling non-Azure clusters")
 
 	// configure the logger
 	opts := zap.Options{
@@ -158,17 +171,28 @@ func mainError() error {
 		return microerror.Mask(fmt.Errorf("environment variable %s not set", TenantId))
 	}
 
-	if err := (&controllers.ClusterReconcilerx{
-		Client:                     mgr.GetClient(),
-		BaseDomain:                 baseDomain,
-		BaseDomainResourceGroup:    baseDomainResourceGroup,
-		BaseZoneClientID:           baseZoneClientID,
-		BaseZoneClientSecret:       baseZoneClientSecret,
-		BaseZoneSubscriptionID:     baseZoneSubscriptionID,
-		BaseZoneTenantID:           baseZoneTenantID,
-		Recorder:                   mgr.GetEventRecorderFor("azurecluster-reconciler"),
-		ManagementClusterName:      managementClusterName,
-		ManagementClusterNamespace: managementClusterNamespace,
+	infraClusterZoneAzureConfig := infracluster.ClusterZoneAzureConfig{
+		SubscriptionID: os.Getenv(InfraClusterSubscriptionID),
+		ClientID:       os.Getenv(InfraClusterClientID),
+		ClientSecret:   os.Getenv(InfraClusterClientSecret),
+		TenantID:       os.Getenv(InfraClusterTenantID),
+		Location:       os.Getenv(InfraClusterLocation),
+	}
+
+	if err := (&controllers.ClusterReconciler{
+		Client:                           mgr.GetClient(),
+		BaseDomain:                       baseDomain,
+		BaseDomainResourceGroup:          baseDomainResourceGroup,
+		BaseZoneClientID:                 baseZoneClientID,
+		BaseZoneClientSecret:             baseZoneClientSecret,
+		BaseZoneSubscriptionID:           baseZoneSubscriptionID,
+		BaseZoneTenantID:                 baseZoneTenantID,
+		Recorder:                         mgr.GetEventRecorderFor("azurecluster-reconciler"),
+		ManagementClusterName:            managementClusterName,
+		ManagementClusterNamespace:       managementClusterNamespace,
+		InfraClusterZoneAzureConfig:      infraClusterZoneAzureConfig,
+		ClusterAzureIdentityRefName:      azureIdentityRefName,
+		ClusterAzureIdentityRefNamespace: azureIdentityRefNamespace,
 	}).SetupWithManager(mgr, controller.Options{MaxConcurrentReconciles: clusterConcurrency}); err != nil {
 		setupLog.Error(errors.FatalError, "unable to create controller AzureCluster")
 		return microerror.Mask(err)

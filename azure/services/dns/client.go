@@ -2,6 +2,7 @@ package dns
 
 import (
 	"context"
+	"strings"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
@@ -12,6 +13,10 @@ import (
 
 	"github.com/giantswarm/dns-operator-azure/v2/azure/scope"
 	"github.com/giantswarm/dns-operator-azure/v2/pkg/metrics"
+)
+
+const (
+	resourceGroupNotFoundErrorMessage = "ResourceGroupNotFound"
 )
 
 type azureClient struct {
@@ -82,9 +87,16 @@ func newBaseZoneClient(credentials scope.BaseZoneCredentials) (*azureClient, err
 	if err != nil {
 		return nil, microerror.Mask(err)
 	}
+
+	resourceGroupsClient, err := newResourceGroupClient(credentials.SubscriptionID, cred)
+	if err != nil {
+		return nil, microerror.Mask(err)
+	}
+
 	return &azureClient{
-		zones:      zonesClient,
-		recordSets: recordSetsClient,
+		zones:          zonesClient,
+		recordSets:     recordSetsClient,
+		resourceGroups: resourceGroupsClient,
 	}, nil
 }
 
@@ -203,12 +215,24 @@ func (ac *azureClient) DeleteRecordSet(ctx context.Context, resourceGroupName st
 	return nil
 }
 
+func (ac *azureClient) GetResourceGroup(ctx context.Context, resourceGroupName string) (armresources.ResourceGroup, error) {
+	metrics.AzureRequest.WithLabelValues("resourceGroups.Get").Inc()
+
+	resp, err := ac.resourceGroups.Get(ctx, resourceGroupName, nil)
+	if err != nil {
+		metrics.AzureRequestError.WithLabelValues("resourceGroups.Get").Inc()
+		return armresources.ResourceGroup{}, microerror.Mask(err)
+	}
+
+	return resp.ResourceGroup, err
+}
+
 func (ac *azureClient) CreateOrUpdateResourceGroup(ctx context.Context, resourceGroupName string, resourceGroup armresources.ResourceGroup) (armresources.ResourceGroup, error) {
 	metrics.AzureRequest.WithLabelValues("resourceGroups.createOrUpdate").Inc()
 
 	resp, err := ac.resourceGroups.CreateOrUpdate(ctx, resourceGroupName, resourceGroup, nil)
 	if err != nil {
-		metrics.AzureRequestError.WithLabelValues("recordSets.CreateOrUpdate").Inc()
+		metrics.AzureRequestError.WithLabelValues("resourceGroups.CreateOrUpdate").Inc()
 		return armresources.ResourceGroup{}, microerror.Mask(err)
 	}
 
@@ -218,9 +242,21 @@ func (ac *azureClient) CreateOrUpdateResourceGroup(ctx context.Context, resource
 func (ac *azureClient) DeleteResourceGroup(ctx context.Context, resourceGroupName string) error {
 	metrics.AzureRequest.WithLabelValues("resourceGroups.Delete").Inc()
 
-	_, err := ac.resourceGroups.BeginDelete(ctx, resourceGroupName, nil)
+	poller, err := ac.resourceGroups.BeginDelete(ctx, resourceGroupName, nil)
 	if err != nil {
+		if strings.Contains(err.Error(), resourceGroupNotFoundErrorMessage) {
+			return nil
+		}
+
+		// dns_operator_api_request_errors_total{controller="dns-operator-azure",method="resourceGroups.Delete"}
 		metrics.AzureRequestError.WithLabelValues("resourceGroups.Delete").Inc()
+		return microerror.Mask(err)
+	}
+
+	_, err = poller.PollUntilDone(ctx, nil)
+	if err != nil {
+		// dns_operator_api_request_errors_total{controller="dns-operator-azure",method="poller.PollUntilDone"}
+		metrics.AzureRequestError.WithLabelValues("poller.PollUntilDone").Inc()
 		return microerror.Mask(err)
 	}
 

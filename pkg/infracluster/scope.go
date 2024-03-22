@@ -2,7 +2,11 @@ package infracluster
 
 import (
 	"context"
+	"errors"
 
+	"github.com/giantswarm/microerror"
+	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
 	infrav1 "sigs.k8s.io/cluster-api-provider-azure/api/v1beta1"
@@ -11,6 +15,10 @@ import (
 	"sigs.k8s.io/cluster-api-provider-azure/azure/services/publicips"
 	capi "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+)
+
+const (
+	unstructuredKeySpec = "Spec"
 )
 
 type Patcher interface {
@@ -25,22 +33,40 @@ type Patcher interface {
 }
 
 type ScopeParams struct {
-	ClientID       string
+	Client                  client.Client
+	Cluster                 *capi.Cluster
+	InfraCluster            *unstructured.Unstructured
+	Cache                   *capzscope.ClusterCache
+	ManagementClusterConfig ManagementClusterConfig
+	ClusterIdentityRef      *corev1.ObjectReference
+	ClusterZoneAzureConfig  ClusterZoneAzureConfig
+}
+
+type ManagementClusterConfig struct {
+	Name      string
+	Namespace string
+}
+
+type ClusterZoneAzureConfig struct {
 	SubscriptionID string
+	ClientID       string
 	TenantID       string
-	Client         client.Client
-	Cluster        *capi.Cluster
-	InfraCluster   *unstructured.Unstructured
-	Cache          *capzscope.ClusterCache
+	ClientSecret   string
+	Location       string
 }
 
 type Scope struct {
-	Client          client.Client
-	Cluster         *capi.Cluster
-	InfraCluster    *unstructured.Unstructured
-	cache           *capzscope.ClusterCache
-	Patcher         Patcher
-	publicIPService async.Getter
+	Client                    client.Client
+	Cluster                   *capi.Cluster
+	InfraCluster              *unstructured.Unstructured
+	cache                     *capzscope.ClusterCache
+	Patcher                   Patcher
+	publicIPService           async.Getter
+	managementClusterConfig   ManagementClusterConfig
+	managementCluster         *infrav1.AzureCluster
+	managementClusterIdentity *infrav1.AzureClusterIdentity
+	clusterIdentityRef        *corev1.ObjectReference
+	AzureLocation             string
 }
 
 func (s *Scope) AzureClusterSpec() *infrav1.AzureClusterSpec {
@@ -55,10 +81,59 @@ func (s *Scope) PublicIPsService() async.Getter {
 	return s.publicIPService
 }
 
+func (s *Scope) ManagementCluster(ctx context.Context) (*infrav1.AzureCluster, error) {
+	if s.managementCluster == nil {
+		managementCluster, err := managementAzureCluster(ctx, s.Client, s.managementClusterConfig.Name, s.managementClusterConfig.Namespace)
+		if err != nil {
+			return nil, err
+		}
+		s.managementCluster = managementCluster
+	}
+	return s.managementCluster, nil
+}
+
+func (s *Scope) ManagementClusterIdentity(ctx context.Context) (*infrav1.AzureClusterIdentity, error) {
+	if s.managementClusterIdentity == nil {
+		managementCluster, err := s.ManagementCluster(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		managementClusterIdentity, err := azureClusterIdentity(ctx, s.Client, managementCluster.Spec.IdentityRef)
+		if err != nil {
+			return nil, err
+		}
+
+		s.managementClusterIdentity = managementClusterIdentity
+	}
+	return s.managementClusterIdentity, nil
+}
+
+func (s *Scope) InfraClusterIdentity(ctx context.Context) (*infrav1.AzureClusterIdentity, error) {
+	azureInfraClusterSpec := s.AzureClusterSpec()
+	if azureInfraClusterSpec != nil {
+		identity, err := azureClusterIdentity(ctx, s.Client, azureInfraClusterSpec.IdentityRef)
+		if err == nil {
+			return identity, nil
+		}
+	}
+
+	if s.clusterIdentityRef != nil {
+		identity, err := azureClusterIdentity(ctx, s.Client, s.clusterIdentityRef)
+		if err == nil {
+			return identity, nil
+		}
+	}
+
+	return s.ManagementClusterIdentity(ctx)
+}
+
 func NewScope(ctx context.Context, params ScopeParams) (*Scope, error) {
+	var err error
+
 	if isAzureCluster(params.InfraCluster) {
 		azureCluster := &infrav1.AzureCluster{}
-		err := params.Client.Get(ctx, types.NamespacedName{
+		err = params.Client.Get(ctx, types.NamespacedName{
 			Name:      params.Cluster.Spec.InfrastructureRef.Name,
 			Namespace: params.Cluster.Spec.InfrastructureRef.Namespace,
 		}, azureCluster)
@@ -78,19 +153,43 @@ func NewScope(ctx context.Context, params ScopeParams) (*Scope, error) {
 		}
 
 		return &Scope{
-			Client:          params.Client,
-			Cluster:         params.Cluster,
-			InfraCluster:    params.InfraCluster,
-			Patcher:         clusterScope,
-			cache:           params.Cache,
-			publicIPService: publicips.New(clusterScope),
+			Client:                  params.Client,
+			Cluster:                 params.Cluster,
+			InfraCluster:            params.InfraCluster,
+			Patcher:                 clusterScope,
+			cache:                   params.Cache,
+			publicIPService:         publicips.New(clusterScope),
+			managementClusterConfig: params.ManagementClusterConfig,
 		}, nil
 	}
 
+	var managementCluster *infrav1.AzureCluster
+	var managementClusterIdentity *infrav1.AzureClusterIdentity
+
+	subscriptionID := params.ClusterZoneAzureConfig.SubscriptionID
+	clientID := params.ClusterZoneAzureConfig.ClientID
+	tenantID := params.ClusterZoneAzureConfig.TenantID
+
+	if subscriptionID == "" || clientID == "" || tenantID == "" {
+		managementCluster, err = managementAzureCluster(ctx, params.Client, params.ManagementClusterConfig.Name, params.ManagementClusterConfig.Namespace)
+		if err != nil {
+			return nil, err
+		}
+
+		managementClusterIdentity, err = azureClusterIdentity(ctx, params.Client, managementCluster.Spec.IdentityRef)
+		if err != nil {
+			return nil, err
+		}
+
+		subscriptionID = managementCluster.Spec.SubscriptionID
+		clientID = managementClusterIdentity.Spec.ClientID
+		tenantID = managementClusterIdentity.Spec.TenantID
+	}
+
 	clusterScope, err := NewCommonPatcher(ctx, CommonPatcherParams{
-		ClientID:       params.ClientID,
-		SubscriptionID: params.SubscriptionID,
-		TenantID:       params.TenantID,
+		ClientID:       clientID,
+		SubscriptionID: subscriptionID,
+		TenantID:       tenantID,
 		K8sClient:      params.Client,
 		Cluster:        params.Cluster,
 		InfraCluster:   params.InfraCluster,
@@ -100,20 +199,27 @@ func NewScope(ctx context.Context, params ScopeParams) (*Scope, error) {
 		return nil, err
 	}
 
-	return &Scope{
-		Client:          params.Client,
-		Cluster:         params.Cluster,
-		InfraCluster:    params.InfraCluster,
-		Patcher:         clusterScope,
-		cache:           params.Cache,
-		publicIPService: NewPublicIPService(params.Cluster),
-	}, nil
+	scope := &Scope{
+		Client:                    params.Client,
+		Cluster:                   params.Cluster,
+		InfraCluster:              params.InfraCluster,
+		Patcher:                   clusterScope,
+		AzureLocation:             params.ClusterZoneAzureConfig.Location,
+		cache:                     params.Cache,
+		publicIPService:           NewPublicIPService(params.Cluster),
+		managementClusterConfig:   params.ManagementClusterConfig,
+		managementCluster:         managementCluster,
+		managementClusterIdentity: managementClusterIdentity,
+		clusterIdentityRef:        params.ClusterIdentityRef,
+	}
+
+	return scope, nil
 }
 
 func azureClusterSpec(infraCluster *unstructured.Unstructured) *infrav1.AzureClusterSpec {
-	if clusterSpec, ok := infraCluster.Object["Spec"]; ok {
-		if azureClusterSpec, ok := clusterSpec.(infrav1.AzureClusterSpec); ok {
-			return &azureClusterSpec
+	if clusterSpec, clusterSpecOk := infraCluster.Object[unstructuredKeySpec]; clusterSpecOk {
+		if infraClusterSpec, infraClusterSpecOk := clusterSpec.(infrav1.AzureClusterSpec); infraClusterSpecOk {
+			return &infraClusterSpec
 		}
 	}
 	return nil
@@ -121,4 +227,40 @@ func azureClusterSpec(infraCluster *unstructured.Unstructured) *infrav1.AzureClu
 
 func isAzureCluster(infraCluster *unstructured.Unstructured) bool {
 	return azureClusterSpec(infraCluster) != nil
+}
+
+func managementAzureCluster(ctx context.Context, client client.Client, name, namespace string) (*infrav1.AzureCluster, error) {
+	managementCluster := &infrav1.AzureCluster{}
+	err := client.Get(ctx, types.NamespacedName{Name: name, Namespace: namespace}, managementCluster)
+
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return managementCluster, nil
+		}
+		return managementCluster, microerror.Mask(err)
+	}
+
+	return managementCluster, nil
+}
+
+func azureClusterIdentity(ctx context.Context, client client.Client, identityRef *corev1.ObjectReference) (*infrav1.AzureClusterIdentity, error) {
+	if identityRef == nil {
+		return nil, errors.New("azure cluster or identity reference does not exist")
+	}
+
+	identity := &infrav1.AzureClusterIdentity{}
+
+	err := client.Get(ctx, types.NamespacedName{
+		Name:      identityRef.Name,
+		Namespace: identityRef.Namespace,
+	}, identity)
+
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return identity, nil
+		}
+		return identity, microerror.Mask(err)
+	}
+
+	return identity, nil
 }

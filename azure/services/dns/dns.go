@@ -23,6 +23,7 @@ type client interface {
 	CreateOrUpdateRecordSet(ctx context.Context, resourceGroupName string, zoneName string, recordType armdns.RecordType, name string, recordSet armdns.RecordSet) (armdns.RecordSet, error)
 	DeleteRecordSet(ctx context.Context, resourceGroupName string, zoneName string, recordType armdns.RecordType, recordSetName string) error
 	ListRecordSets(ctx context.Context, resourceGroupName string, zoneName string) ([]*armdns.RecordSet, error)
+	GetResourceGroup(ctx context.Context, resourceGroupName string) (armresources.ResourceGroup, error)
 	CreateOrUpdateResourceGroup(ctx context.Context, resourceGroupName string, resourceGroup armresources.ResourceGroup) (armresources.ResourceGroup, error)
 	DeleteResourceGroup(ctx context.Context, resourceGroupName string) error
 }
@@ -199,15 +200,16 @@ func (s *Service) ReconcileDelete(ctx context.Context) error {
 		return microerror.Mask(err)
 	}
 
+	log.Info("Successfully deleted NS record", "NSrecord", s.scope.Patcher.ClusterName(), "DNS zone", s.scope.BaseDomain())
+
 	// delete non-Azure cluster's resource group
 	if !s.scope.IsAzureCluster() {
 		err := s.deleteClusterResourceGroup(ctx)
 		if err != nil {
 			return microerror.Mask(err)
 		}
+		log.Info("Successfully deleted resource group", "ResourceGroup", s.scope.ResourceGroup())
 	}
-
-	log.Info("Successfully deleted NS record", "NSrecord", s.scope.Patcher.ClusterName(), "DNS zone", s.scope.BaseDomain())
 
 	log.Info("Successfully reconciled DNS", "DNSZone", clusterZoneName)
 	return nil

@@ -3,22 +3,40 @@ package dns
 import (
 	"context"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resources/armresources"
 	"github.com/giantswarm/microerror"
 	"k8s.io/utils/pointer"
-	capzazure "sigs.k8s.io/cluster-api-provider-azure/azure"
 	"sigs.k8s.io/controller-runtime/pkg/log"
-
-	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resources/armresources"
 )
 
 func (s *Service) createClusterResourceGroup(ctx context.Context) (armresources.ResourceGroup, error) {
 	logger := log.FromContext(ctx)
-
 	resourceGroupName := s.scope.ResourceGroup()
+
+	logger.V(1).Info("creating resource group for infra cluster",
+		"resource group", resourceGroupName,
+	)
+
+	location := pointer.String(s.scope.Scope.AzureLocation)
+	if location == nil || *location == "" {
+		logger.V(1).Info("retrieving resource group location from management cluster")
+
+		managementCluster, err := s.scope.Scope.ManagementCluster(ctx)
+		if err != nil {
+			return armresources.ResourceGroup{}, microerror.Mask(err)
+		}
+
+		managementClusterResourceGroup, err := s.azureClient.GetResourceGroup(ctx, managementCluster.Spec.ResourceGroup)
+		if err != nil {
+			return armresources.ResourceGroup{}, microerror.Mask(err)
+		}
+
+		location = managementClusterResourceGroup.Location
+	}
 
 	resourceGroupParams := armresources.ResourceGroup{
 		Name:     &resourceGroupName,
-		Location: pointer.String(capzazure.Global),
+		Location: location,
 	}
 
 	resourceGroup, err := s.azureClient.CreateOrUpdateResourceGroup(ctx, resourceGroupName, resourceGroupParams)
