@@ -3,7 +3,6 @@ package infracluster
 import (
 	"context"
 	"errors"
-	"k8s.io/apimachinery/pkg/util/json"
 	"strings"
 
 	"github.com/giantswarm/microerror"
@@ -11,6 +10,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/json"
 	infrav1 "sigs.k8s.io/cluster-api-provider-azure/api/v1beta1"
 	capzscope "sigs.k8s.io/cluster-api-provider-azure/azure/scope"
 	"sigs.k8s.io/cluster-api-provider-azure/azure/services/async"
