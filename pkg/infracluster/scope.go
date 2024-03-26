@@ -3,6 +3,8 @@ package infracluster
 import (
 	"context"
 	"errors"
+	"k8s.io/apimachinery/pkg/util/json"
+	"strings"
 
 	"github.com/giantswarm/microerror"
 	corev1 "k8s.io/api/core/v1"
@@ -19,6 +21,7 @@ import (
 
 const (
 	unstructuredKeySpec = "Spec"
+	kindAzureCluster    = "AzureCluster"
 )
 
 type Patcher interface {
@@ -217,16 +220,31 @@ func NewScope(ctx context.Context, params ScopeParams) (*Scope, error) {
 }
 
 func azureClusterSpec(infraCluster *unstructured.Unstructured) *infrav1.AzureClusterSpec {
+	if !isAzureCluster(infraCluster) {
+		return nil
+	}
 	if clusterSpec, clusterSpecOk := infraCluster.Object[unstructuredKeySpec]; clusterSpecOk {
 		if infraClusterSpec, infraClusterSpecOk := clusterSpec.(infrav1.AzureClusterSpec); infraClusterSpecOk {
 			return &infraClusterSpec
 		}
 	}
+	if rawClusterSpec, rawClusterSpecOk := infraCluster.Object[strings.ToLower(unstructuredKeySpec)]; rawClusterSpecOk {
+		clusterSpecJson, err := json.Marshal(rawClusterSpec)
+		if err != nil {
+			return nil
+		}
+		clusterSpec := &infrav1.AzureClusterSpec{}
+		err = json.Unmarshal(clusterSpecJson, clusterSpec)
+		if err != nil {
+			return nil
+		}
+		return clusterSpec
+	}
 	return nil
 }
 
 func isAzureCluster(infraCluster *unstructured.Unstructured) bool {
-	return azureClusterSpec(infraCluster) != nil
+	return infraCluster.GetKind() == kindAzureCluster
 }
 
 func managementAzureCluster(ctx context.Context, client client.Client, name, namespace string) (*infrav1.AzureCluster, error) {
