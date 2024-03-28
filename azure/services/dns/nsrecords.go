@@ -18,7 +18,7 @@ func (s *Service) deleteClusterNSRecords(ctx context.Context) error {
 		s.scope.BaseDomainResourceGroup(),
 		s.scope.BaseDomain(),
 		armdns.RecordTypeNS,
-		s.scope.ClusterName(),
+		s.scope.Patcher.ClusterName(),
 	)
 	if err != nil {
 		return err
@@ -36,7 +36,7 @@ func (s *Service) createClusterNSRecord(ctx context.Context, nameServerRecords [
 		s.scope.BaseDomainResourceGroup(),
 		s.scope.BaseDomain(),
 		armdns.RecordTypeNS,
-		s.scope.ClusterName(),
+		s.scope.Patcher.ClusterName(),
 		armdns.RecordSet{
 			Properties: &armdns.RecordSetProperties{
 				TTL:       pointer.Int64(zoneRecordTTL),

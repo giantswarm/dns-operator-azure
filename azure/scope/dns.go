@@ -6,12 +6,11 @@ import (
 	"strings"
 
 	"github.com/giantswarm/microerror"
+	corev1 "k8s.io/api/core/v1"
 	infrav1 "sigs.k8s.io/cluster-api-provider-azure/api/v1beta1"
-	"sigs.k8s.io/cluster-api-provider-azure/azure/scope"
 
 	"github.com/giantswarm/dns-operator-azure/v2/pkg/errors"
-
-	corev1 "k8s.io/api/core/v1"
+	"github.com/giantswarm/dns-operator-azure/v2/pkg/infracluster"
 )
 
 const (
@@ -27,7 +26,7 @@ type BaseZoneCredentials struct {
 
 // ClusterScopeParams defines the input parameters used to create a new ClusterScope.
 type DNSScopeParams struct {
-	ClusterScope scope.ClusterScope
+	ClusterScope *infracluster.Scope
 
 	BaseDomain              string
 	BaseDomainResourceGroup string
@@ -46,7 +45,7 @@ type DNSScopeParams struct {
 
 // DNSScope defines the basic context for an actuator to operate upon.
 type DNSScope struct {
-	scope.ClusterScope
+	infracluster.Scope
 
 	baseDomain              string
 	baseDomainResourceGroup string
@@ -78,7 +77,7 @@ func NewDNSScope(_ context.Context, params DNSScopeParams) (*DNSScope, error) {
 	}
 
 	scope := &DNSScope{
-		ClusterScope:            params.ClusterScope,
+		Scope:                   *params.ClusterScope,
 		baseDomain:              params.BaseDomain,
 		baseDomainResourceGroup: params.BaseDomainResourceGroup,
 		baseZoneCredentials:     params.BaseZoneCredentials,
@@ -98,7 +97,7 @@ func NewDNSScope(_ context.Context, params DNSScopeParams) (*DNSScope, error) {
 }
 
 func (s *DNSScope) APIEndpoint() string {
-	return s.APIServerPublicIP().Name
+	return s.Patcher.APIServerPublicIP().Name
 }
 
 func (s *DNSScope) BastionIPList() string {
@@ -114,11 +113,11 @@ func (s *DNSScope) BaseDomain() string {
 }
 
 func (s *DNSScope) ClusterDomain() string {
-	return fmt.Sprintf("%s.%s", s.ClusterName(), s.baseDomain)
+	return fmt.Sprintf("%s.%s", s.Patcher.ClusterName(), s.baseDomain)
 }
 
 func (s *DNSScope) ResourceGroup() string {
-	return s.ClusterName()
+	return s.Patcher.ClusterName()
 }
 
 func (s *DNSScope) BaseDomainResourceGroup() string {

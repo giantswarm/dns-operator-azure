@@ -73,7 +73,8 @@ func (s *Service) Reconcile(ctx context.Context) error {
 	log.V(1).Info("list of all network links", "virtualNetworkLinks", networkLinks)
 
 	operatorGeneratedVirtualNetworkLinkIndex := slices.IndexFunc(networkLinks, func(virtualNetworkLink *armprivatedns.VirtualNetworkLink) bool {
-		return *virtualNetworkLink.Name == *pointer.String(virtualNetworkLinkName(s.scope.ClusterName(), managementClusterResourceGroup))
+		return *virtualNetworkLink.Name == *pointer.String(virtualNetworkLinkName(s.scope.ClusterName(), managementClusterResourceGroup)) ||
+			*virtualNetworkLink.ID == s.scope.ManagementClusterClientID()
 	})
 
 	if operatorGeneratedVirtualNetworkLinkIndex == -1 {
