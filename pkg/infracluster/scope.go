@@ -33,6 +33,7 @@ type Patcher interface {
 	IsAPIServerPrivate() bool
 	APIServerPrivateIP() string
 	APIServerPublicIP() *infrav1.PublicIPSpec
+	Close(ctx context.Context) error
 }
 
 type ScopeParams struct {

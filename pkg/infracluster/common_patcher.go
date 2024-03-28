@@ -80,3 +80,7 @@ func (s *CommonPatcher) APIServerPublicIP() *infrav1.PublicIPSpec {
 		Name: s.ip.String(),
 	}
 }
+
+func (s *CommonPatcher) Close(ctx context.Context) error {
+	return s.PatchObject(ctx)
+}
