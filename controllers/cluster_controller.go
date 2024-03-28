@@ -73,7 +73,7 @@ type ClusterReconciler struct {
 
 // +kubebuilder:rbac:groups=cluster.x-k8s.io,resources=clusters,verbs=get;list;watch;update;patch
 
-func (r *ClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *ClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_ ctrl.Result, reterr error) {
 	log := log.FromContext(ctx)
 	log.WithValues("cluster", req.NamespacedName)
 
@@ -139,6 +139,12 @@ func (r *ClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return reconcile.Result{}, microerror.Mask(err)
 	}
 
+	defer func() {
+		if err = clusterScope.Patcher.Close(ctx); err != nil && reterr == nil {
+			reterr = microerror.Mask(err)
+		}
+	}()
+
 	// Handle deleted clusters
 	if !cluster.DeletionTimestamp.IsZero() || !infraCluster.GetDeletionTimestamp().IsZero() {
 		return r.reconcileDelete(ctx, clusterScope)
@@ -168,7 +174,7 @@ func (r *ClusterReconciler) reconcileNormal(ctx context.Context, clusterScope *i
 	if !controllerutil.ContainsFinalizer(infraCluster, AzureClusterControllerFinalizer) {
 		controllerutil.AddFinalizer(infraCluster, AzureClusterControllerFinalizer)
 		// Register the finalizer immediately to avoid orphaning Azure resources on delete
-		if err := clusterScope.Patcher.PatchObject(ctx); err != nil {
+		if err = clusterScope.Patcher.PatchObject(ctx); err != nil {
 			return reconcile.Result{}, err
 		}
 	}
@@ -321,8 +327,8 @@ func (r *ClusterReconciler) reconcileNormal(ctx context.Context, clusterScope *i
 		return reconcile.Result{}, microerror.Mask(err)
 	}
 
-	log.Info("Successfully reconciled AzureCluster DNS zones")
-	return reconcile.Result{}, nil
+	log.Info("Successfully reconciled InfraCluster DNS zones")
+	return reconcile.Result{RequeueAfter: 5 * time.Minute}, nil
 }
 
 func (r *ClusterReconciler) reconcileDelete(ctx context.Context, clusterScope *infracluster.Scope) (ctrl.Result, error) {
@@ -443,9 +449,6 @@ func (r *ClusterReconciler) reconcileDelete(ctx context.Context, clusterScope *i
 	// remove finalizer
 	if controllerutil.ContainsFinalizer(clusterScope.InfraCluster, AzureClusterControllerFinalizer) {
 		controllerutil.RemoveFinalizer(clusterScope.InfraCluster, AzureClusterControllerFinalizer)
-		if err = clusterScope.Patcher.PatchObject(ctx); err != nil {
-			return reconcile.Result{}, err
-		}
 	}
 
 	deletedMetrics += deleteClusterMetrics(
