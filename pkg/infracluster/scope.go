@@ -3,14 +3,19 @@ package infracluster
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 
+	"github.com/giantswarm/k8sclient/v7/pkg/k8sclient"
+	"github.com/giantswarm/k8sclient/v7/pkg/k8srestconfig"
 	"github.com/giantswarm/microerror"
+	"github.com/giantswarm/micrologger"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/json"
+	"k8s.io/client-go/rest"
 	infrav1 "sigs.k8s.io/cluster-api-provider-azure/api/v1beta1"
 	capzscope "sigs.k8s.io/cluster-api-provider-azure/azure/scope"
 	"sigs.k8s.io/cluster-api-provider-azure/azure/services/async"
@@ -20,8 +25,10 @@ import (
 )
 
 const (
-	unstructuredKeySpec = "Spec"
-	kindAzureCluster    = "AzureCluster"
+	unstructuredKeySpec    = "Spec"
+	kindAzureCluster       = "AzureCluster"
+	kubeConfigSecretSuffix = "-kubeconfig"
+	kubeConfigSecretKey    = "value"
 )
 
 type Patcher interface {
@@ -70,6 +77,7 @@ type Scope struct {
 	managementCluster         *infrav1.AzureCluster
 	managementClusterIdentity *infrav1.AzureClusterIdentity
 	clusterIdentityRef        *corev1.ObjectReference
+	clusterK8sClient          client.Client
 	AzureLocation             string
 }
 
@@ -130,6 +138,17 @@ func (s *Scope) InfraClusterIdentity(ctx context.Context) (*infrav1.AzureCluster
 	}
 
 	return s.ManagementClusterIdentity(ctx)
+}
+
+func (s *Scope) ClusterK8sClient(ctx context.Context) (client.Client, error) {
+	if s.clusterK8sClient == nil {
+		var err error
+		s.clusterK8sClient, err = s.getClusterK8sClient(ctx)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return s.clusterK8sClient, nil
 }
 
 func NewScope(ctx context.Context, params ScopeParams) (*Scope, error) {
@@ -282,4 +301,76 @@ func azureClusterIdentity(ctx context.Context, client client.Client, identityRef
 	}
 
 	return identity, nil
+}
+
+func (s *Scope) getClusterK8sClient(ctx context.Context) (client.Client, error) {
+	newLogger, err := micrologger.New(micrologger.Config{})
+	if err != nil {
+		return nil, microerror.Mask(err)
+	}
+
+	kubeconfig, err := s.getClusterKubeConfig(ctx, newLogger)
+	if err != nil {
+		return nil, microerror.Mask(err)
+	}
+
+	config := k8srestconfig.Config{
+		Logger:     newLogger,
+		KubeConfig: kubeconfig,
+	}
+
+	return getK8sClient(config, newLogger)
+}
+
+func (s *Scope) getClusterKubeConfig(ctx context.Context, logger micrologger.Logger) (string, error) {
+	config := k8srestconfig.Config{
+		Logger:    logger,
+		InCluster: true,
+	}
+
+	k8sClient, err := getK8sClient(config, logger)
+	if err != nil {
+		return "", microerror.Mask(err)
+	}
+
+	var secret corev1.Secret
+
+	o := client.ObjectKey{
+		Name:      fmt.Sprintf("%s%s", s.Cluster.Name, kubeConfigSecretSuffix),
+		Namespace: s.Cluster.Namespace,
+	}
+
+	if err := k8sClient.Get(ctx, o, &secret); err != nil {
+		return "", microerror.Mask(err)
+	}
+
+	return string(secret.Data[kubeConfigSecretKey]), nil
+}
+
+func getK8sClient(config k8srestconfig.Config, logger micrologger.Logger) (client.Client, error) {
+	var restConfig *rest.Config
+	var err error
+	{
+		restConfig, err = k8srestconfig.New(config)
+		if err != nil {
+			return nil, microerror.Mask(err)
+		}
+	}
+
+	var ctrlClient client.Client
+	{
+		c := k8sclient.ClientsConfig{
+			Logger:     logger,
+			RestConfig: restConfig,
+		}
+
+		k8sClients, err := k8sclient.NewClients(c)
+		if err != nil {
+			return nil, microerror.Mask(err)
+		}
+
+		ctrlClient = k8sClients.CtrlClient()
+	}
+
+	return ctrlClient, nil
 }
