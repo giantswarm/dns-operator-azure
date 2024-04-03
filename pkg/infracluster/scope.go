@@ -27,7 +27,7 @@ import (
 const (
 	unstructuredKeySpec    = "Spec"
 	kindAzureCluster       = "AzureCluster"
-	kubeConfigSecretSuffix = "-kubeconfig"
+	kubeConfigSecretSuffix = "-kubeconfig" //nolint
 	kubeConfigSecretKey    = "value"
 )
 
