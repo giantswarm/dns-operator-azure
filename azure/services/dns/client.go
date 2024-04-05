@@ -2,7 +2,6 @@ package dns
 
 import (
 	"context"
-	"strings"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
@@ -13,10 +12,6 @@ import (
 
 	"github.com/giantswarm/dns-operator-azure/v2/azure/scope"
 	"github.com/giantswarm/dns-operator-azure/v2/pkg/metrics"
-)
-
-const (
-	resourceGroupNotFoundErrorMessage = "ResourceGroupNotFound"
 )
 
 type azureClient struct {
@@ -221,6 +216,9 @@ func (ac *azureClient) GetResourceGroup(ctx context.Context, resourceGroupName s
 	resp, err := ac.resourceGroups.Get(ctx, resourceGroupName, nil)
 	if err != nil {
 		metrics.AzureRequestError.WithLabelValues("resourceGroups.Get").Inc()
+		if IsResourceNotFoundError(err) {
+			return armresources.ResourceGroup{}, microerror.Mask(resourceNotFoundError)
+		}
 		return armresources.ResourceGroup{}, microerror.Mask(err)
 	}
 
@@ -244,10 +242,9 @@ func (ac *azureClient) DeleteResourceGroup(ctx context.Context, resourceGroupNam
 
 	poller, err := ac.resourceGroups.BeginDelete(ctx, resourceGroupName, nil)
 	if err != nil {
-		if strings.Contains(err.Error(), resourceGroupNotFoundErrorMessage) {
-			return nil
+		if IsResourceNotFoundError(err) {
+			return microerror.Mask(resourceNotFoundError)
 		}
-
 		// dns_operator_api_request_errors_total{controller="dns-operator-azure",method="resourceGroups.Delete"}
 		metrics.AzureRequestError.WithLabelValues("resourceGroups.Delete").Inc()
 		return microerror.Mask(err)
