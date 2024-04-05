@@ -13,6 +13,14 @@ func (s *Service) createClusterResourceGroup(ctx context.Context) (armresources.
 	logger := log.FromContext(ctx)
 	resourceGroupName := s.scope.ResourceGroup()
 
+	existingResourceGroup, err := s.azureClient.GetResourceGroup(ctx, resourceGroupName)
+
+	if err == nil {
+		return existingResourceGroup, nil
+	} else if !IsResourceNotFoundError(err) {
+		return armresources.ResourceGroup{}, microerror.Mask(err)
+	}
+
 	logger.V(1).Info("creating resource group for infra cluster",
 		"resource group", resourceGroupName,
 	)
@@ -54,7 +62,7 @@ func (s *Service) deleteClusterResourceGroup(ctx context.Context) error {
 	resourceGroupName := s.scope.ResourceGroup()
 
 	err := s.azureClient.DeleteResourceGroup(ctx, resourceGroupName)
-	if err != nil {
+	if err != nil && !IsResourceNotFoundError(err) {
 		return microerror.Mask(err)
 	}
 
