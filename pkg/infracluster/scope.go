@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
-
 	"github.com/giantswarm/k8sclient/v7/pkg/k8sclient"
 	"github.com/giantswarm/k8sclient/v7/pkg/k8srestconfig"
 	"github.com/giantswarm/microerror"
@@ -13,8 +11,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/json"
 	"k8s.io/client-go/rest"
 	infrav1 "sigs.k8s.io/cluster-api-provider-azure/api/v1beta1"
 	capzscope "sigs.k8s.io/cluster-api-provider-azure/azure/scope"
@@ -26,6 +24,7 @@ import (
 
 const (
 	unstructuredKeySpec    = "Spec"
+	unstructuredKeyStatus  = "Status"
 	kindAzureCluster       = "AzureCluster"
 	kubeConfigSecretSuffix = "-kubeconfig" //nolint
 	kubeConfigSecretKey    = "value"
@@ -83,6 +82,10 @@ type Scope struct {
 
 func (s *Scope) AzureClusterSpec() *infrav1.AzureClusterSpec {
 	return azureClusterSpec(s.InfraCluster)
+}
+
+func (s *Scope) AzureClusterStatus() *infrav1.AzureClusterStatus {
+	return azureClusterStatus(s.InfraCluster)
 }
 
 func (s *Scope) IsAzureCluster() bool {
@@ -240,27 +243,31 @@ func NewScope(ctx context.Context, params ScopeParams) (*Scope, error) {
 }
 
 func azureClusterSpec(infraCluster *unstructured.Unstructured) *infrav1.AzureClusterSpec {
+	azureClusterResource := azureClusterFromInfraObject(infraCluster)
+	if azureClusterResource == nil {
+		return nil
+	}
+	return &azureClusterResource.Spec
+}
+
+func azureClusterStatus(infraCluster *unstructured.Unstructured) *infrav1.AzureClusterStatus {
+	azureClusterResource := azureClusterFromInfraObject(infraCluster)
+	if azureClusterResource == nil {
+		return nil
+	}
+	return &azureClusterResource.Status
+}
+
+func azureClusterFromInfraObject(infraCluster *unstructured.Unstructured) *infrav1.AzureCluster {
 	if !isAzureCluster(infraCluster) {
 		return nil
 	}
-	if clusterSpec, clusterSpecOk := infraCluster.Object[unstructuredKeySpec]; clusterSpecOk {
-		if infraClusterSpec, infraClusterSpecOk := clusterSpec.(infrav1.AzureClusterSpec); infraClusterSpecOk {
-			return &infraClusterSpec
-		}
+	azureClusterResource := infrav1.AzureCluster{}
+	err := runtime.DefaultUnstructuredConverter.FromUnstructured(infraCluster.Object, &azureClusterResource)
+	if err != nil {
+		return nil
 	}
-	if rawClusterSpec, rawClusterSpecOk := infraCluster.Object[strings.ToLower(unstructuredKeySpec)]; rawClusterSpecOk {
-		clusterSpecJson, err := json.Marshal(rawClusterSpec)
-		if err != nil {
-			return nil
-		}
-		clusterSpec := &infrav1.AzureClusterSpec{}
-		err = json.Unmarshal(clusterSpecJson, clusterSpec)
-		if err != nil {
-			return nil
-		}
-		return clusterSpec
-	}
-	return nil
+	return &azureClusterResource
 }
 
 func isAzureCluster(infraCluster *unstructured.Unstructured) bool {

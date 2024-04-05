@@ -170,6 +170,23 @@ func (r *ClusterReconciler) reconcileNormal(ctx context.Context, clusterScope *i
 	cluster := clusterScope.Cluster
 	infraCluster := clusterScope.InfraCluster
 
+	if clusterScope.IsAzureCluster() {
+		// only act on Clusters where the LoadBalancersReady condition is true
+		infraClusterStatus := clusterScope.AzureClusterStatus()
+		if infraClusterStatus != nil {
+			infraClusterIsReady := false
+			for _, condition := range infraClusterStatus.Conditions {
+				if condition.Type == infrav1.LoadBalancersReadyCondition {
+					infraClusterIsReady = true
+					break
+				}
+			}
+			if !infraClusterIsReady {
+				return reconcile.Result{}, nil
+			}
+		}
+	}
+
 	// If the AzureCluster doesn't have our finalizer, add it.
 	if !controllerutil.ContainsFinalizer(infraCluster, AzureClusterControllerFinalizer) {
 		controllerutil.AddFinalizer(infraCluster, AzureClusterControllerFinalizer)
