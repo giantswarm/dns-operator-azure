@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
 	"github.com/giantswarm/k8sclient/v7/pkg/k8sclient"
 	"github.com/giantswarm/k8sclient/v7/pkg/k8srestconfig"
 	"github.com/giantswarm/microerror"
@@ -23,8 +24,6 @@ import (
 )
 
 const (
-	unstructuredKeySpec    = "Spec"
-	unstructuredKeyStatus  = "Status"
 	kindAzureCluster       = "AzureCluster"
 	kubeConfigSecretSuffix = "-kubeconfig" //nolint
 	kubeConfigSecretKey    = "value"
