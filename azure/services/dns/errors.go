@@ -44,10 +44,3 @@ func IsResourceNotFoundError(err error) bool {
 var resourceNotFoundError = &microerror.Error{
 	Kind: "resourceNotFoundError",
 }
-
-func asResponseError(err error) *azcore.ResponseError {
-	if respErr, respErrOk := err.(*azcore.ResponseError); respErrOk {
-		return respErr
-	}
-	return nil
-}
