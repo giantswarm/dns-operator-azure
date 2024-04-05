@@ -16,6 +16,8 @@ rules:
   - azureclusters/status
   - clusters
   - clusters/status
+  - vsphereclusters
+  - vsphereclusters/status
   verbs:
   - get
   - list
