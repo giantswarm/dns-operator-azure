@@ -2,6 +2,7 @@ package infracluster
 
 import (
 	"context"
+	"reflect"
 	"testing"
 
 	"github.com/google/uuid"
@@ -17,12 +18,16 @@ import (
 
 func Test_CreateScope(t *testing.T) {
 
+	testSubscriptionId := uuid.New().String()
+
 	testCases := []struct {
-		name                    string
-		cluster                 *capi.Cluster
-		infraCluster            runtime.Object
-		managementCluster       runtime.Object
-		expectAzureClusterScope bool
+		name                       string
+		cluster                    *capi.Cluster
+		infraCluster               runtime.Object
+		managementCluster          runtime.Object
+		expectAzureCluster         bool
+		expectedAzureClusterSpec   *infrav1.AzureClusterSpec
+		expectedAzureClusterStatus *infrav1.AzureClusterStatus
 	}{
 		{
 			name: "case0: Create AzureCluster scope",
@@ -50,11 +55,23 @@ func Test_CreateScope(t *testing.T) {
 				Spec: infrav1.AzureClusterSpec{
 					ResourceGroup: "flkjd",
 					AzureClusterClassSpec: infrav1.AzureClusterClassSpec{
-						SubscriptionID: uuid.New().String(),
+						SubscriptionID: testSubscriptionId,
 					},
 				},
+				Status: infrav1.AzureClusterStatus{
+					Ready: true,
+				},
 			},
-			expectAzureClusterScope: true,
+			expectAzureCluster: true,
+			expectedAzureClusterSpec: &infrav1.AzureClusterSpec{
+				ResourceGroup: "flkjd",
+				AzureClusterClassSpec: infrav1.AzureClusterClassSpec{
+					SubscriptionID: testSubscriptionId,
+				},
+			},
+			expectedAzureClusterStatus: &infrav1.AzureClusterStatus{
+				Ready: true,
+			},
 		},
 		{
 			name: "case1: Create non-Azure cluster scope",
@@ -143,12 +160,26 @@ func Test_CreateScope(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			if scope.IsAzureCluster() != tc.expectAzureClusterScope {
-				if tc.expectAzureClusterScope {
+			if scope.IsAzureCluster() != tc.expectAzureCluster {
+				if tc.expectAzureCluster {
 					t.Fatalf("Failed to create scope for infra cluster, expected Azure, got non-Azure")
 				} else {
 					t.Fatalf("Failed to create scope for infra cluster, expected non-Azure, got Azure")
 				}
+			}
+
+			actualAzureClusterSpec := scope.AzureClusterSpec()
+			if tc.expectedAzureClusterSpec == nil && actualAzureClusterSpec != nil {
+				t.Fatalf("Unexpected Azure cluster spec: %v\n", actualAzureClusterSpec)
+			} else if tc.expectedAzureClusterSpec != nil && (actualAzureClusterSpec == nil || !reflect.DeepEqual(*tc.expectedAzureClusterSpec, *actualAzureClusterSpec)) {
+				t.Fatalf("Unexpected Azure cluster spec\nexpected\n%v,\nactual\n%v\n", tc.expectedAzureClusterSpec, actualAzureClusterSpec)
+			}
+
+			actualAzureClusterStatus := scope.AzureClusterStatus()
+			if tc.expectedAzureClusterStatus == nil && actualAzureClusterStatus != nil {
+				t.Fatalf("Unexpected Azure cluster status: %v\n", actualAzureClusterStatus)
+			} else if tc.expectedAzureClusterStatus != nil && (actualAzureClusterStatus == nil || !reflect.DeepEqual(*tc.expectedAzureClusterStatus, *actualAzureClusterStatus)) {
+				t.Fatalf("Unexpected Azure cluster status\nexpected\n%v,\nactual\n%v\n", tc.expectedAzureClusterStatus, actualAzureClusterStatus)
 			}
 		})
 	}
