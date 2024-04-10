@@ -39,5 +39,9 @@ global:
     enforced: false
 
 # necessary for RBACs
-# secondaryProvider:
-#   kind: e.g. openstack, cloud-director, vsphere
+secondaryProviders: []
+# e.g.
+#- kind: openstack
+#- kind: cloud-director
+#- kind: vsphere
+
