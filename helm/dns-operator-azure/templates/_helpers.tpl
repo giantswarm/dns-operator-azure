@@ -39,11 +39,11 @@ app.kubernetes.io/instance: {{ .Release.Name | quote }}
 Kind of infra cluster according to provider type
 */}}
 {{- define "infraCluster" -}}
-{{- if eq .Values.secondaryProvider.kind "openstack" -}}
+{{- if eq .kind "openstack" -}}
 openstackclusters
-{{- else if eq .Values.secondaryProvider.kind "cloud-director" -}}
+{{- else if eq .kind "cloud-director" -}}
 vcdclusters
-{{- else if eq .Values.secondaryProvider.kind "vsphere" -}}
+{{- else if eq .kind "vsphere" -}}
 vsphereclusters
 {{- end -}}
 {{- end -}}
