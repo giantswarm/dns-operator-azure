@@ -16,8 +16,8 @@ rules:
   - azureclusters/status
   - clusters
   - clusters/status
-  - vsphereclusters
-  - vsphereclusters/status
+  - {{ include "infraCluster"  . }}
+  - {{ include "infraCluster"  . }}/status
   verbs:
   - get
   - list
