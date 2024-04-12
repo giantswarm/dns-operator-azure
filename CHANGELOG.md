@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add wildcard CNAME record to ingress.basedomain 
+- Enable creating DNS records in Azure for clusters of non-Azure providers
 
 ## [1.3.4] - 2024-01-22
 
