@@ -25,7 +25,7 @@ require (
 	sigs.k8s.io/controller-runtime v0.13.1
 )
 
-replace google.golang.org/protobuf v1.31.0 => google.golang.org/protobuf v1.33.0
+replace google.golang.org/protobuf v1.30.0 => google.golang.org/protobuf v1.33.0
 
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/internal v1.3.0 // indirect
