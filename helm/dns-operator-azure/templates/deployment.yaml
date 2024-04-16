@@ -19,6 +19,14 @@ spec:
       labels:
         {{- include "labels.common" . | nindent 8 }}
     spec:
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - preference:
+              matchExpressions:
+              - key: node-role.kubernetes.io/control-plane
+                operator: Exists
+            weight: 10
       serviceAccountName: {{ include "resource.default.name"  . }}
       securityContext:
         runAsNonRoot: true
@@ -85,3 +93,9 @@ spec:
             cpu: 250m
             memory: 250Mi
       terminationGracePeriodSeconds: 10
+      tolerations:
+      - effect: NoSchedule
+        key: node-role.kubernetes.io/control-plane
+      - effect: NoSchedule
+        key: "node.cluster.x-k8s.io/uninitialized"
+        operator: "Exists"

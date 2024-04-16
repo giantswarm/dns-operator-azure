@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add wildcard CNAME record to ingress.basedomain 
+- Add toleration for `node.cluster.x-k8s.io/uninitialized` taint.
+- Add node affinity to prefer schedule to `control-plane` nodes.
 
 ## [1.3.4] - 2024-01-22
 
