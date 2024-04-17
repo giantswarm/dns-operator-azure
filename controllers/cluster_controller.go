@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/giantswarm/microerror"
 	"github.com/prometheus/client_golang/prometheus"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -37,6 +36,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"github.com/giantswarm/microerror"
+
 	azurescope "github.com/giantswarm/dns-operator-azure/v2/azure/scope"
 	"github.com/giantswarm/dns-operator-azure/v2/azure/services/dns"
 	"github.com/giantswarm/dns-operator-azure/v2/azure/services/privatedns"
@@ -46,7 +47,6 @@ import (
 
 const (
 	AzureClusterControllerFinalizer                 string = "dns-operator-azure.giantswarm.io/azurecluster"
-	BastionHostIPAnnotation                         string = "dns-operator-azure.giantswarm.io/bastion-ip"
 	privateLinkedAPIServerIP                        string = "dns-operator-azure.giantswarm.io/private-link-apiserver-ip"
 	azurePrivateEndpointOperatorApiserverAnnotation string = "azure-private-endpoint-operator.giantswarm.io/private-link-apiserver-ip"
 )
@@ -243,13 +243,6 @@ func (r *ClusterReconciler) reconcileNormal(ctx context.Context, clusterScope *i
 		},
 	}
 
-	// add the bastionIP from the annotations
-	clusterAnnotations := infraCluster.GetAnnotations()
-	if clusterAnnotations[BastionHostIPAnnotation] != "" {
-		log.V(1).Info("bastion host annotation is not empty")
-		params.BastionIP = clusterAnnotations[BastionHostIPAnnotation]
-	}
-
 	// `azureCluster.spec.networkSpec.apiServerLB.privateLinks` is the current identifier
 	// for private DNS zone creation in the management cluster
 	azureClusterSpec := clusterScope.AzureClusterSpec()
@@ -291,6 +284,8 @@ func (r *ClusterReconciler) reconcileNormal(ctx context.Context, clusterScope *i
 			ManagementClusterServicePrincipalSecret: *managementClusterStaticServicePrincipalSecret,
 			VirtualNetworkID:                        managementCluster.Spec.NetworkSpec.Vnet.ID,
 		}
+
+		clusterAnnotations := infraCluster.GetAnnotations()
 
 		// TODO: delete once azure-private-endpoint-operator uses the desired annotation
 		if clusterAnnotations[privateLinkedAPIServerIP] != "" {

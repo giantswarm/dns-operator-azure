@@ -349,12 +349,6 @@ func Test_CnameRecords(t *testing.T) {
 				ClusterScope:            infraClusterScope,
 			}
 
-			// add the bastionIP from the annotations
-			clusterAnnotations := tt.azureCluster.GetAnnotations()
-			if clusterAnnotations["dns-operator-azure.giantswarm.io/bastion-ip"] != "" {
-				dnsScopeParams.BastionIP = clusterAnnotations["dns-operator-azure.giantswarm.io/bastion-ip"]
-			}
-
 			dnsScope, err := scope.NewDNSScope(tt.args.ctx, dnsScopeParams)
 			if err != nil {
 				t.Fatal(err)

@@ -16,24 +16,22 @@ import (
 	// https://github.com/kubernetes-sigs/cluster-api-provider-azure/blob/v1.6.0/azure/services/publicips/client.go#L56
 	"github.com/Azure/azure-sdk-for-go/services/network/mgmt/2021-08-01/network" //nolint
 
-	"github.com/giantswarm/microerror"
 	"github.com/go-logr/logr"
 	capzpublicips "sigs.k8s.io/cluster-api-provider-azure/azure/services/publicips"
 	kubeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
+	"github.com/giantswarm/microerror"
+
 	"github.com/giantswarm/dns-operator-azure/v2/pkg/metrics"
 )
 
 const (
-	bastionRecordName   = "bastion"
-	bastion1RecordName  = "bastion1"
 	apiRecordName       = "api"
 	apiserverRecordName = "apiserver"
 	ingressRecordName   = "ingress"
 
 	apiRecordTTL     = 300
-	bastionRecordTTL = 300
 	ingressRecordTTL = 300
 
 	ingressServiceSelector = "app.kubernetes.io/name in (ingress-nginx,nginx-ingress-controller)"
@@ -197,42 +195,6 @@ func (s *Service) getDesiredARecords(ctx context.Context) ([]*armdns.RecordSet, 
 			IPv4Address: pointer.String(publicIP),
 		})
 
-	}
-
-	switch {
-	case s.scope.BastionIPList() != "":
-
-		armdnsRecordSet = append(armdnsRecordSet,
-			// bastion A-Record
-			&armdns.RecordSet{
-				Name: pointer.String(bastionRecordName),
-				Type: pointer.String(string(armdns.RecordTypeA)),
-				Properties: &armdns.RecordSetProperties{
-					TTL: pointer.Int64(bastionRecordTTL),
-				},
-			},
-			// bastion1 A-Record
-			&armdns.RecordSet{
-				Name: pointer.String(bastion1RecordName),
-				Type: pointer.String(string(armdns.RecordTypeA)),
-				Properties: &armdns.RecordSetProperties{
-					TTL: pointer.Int64(bastionRecordTTL),
-				},
-			})
-
-		bastionIndex := slices.IndexFunc(armdnsRecordSet, func(recordSet *armdns.RecordSet) bool { return *recordSet.Name == bastionRecordName })
-		bastion1Index := slices.IndexFunc(armdnsRecordSet, func(recordSet *armdns.RecordSet) bool { return *recordSet.Name == bastion1RecordName })
-
-		for _, bastionIP := range s.scope.BastionIP() {
-
-			armdnsRecordSet[bastionIndex].Properties.ARecords = append(armdnsRecordSet[bastionIndex].Properties.ARecords, &armdns.ARecord{
-				IPv4Address: pointer.String(bastionIP),
-			})
-
-			armdnsRecordSet[bastion1Index].Properties.ARecords = append(armdnsRecordSet[bastion1Index].Properties.ARecords, &armdns.ARecord{
-				IPv4Address: pointer.String(bastionIP),
-			})
-		}
 	}
 
 	if !s.scope.IsAzureCluster() {
