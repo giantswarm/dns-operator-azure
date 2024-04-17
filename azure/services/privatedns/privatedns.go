@@ -72,8 +72,9 @@ func (s *Service) Reconcile(ctx context.Context) error {
 	}
 	log.V(1).Info("list of all network links", "virtualNetworkLinks", networkLinks)
 
+	vnetLinkName := virtualNetworkLinkName(s.scope.ClusterName(), managementClusterResourceGroup, s.scope.IsManagementCluster())
 	operatorGeneratedVirtualNetworkLinkIndex := slices.IndexFunc(networkLinks, func(virtualNetworkLink *armprivatedns.VirtualNetworkLink) bool {
-		return *virtualNetworkLink.Name == *pointer.String(virtualNetworkLinkName(s.scope.ClusterName(), managementClusterResourceGroup)) ||
+		return *virtualNetworkLink.Name == *pointer.String(vnetLinkName) ||
 			*virtualNetworkLink.ID == s.scope.ManagementClusterClientID()
 	})
 
@@ -100,6 +101,7 @@ func (s *Service) Reconcile(ctx context.Context) error {
 			clusterZoneName,
 			s.scope.ClusterName(),
 			s.scope.ManagementClusterVnetID(),
+			vnetLinkName,
 		)
 		if err != nil {
 			return microerror.Mask(err)
@@ -137,7 +139,7 @@ func (s *Service) ReconcileDelete(ctx context.Context) error {
 	log.Info("Reconcile DNS deletion", "privateDNSZone", clusterZoneName)
 
 	mcResourceGroup := s.scope.ManagementClusterResourceGroup()
-	vnetLinkName := virtualNetworkLinkName(s.scope.ClusterName(), s.scope.ManagementClusterResourceGroup())
+	vnetLinkName := virtualNetworkLinkName(s.scope.ClusterName(), s.scope.ManagementClusterResourceGroup(), s.scope.IsManagementCluster())
 	if err := s.privateDNSClient.DeleteVirtualNetworkLink(ctx, mcResourceGroup, clusterZoneName, vnetLinkName); err != nil {
 		return microerror.Mask(err)
 	}

@@ -23,7 +23,7 @@ type Client interface {
 	DeletePrivateZone(ctx context.Context, resourceGroupName string, zoneName string) error
 	ListPrivateRecordSets(ctx context.Context, resourceGroupName string, zoneName string) ([]*armprivatedns.RecordSet, error)
 
-	CreateOrUpdateVirtualNetworkLink(ctx context.Context, resourceGroupName, zoneName, workloadClusterName, vnetID string) error
+	CreateOrUpdateVirtualNetworkLink(ctx context.Context, resourceGroupName, zoneName, workloadClusterName, vnetID, vnetLinkName string) error
 	ListVirtualNetworkLink(ctx context.Context, resourceGroupName, zoneName string) ([]*armprivatedns.VirtualNetworkLink, error)
 	DeleteVirtualNetworkLink(ctx context.Context, resourceGroupName, zoneName, virtualNetworkLinkName string) error
 
@@ -139,7 +139,7 @@ func (ac *azureClient) CreateOrUpdatePrivateZone(ctx context.Context, resourceGr
 	return nil
 }
 
-func (ac *azureClient) CreateOrUpdateVirtualNetworkLink(ctx context.Context, resourceGroupName, zoneName, workloadClusterName, vnetID string) error {
+func (ac *azureClient) CreateOrUpdateVirtualNetworkLink(ctx context.Context, resourceGroupName, zoneName, workloadClusterName, vnetID, vnetLinkName string) error {
 
 	// dns_operator_api_request_total{controller="dns-operator-azure",method="virtualNetworkLinkClient.BeginCreateOrUpdate"}
 	metrics.AzureRequest.WithLabelValues("virtualNetworkLinkClient.BeginCreateOrUpdate").Inc()
@@ -148,7 +148,7 @@ func (ac *azureClient) CreateOrUpdateVirtualNetworkLink(ctx context.Context, res
 		ctx,
 		resourceGroupName,
 		zoneName,
-		virtualNetworkLinkName(workloadClusterName, resourceGroupName),
+		vnetLinkName,
 		armprivatedns.VirtualNetworkLink{
 			Location: pointer.String(capzazure.Global),
 			Properties: &armprivatedns.VirtualNetworkLinkProperties{
@@ -289,6 +289,9 @@ func (ac *azureClient) CreateOrUpdateRecordSet(ctx context.Context, resourceGrou
 	return resp.RecordSet, nil
 }
 
-func virtualNetworkLinkName(clusterName, resourceGroupName string) string {
+func virtualNetworkLinkName(clusterName, resourceGroupName string, isManagementCluster bool) string {
+	if isManagementCluster {
+		return fmt.Sprintf("%s-vnet-link", clusterName)
+	}
 	return fmt.Sprintf("%s-dns-%s-%s", clusterName, resourceGroupName, "vnet-link")
 }
