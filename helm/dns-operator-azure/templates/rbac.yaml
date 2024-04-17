@@ -12,6 +12,13 @@ rules:
   - cluster.x-k8s.io
   - infrastructure.cluster.x-k8s.io
   resources:
+{{- range .Values.secondaryProviders }}
+{{- $resource := include "infraCluster" . }}
+{{- if $resource }}
+  - {{ $resource }}
+  - {{ $resource }}/status
+{{- end }}
+{{- end }}
   - azureclusters
   - azureclusters/status
   - clusters

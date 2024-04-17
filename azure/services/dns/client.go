@@ -6,18 +6,18 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/dns/armdns"
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resources/armresources"
 	"github.com/giantswarm/microerror"
-
-	"github.com/giantswarm/dns-operator-azure/v2/azure/scope"
-
 	infrav1 "sigs.k8s.io/cluster-api-provider-azure/api/v1beta1"
 
+	"github.com/giantswarm/dns-operator-azure/v2/azure/scope"
 	"github.com/giantswarm/dns-operator-azure/v2/pkg/metrics"
 )
 
 type azureClient struct {
-	zones      *armdns.ZonesClient
-	recordSets *armdns.RecordSetsClient
+	zones          *armdns.ZonesClient
+	recordSets     *armdns.RecordSetsClient
+	resourceGroups *armresources.ResourceGroupsClient
 }
 
 var _ client = (*azureClient)(nil)
@@ -32,7 +32,7 @@ func newAzureClient(scope scope.DNSScope) (*azureClient, error) {
 	switch clusterIdentity.Spec.Type {
 	case infrav1.UserAssignedMSI:
 		cred, err = azidentity.NewManagedIdentityCredential(&azidentity.ManagedIdentityCredentialOptions{
-			ID: azidentity.ClientID(scope.ClientID()),
+			ID: azidentity.ClientID(scope.Patcher.ClientID()),
 		})
 		if err != nil {
 			return nil, microerror.Mask(err)
@@ -47,18 +47,23 @@ func newAzureClient(scope scope.DNSScope) (*azureClient, error) {
 		}
 	}
 
-	zonesClient, err := newZonesClient(scope.SubscriptionID(), cred)
+	zonesClient, err := newZonesClient(scope.Patcher.SubscriptionID(), cred)
 	if err != nil {
 		return nil, microerror.Mask(err)
 	}
-	recordSetsClient, err := newRecordSetsClient(scope.SubscriptionID(), cred)
+	recordSetsClient, err := newRecordSetsClient(scope.Patcher.SubscriptionID(), cred)
+	if err != nil {
+		return nil, microerror.Mask(err)
+	}
+	resourceGroupsClient, err := newResourceGroupClient(scope.Patcher.SubscriptionID(), cred)
 	if err != nil {
 		return nil, microerror.Mask(err)
 	}
 
 	return &azureClient{
-		zones:      zonesClient,
-		recordSets: recordSetsClient,
+		zones:          zonesClient,
+		recordSets:     recordSetsClient,
+		resourceGroups: resourceGroupsClient,
 	}, nil
 }
 
@@ -77,9 +82,16 @@ func newBaseZoneClient(credentials scope.BaseZoneCredentials) (*azureClient, err
 	if err != nil {
 		return nil, microerror.Mask(err)
 	}
+
+	resourceGroupsClient, err := newResourceGroupClient(credentials.SubscriptionID, cred)
+	if err != nil {
+		return nil, microerror.Mask(err)
+	}
+
 	return &azureClient{
-		zones:      zonesClient,
-		recordSets: recordSetsClient,
+		zones:          zonesClient,
+		recordSets:     recordSetsClient,
+		resourceGroups: resourceGroupsClient,
 	}, nil
 }
 
@@ -89,6 +101,10 @@ func newZonesClient(subscriptionID string, cred azcore.TokenCredential) (*armdns
 
 func newRecordSetsClient(subscriptionID string, cred azcore.TokenCredential) (*armdns.RecordSetsClient, error) {
 	return armdns.NewRecordSetsClient(subscriptionID, cred, nil)
+}
+
+func newResourceGroupClient(subscriptionID string, cred azcore.TokenCredential) (*armresources.ResourceGroupsClient, error) {
+	return armresources.NewResourceGroupsClient(subscriptionID, cred, nil)
 }
 
 func (ac *azureClient) GetZone(ctx context.Context, resourceGroupName string, zoneName string) (armdns.Zone, error) {
@@ -188,6 +204,56 @@ func (ac *azureClient) DeleteRecordSet(ctx context.Context, resourceGroupName st
 	if err != nil {
 		// dns_operator_api_request_errors_total{controller="dns-operator-azure",method="recordSets.Delete"}
 		metrics.AzureRequestError.WithLabelValues("recordSets.Delete").Inc()
+		return microerror.Mask(err)
+	}
+
+	return nil
+}
+
+func (ac *azureClient) GetResourceGroup(ctx context.Context, resourceGroupName string) (armresources.ResourceGroup, error) {
+	metrics.AzureRequest.WithLabelValues("resourceGroups.Get").Inc()
+
+	resp, err := ac.resourceGroups.Get(ctx, resourceGroupName, nil)
+	if err != nil {
+		metrics.AzureRequestError.WithLabelValues("resourceGroups.Get").Inc()
+		if IsResourceNotFoundError(err) {
+			return armresources.ResourceGroup{}, microerror.Mask(resourceNotFoundError)
+		}
+		return armresources.ResourceGroup{}, microerror.Mask(err)
+	}
+
+	return resp.ResourceGroup, err
+}
+
+func (ac *azureClient) CreateOrUpdateResourceGroup(ctx context.Context, resourceGroupName string, resourceGroup armresources.ResourceGroup) (armresources.ResourceGroup, error) {
+	metrics.AzureRequest.WithLabelValues("resourceGroups.createOrUpdate").Inc()
+
+	resp, err := ac.resourceGroups.CreateOrUpdate(ctx, resourceGroupName, resourceGroup, nil)
+	if err != nil {
+		metrics.AzureRequestError.WithLabelValues("resourceGroups.CreateOrUpdate").Inc()
+		return armresources.ResourceGroup{}, microerror.Mask(err)
+	}
+
+	return resp.ResourceGroup, nil
+}
+
+func (ac *azureClient) DeleteResourceGroup(ctx context.Context, resourceGroupName string) error {
+	metrics.AzureRequest.WithLabelValues("resourceGroups.Delete").Inc()
+
+	poller, err := ac.resourceGroups.BeginDelete(ctx, resourceGroupName, nil)
+	if err != nil {
+		if IsResourceNotFoundError(err) {
+			return microerror.Mask(resourceNotFoundError)
+		}
+		// dns_operator_api_request_errors_total{controller="dns-operator-azure",method="resourceGroups.Delete"}
+		metrics.AzureRequestError.WithLabelValues("resourceGroups.Delete").Inc()
+		return microerror.Mask(err)
+	}
+
+	_, err = poller.PollUntilDone(ctx, nil)
+	if err != nil {
+		// dns_operator_api_request_errors_total{controller="dns-operator-azure",method="poller.PollUntilDone"}
+		metrics.AzureRequestError.WithLabelValues("poller.PollUntilDone").Inc()
 		return microerror.Mask(err)
 	}
 

@@ -72,11 +72,27 @@ func (s *Service) Reconcile(ctx context.Context) error {
 	}
 	log.V(1).Info("list of all network links", "virtualNetworkLinks", networkLinks)
 
+	vnetLinkName := virtualNetworkLinkName(s.scope.ClusterName(), managementClusterResourceGroup, s.scope.IsManagementCluster())
 	operatorGeneratedVirtualNetworkLinkIndex := slices.IndexFunc(networkLinks, func(virtualNetworkLink *armprivatedns.VirtualNetworkLink) bool {
-		return *virtualNetworkLink.Name == *pointer.String(virtualNetworkLinkName(s.scope.ClusterName(), managementClusterResourceGroup))
+		return *virtualNetworkLink.Name == *pointer.String(vnetLinkName) ||
+			*virtualNetworkLink.ID == s.scope.ManagementClusterClientID()
 	})
 
 	if operatorGeneratedVirtualNetworkLinkIndex == -1 {
+		// Check if there is an existing link to the virtual network
+		existingVirtualNetworkLinkIndex := slices.IndexFunc(networkLinks, func(virtualNetworkLink *armprivatedns.VirtualNetworkLink) bool {
+			return *virtualNetworkLink.Properties.VirtualNetwork.ID == s.scope.ManagementClusterVnetID()
+		})
+		if existingVirtualNetworkLinkIndex >= 0 {
+			log.V(1).Info("found a link to the same virtual network with a different name, deleting it")
+
+			existingVirtualNetworkLink := networkLinks[existingVirtualNetworkLinkIndex]
+			err = s.privateDNSClient.DeleteVirtualNetworkLink(ctx, managementClusterResourceGroup, clusterZoneName, *existingVirtualNetworkLink.Name)
+			if err != nil {
+				return microerror.Mask(err)
+			}
+		}
+
 		log.V(1).Info("virtual network link not found, creating a new one")
 
 		err = s.privateDNSClient.CreateOrUpdateVirtualNetworkLink(
@@ -85,6 +101,7 @@ func (s *Service) Reconcile(ctx context.Context) error {
 			clusterZoneName,
 			s.scope.ClusterName(),
 			s.scope.ManagementClusterVnetID(),
+			vnetLinkName,
 		)
 		if err != nil {
 			return microerror.Mask(err)
@@ -121,7 +138,9 @@ func (s *Service) ReconcileDelete(ctx context.Context) error {
 	clusterZoneName := s.scope.ClusterDomain()
 	log.Info("Reconcile DNS deletion", "privateDNSZone", clusterZoneName)
 
-	if err := s.privateDNSClient.DeleteVirtualNetworkLink(ctx, s.scope.ManagementClusterResourceGroup(), clusterZoneName, s.scope.ClusterName()); err != nil {
+	mcResourceGroup := s.scope.ManagementClusterResourceGroup()
+	vnetLinkName := virtualNetworkLinkName(s.scope.ClusterName(), s.scope.ManagementClusterResourceGroup(), s.scope.IsManagementCluster())
+	if err := s.privateDNSClient.DeleteVirtualNetworkLink(ctx, mcResourceGroup, clusterZoneName, vnetLinkName); err != nil {
 		return microerror.Mask(err)
 	}
 

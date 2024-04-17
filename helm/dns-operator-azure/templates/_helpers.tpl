@@ -34,3 +34,16 @@ Selector labels
 app.kubernetes.io/name: {{ include "name" . | quote }}
 app.kubernetes.io/instance: {{ .Release.Name | quote }}
 {{- end -}}
+
+{{/*
+Kind of infra cluster according to provider type
+*/}}
+{{- define "infraCluster" -}}
+{{- if eq .kind "openstack" -}}
+openstackclusters
+{{- else if eq .kind "cloud-director" -}}
+vcdclusters
+{{- else if eq .kind "vsphere" -}}
+vsphereclusters
+{{- end -}}
+{{- end -}}

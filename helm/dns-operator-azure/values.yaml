@@ -37,3 +37,10 @@ kyvernoPolicyExceptions:
 global:
   podSecurityStandards:
     enforced: false
+
+# necessary for RBACs
+secondaryProviders:
+# e.g.
+# - kind: openstack
+# - kind: cloud-director
+- kind: vsphere

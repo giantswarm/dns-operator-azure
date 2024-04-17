@@ -8,6 +8,8 @@ import (
 
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/dns/armdns"
 	"golang.org/x/exp/slices"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/pointer"
 
 	// Latest capz controller still depends on this library
@@ -17,6 +19,7 @@ import (
 	"github.com/giantswarm/microerror"
 	"github.com/go-logr/logr"
 	capzpublicips "sigs.k8s.io/cluster-api-provider-azure/azure/services/publicips"
+	kubeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/giantswarm/dns-operator-azure/v2/pkg/metrics"
@@ -27,9 +30,14 @@ const (
 	bastion1RecordName  = "bastion1"
 	apiRecordName       = "api"
 	apiserverRecordName = "apiserver"
+	ingressRecordName   = "ingress"
 
 	apiRecordTTL     = 300
 	bastionRecordTTL = 300
+	ingressRecordTTL = 300
+
+	ingressServiceSelector = "app.kubernetes.io/name in (ingress-nginx,nginx-ingress-controller)"
+	ingressAppNamespace    = "kube-system"
 )
 
 func (s *Service) updateARecords(ctx context.Context, currentRecordSets []*armdns.RecordSet) error {
@@ -164,17 +172,17 @@ func (s *Service) getDesiredARecords(ctx context.Context) ([]*armdns.RecordSet, 
 	apiserverIndex := slices.IndexFunc(armdnsRecordSet, func(recordSet *armdns.RecordSet) bool { return *recordSet.Name == apiserverRecordName })
 
 	switch {
-	case s.scope.IsAPIServerPrivate():
+	case s.scope.Patcher.IsAPIServerPrivate():
 
 		armdnsRecordSet[apiIndex].Properties.ARecords = append(armdnsRecordSet[apiIndex].Properties.ARecords, &armdns.ARecord{
-			IPv4Address: pointer.String(s.scope.APIServerPrivateIP()),
+			IPv4Address: pointer.String(s.scope.Patcher.APIServerPrivateIP()),
 		})
 
 		armdnsRecordSet[apiserverIndex].Properties.ARecords = append(armdnsRecordSet[apiserverIndex].Properties.ARecords, &armdns.ARecord{
-			IPv4Address: pointer.String(s.scope.APIServerPrivateIP()),
+			IPv4Address: pointer.String(s.scope.Patcher.APIServerPrivateIP()),
 		})
 
-	case !s.scope.IsAPIServerPrivate():
+	case !s.scope.Patcher.IsAPIServerPrivate():
 
 		publicIP, err := s.getIPAddressForPublicDNS(ctx)
 		if err != nil {
@@ -227,17 +235,37 @@ func (s *Service) getDesiredARecords(ctx context.Context) ([]*armdns.RecordSet, 
 		}
 	}
 
+	if !s.scope.IsAzureCluster() {
+		ingressIP, err := s.getIngressIP(ctx)
+		if err != nil {
+			return nil, microerror.Mask(err)
+		}
+		// TODO: Should the reconciliation fail in case the ingress IP is empty?
+		if ingressIP != "" {
+			armdnsRecordSet = append(armdnsRecordSet, &armdns.RecordSet{
+				Name: pointer.String(ingressRecordName),
+				Type: pointer.String(string(armdns.RecordTypeA)),
+				Properties: &armdns.RecordSetProperties{
+					TTL: pointer.Int64(ingressRecordTTL),
+					ARecords: []*armdns.ARecord{
+						{IPv4Address: pointer.String(ingressIP)},
+					},
+				},
+			})
+		}
+	}
+
 	return armdnsRecordSet, nil
 }
 
 func (s *Service) getIPAddressForPublicDNS(ctx context.Context) (string, error) {
 	logger := log.FromContext(ctx).WithName("getIPAddressForPublicDNS")
 
-	logger.V(1).Info(fmt.Sprintf("resolve IP for %s/%s", s.scope.APIServerPublicIP().Name, s.scope.APIServerPublicIP().DNSName))
+	logger.V(1).Info(fmt.Sprintf("resolve IP for %s/%s", s.scope.Patcher.APIServerPublicIP().Name, s.scope.Patcher.APIServerPublicIP().DNSName))
 
-	if net.ParseIP(s.scope.APIServerPublicIP().Name) == nil {
+	if net.ParseIP(s.scope.Patcher.APIServerPublicIP().Name) == nil {
 		publicIPIface, err := s.publicIPsService.Get(ctx, &capzpublicips.PublicIPSpec{
-			Name:          s.scope.APIServerPublicIP().Name,
+			Name:          s.scope.Patcher.APIServerPublicIP().Name,
 			ResourceGroup: s.scope.ResourceGroup(),
 		})
 		if err != nil {
@@ -249,10 +277,46 @@ func (s *Service) getIPAddressForPublicDNS(ctx context.Context) (string, error) 
 			return "", microerror.Mask(fmt.Errorf("%T is not a network.PublicIPAddress", publicIPIface))
 		}
 
-		logger.V(1).Info(fmt.Sprintf("got IP %v for %s/%s", *publicIPIface.(network.PublicIPAddress).IPAddress, s.scope.APIServerPublicIP().Name, s.scope.APIServerPublicIP().DNSName))
+		logger.V(1).Info(fmt.Sprintf("got IP %v for %s/%s", *publicIPIface.(network.PublicIPAddress).IPAddress, s.scope.Patcher.APIServerPublicIP().Name, s.scope.Patcher.APIServerPublicIP().DNSName))
 
 		return *publicIPIface.(network.PublicIPAddress).IPAddress, nil
 	}
 
-	return "", nil
+	return s.scope.Patcher.APIServerPublicIP().Name, nil
+}
+
+func (s *Service) getIngressIP(ctx context.Context) (string, error) {
+	k8sClient, err := s.scope.ClusterK8sClient(ctx)
+	if err != nil {
+		return "", microerror.Mask(err)
+	}
+
+	var icServices corev1.ServiceList
+
+	err = k8sClient.List(ctx, &icServices,
+		kubeclient.InNamespace(ingressAppNamespace),
+		&kubeclient.ListOptions{Raw: &metav1.ListOptions{LabelSelector: ingressServiceSelector}},
+	)
+
+	if err != nil {
+		return "", microerror.Mask(err)
+	}
+
+	var icServiceIP string
+
+	for _, icService := range icServices.Items {
+		if icService.Spec.Type == corev1.ServiceTypeLoadBalancer {
+			if icServiceIP != "" {
+				return "", microerror.Mask(tooManyICServicesError)
+			}
+
+			if len(icService.Status.LoadBalancer.Ingress) < 1 || icService.Status.LoadBalancer.Ingress[0].IP == "" {
+				return "", microerror.Mask(ingressNotReadyError)
+			}
+
+			icServiceIP = icService.Status.LoadBalancer.Ingress[0].IP
+		}
+	}
+
+	return icServiceIP, nil
 }
