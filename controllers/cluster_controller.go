@@ -285,6 +285,7 @@ func (r *ClusterReconciler) reconcileNormal(ctx context.Context, clusterScope *i
 		privateParams := azurescope.PrivateDNSScopeParams{
 			BaseDomain:                              r.BaseDomain,
 			ClusterName:                             infraCluster.GetName(),
+			IsManagementCluster:                     managementCluster.Namespace == cluster.Namespace && managementCluster.Name == cluster.Name,
 			ManagementClusterSpec:                   managementCluster.Spec,
 			ManagementClusterAzureIdentity:          *managementClusterAzureIdentity,
 			ManagementClusterServicePrincipalSecret: *managementClusterStaticServicePrincipalSecret,
