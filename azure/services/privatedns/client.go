@@ -7,8 +7,9 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/privatedns/armprivatedns"
-	"github.com/giantswarm/microerror"
 	"k8s.io/utils/pointer"
+
+	"github.com/giantswarm/microerror"
 
 	"github.com/giantswarm/dns-operator-azure/v2/azure/scope"
 	"github.com/giantswarm/dns-operator-azure/v2/pkg/metrics"
@@ -289,9 +290,9 @@ func (ac *azureClient) CreateOrUpdateRecordSet(ctx context.Context, resourceGrou
 	return resp.RecordSet, nil
 }
 
-func virtualNetworkLinkName(clusterName, resourceGroupName string, isManagementCluster bool) string {
-	if isManagementCluster {
-		return fmt.Sprintf("%s-vnet-link", clusterName)
-	}
-	return fmt.Sprintf("%s-dns-%s-%s", clusterName, resourceGroupName, "vnet-link")
+func virtualNetworkLinkName(resourceGroupName string) string {
+	// The name of the linked VNET is "resourceGroupName-vnet"
+	// This is how CAPZ names the VNET links.
+	// We use the same naming convention to avoid conflicts for private MCs.
+	return fmt.Sprintf("%s-vnet-link", resourceGroupName)
 }
