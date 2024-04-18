@@ -4,9 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/giantswarm/microerror"
 	corev1 "k8s.io/api/core/v1"
 	infrav1 "sigs.k8s.io/cluster-api-provider-azure/api/v1beta1"
+
+	"github.com/giantswarm/microerror"
 
 	"github.com/giantswarm/dns-operator-azure/v2/pkg/errors"
 )
@@ -23,8 +24,6 @@ type PrivateDNSScopeParams struct {
 
 	VirtualNetworkID string
 
-	IsManagementCluster bool
-
 	ManagementClusterAzureIdentity          infrav1.AzureClusterIdentity
 	ManagementClusterServicePrincipalSecret corev1.Secret
 
@@ -38,8 +37,6 @@ type PrivateDNSScope struct {
 	apiServerIP string
 
 	virtualNetworkID string
-
-	isManagementCluster bool
 
 	managementClusterIdentity identity
 
@@ -63,7 +60,6 @@ func NewPrivateDNSScope(_ context.Context, params PrivateDNSScopeParams) (*Priva
 			clusterIdentity: params.ManagementClusterAzureIdentity,
 			secret:          params.ManagementClusterServicePrincipalSecret,
 		},
-		isManagementCluster:   params.IsManagementCluster,
 		managementClusterSpec: params.ManagementClusterSpec,
 		apiServerIP:           params.APIServerIP,
 		virtualNetworkID:      params.VirtualNetworkID,
@@ -86,10 +82,6 @@ func (s *PrivateDNSScope) ManagementClusterVnetID() string {
 
 func (s *PrivateDNSScope) ManagementClusterResourceGroup() string {
 	return s.managementClusterSpec.ResourceGroup
-}
-
-func (s *PrivateDNSScope) IsManagementCluster() bool {
-	return s.isManagementCluster
 }
 
 func (s *PrivateDNSScope) ManagementClusterAzureIdentity() infrav1.AzureClusterIdentity {

@@ -4,10 +4,11 @@ import (
 	"context"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/privatedns/armprivatedns"
-	"github.com/giantswarm/microerror"
 	"golang.org/x/exp/slices"
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+
+	"github.com/giantswarm/microerror"
 
 	"github.com/giantswarm/dns-operator-azure/v2/azure"
 	"github.com/giantswarm/dns-operator-azure/v2/azure/scope"
@@ -72,7 +73,7 @@ func (s *Service) Reconcile(ctx context.Context) error {
 	}
 	log.V(1).Info("list of all network links", "virtualNetworkLinks", networkLinks)
 
-	vnetLinkName := virtualNetworkLinkName(s.scope.ClusterName(), managementClusterResourceGroup, s.scope.IsManagementCluster())
+	vnetLinkName := virtualNetworkLinkName(managementClusterResourceGroup)
 	operatorGeneratedVirtualNetworkLinkIndex := slices.IndexFunc(networkLinks, func(virtualNetworkLink *armprivatedns.VirtualNetworkLink) bool {
 		return *virtualNetworkLink.Name == *pointer.String(vnetLinkName) ||
 			*virtualNetworkLink.ID == s.scope.ManagementClusterClientID()
@@ -139,7 +140,7 @@ func (s *Service) ReconcileDelete(ctx context.Context) error {
 	log.Info("Reconcile DNS deletion", "privateDNSZone", clusterZoneName)
 
 	mcResourceGroup := s.scope.ManagementClusterResourceGroup()
-	vnetLinkName := virtualNetworkLinkName(s.scope.ClusterName(), s.scope.ManagementClusterResourceGroup(), s.scope.IsManagementCluster())
+	vnetLinkName := virtualNetworkLinkName(s.scope.ManagementClusterResourceGroup())
 	if err := s.privateDNSClient.DeleteVirtualNetworkLink(ctx, mcResourceGroup, clusterZoneName, vnetLinkName); err != nil {
 		return microerror.Mask(err)
 	}
