@@ -23,7 +23,6 @@ import (
 	"time"
 
 	aadpodv1 "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
-	"github.com/giantswarm/microerror"
 	"go.uber.org/zap/zapcore"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -35,6 +34,8 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+
+	"github.com/giantswarm/microerror"
 
 	"github.com/giantswarm/dns-operator-azure/v2/controllers"
 	"github.com/giantswarm/dns-operator-azure/v2/pkg/errors"
@@ -195,14 +196,6 @@ func mainError() error {
 		ClusterAzureIdentityRefNamespace: azureIdentityRefNamespace,
 	}).SetupWithManager(mgr, controller.Options{MaxConcurrentReconciles: clusterConcurrency}); err != nil {
 		setupLog.Error(errors.FatalError, "unable to create controller AzureCluster")
-		return microerror.Mask(err)
-	}
-
-	if err = (&controllers.AzureMachineReconciler{
-		Client:   mgr.GetClient(),
-		Recorder: mgr.GetEventRecorderFor("azuremachine-reconciler"),
-	}).SetupWithManager(mgr, controller.Options{MaxConcurrentReconciles: clusterConcurrency}); err != nil {
-		setupLog.Error(errors.FatalError, "unable to create controller AzureMachine")
 		return microerror.Mask(err)
 	}
 

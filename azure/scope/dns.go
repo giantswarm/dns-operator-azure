@@ -3,11 +3,11 @@ package scope
 import (
 	"context"
 	"fmt"
-	"strings"
 
-	"github.com/giantswarm/microerror"
 	corev1 "k8s.io/api/core/v1"
 	infrav1 "sigs.k8s.io/cluster-api-provider-azure/api/v1beta1"
+
+	"github.com/giantswarm/microerror"
 
 	"github.com/giantswarm/dns-operator-azure/v2/pkg/errors"
 	"github.com/giantswarm/dns-operator-azure/v2/pkg/infracluster"
@@ -32,8 +32,6 @@ type DNSScopeParams struct {
 	BaseDomainResourceGroup string
 	BaseZoneCredentials     BaseZoneCredentials
 
-	BastionIP string
-
 	AzureClusterIdentity               infrav1.AzureClusterIdentity
 	AzureClusterServicePrincipalSecret corev1.Secret
 
@@ -50,7 +48,6 @@ type DNSScope struct {
 	baseDomain              string
 	baseDomainResourceGroup string
 	baseZoneCredentials     BaseZoneCredentials
-	bastionIP               string
 
 	identity                  Identity
 	managementClusterIdentity Identity
@@ -81,7 +78,6 @@ func NewDNSScope(_ context.Context, params DNSScopeParams) (*DNSScope, error) {
 		baseDomain:              params.BaseDomain,
 		baseDomainResourceGroup: params.BaseDomainResourceGroup,
 		baseZoneCredentials:     params.BaseZoneCredentials,
-		bastionIP:               params.BastionIP,
 		identity: Identity{
 			clusterIdentity: params.AzureClusterIdentity,
 			secret:          params.AzureClusterServicePrincipalSecret,
@@ -98,14 +94,6 @@ func NewDNSScope(_ context.Context, params DNSScopeParams) (*DNSScope, error) {
 
 func (s *DNSScope) APIEndpoint() string {
 	return s.Patcher.APIServerPublicIP().Name
-}
-
-func (s *DNSScope) BastionIPList() string {
-	return s.bastionIP
-}
-
-func (s *DNSScope) BastionIP() []string {
-	return strings.Split(s.bastionIP, ",")
 }
 
 func (s *DNSScope) BaseDomain() string {

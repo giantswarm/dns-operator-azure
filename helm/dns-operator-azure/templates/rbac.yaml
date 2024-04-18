@@ -30,23 +30,6 @@ rules:
   - update
   - watch
 #
-# AzureMachines
-#
-- apiGroups:
-  - cluster.x-k8s.io
-  - infrastructure.cluster.x-k8s.io
-  resources:
-  - azuremachines
-  - azuremachines/status
-  - machines
-  - machines/status
-  verbs:
-  - get
-  - list
-  - patch
-  - update
-  - watch
-#
 # AzureClusterIdentity
 #
 - apiGroups:
