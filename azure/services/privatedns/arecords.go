@@ -13,15 +13,17 @@ import (
 	// https://github.com/kubernetes-sigs/cluster-api-provider-azure/blob/v1.6.0/azure/services/publicips/client.go#L56
 	//nolint
 
-	"github.com/giantswarm/microerror"
 	"github.com/go-logr/logr"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+
+	"github.com/giantswarm/microerror"
 
 	"github.com/giantswarm/dns-operator-azure/v2/pkg/metrics"
 )
 
 const (
 	apiserverRecordName = "apiserver"
+	mcIngressRecordName = "ingress"
 
 	apiRecordTTL = 300
 )
@@ -142,6 +144,27 @@ func (s *Service) getDesiredPrivateARecords(ctx context.Context) []*armprivatedn
 
 		armprivatednsRecordSet[privateAPIIndex].Properties.ARecords = append(armprivatednsRecordSet[privateAPIIndex].Properties.ARecords, &armprivatedns.ARecord{
 			IPv4Address: pointer.String(s.scope.PrivateLinkedAPIServerIP()),
+		})
+
+	}
+
+	if len(s.scope.PrivateLinkedMcIngressIP()) > 0 {
+
+		armprivatednsRecordSet = append(armprivatednsRecordSet,
+
+			&armprivatedns.RecordSet{
+				Name: pointer.String(mcIngressRecordName),
+				Type: pointer.String(string(armprivatedns.RecordTypeA)),
+				Properties: &armprivatedns.RecordSetProperties{
+					TTL: pointer.Int64(apiRecordTTL),
+				},
+			},
+		)
+
+		privateAPIIndex := slices.IndexFunc(armprivatednsRecordSet, func(recordSet *armprivatedns.RecordSet) bool { return *recordSet.Name == mcIngressRecordName })
+
+		armprivatednsRecordSet[privateAPIIndex].Properties.ARecords = append(armprivatednsRecordSet[privateAPIIndex].Properties.ARecords, &armprivatedns.ARecord{
+			IPv4Address: pointer.String(s.scope.PrivateLinkedMcIngressIP()),
 		})
 
 	}
