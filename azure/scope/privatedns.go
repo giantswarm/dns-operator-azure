@@ -21,6 +21,7 @@ type PrivateDNSScopeParams struct {
 	BaseDomain  string
 	ClusterName string
 	APIServerIP string
+	MCIngressIP string
 
 	VirtualNetworkID string
 
@@ -35,6 +36,7 @@ type PrivateDNSScope struct {
 	baseDomain  string
 	clusterName string
 	apiServerIP string
+	mcIngressIP string
 
 	virtualNetworkID string
 
@@ -62,6 +64,7 @@ func NewPrivateDNSScope(_ context.Context, params PrivateDNSScopeParams) (*Priva
 		},
 		managementClusterSpec: params.ManagementClusterSpec,
 		apiServerIP:           params.APIServerIP,
+		mcIngressIP:           params.MCIngressIP,
 		virtualNetworkID:      params.VirtualNetworkID,
 	}
 
@@ -121,6 +124,10 @@ func (s *PrivateDNSScope) PrivateLinkedAPIServerIP() string {
 	return privateLinkedAPIServerIP
 }
 
+func (s *PrivateDNSScope) PrivateLinkedMcIngressIP() string {
+	return s.privateLinkedMcIngressIPFromClusterAnnotation()
+}
+
 func (s *PrivateDNSScope) privateLinkedAPIServerIPFromManagementCluster() string {
 
 	var privateLinkedAPIServerIP string
@@ -139,4 +146,8 @@ func (s *PrivateDNSScope) privateLinkedAPIServerIPFromManagementCluster() string
 
 func (s *PrivateDNSScope) privateLinkedAPIServerIPFromClusterAnnotation() string {
 	return s.apiServerIP
+}
+
+func (s *PrivateDNSScope) privateLinkedMcIngressIPFromClusterAnnotation() string {
+	return s.mcIngressIP
 }
