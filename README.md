@@ -121,3 +121,9 @@ To make `dns-operator-azure` work on the `baseDomain` DNS Zone you have to creat
 The application secrets must be defined by setting the `AZURE_CLIENT_ID`, `AZURE_TENANT_ID` and `AZURE_CLIENT_SECRET` environment variables.
 
 To make `dns-operator-azure` work on the `clustername` DNS zone it's only required that the Kubernetes `serviceAccount` is able to get the referenced `AzureClusterIdentity` from the `AzureCluster`. With these information the `dns-operator-azure` creates an internal Azure client to interact with the cluster specific Azure resources.
+
+To enable `dns-operator-azure` to create Azure DNS zones and records for non-Azure workload clusters, the operator needs to know credentials and details of the destination Azure subscription, where the DNS zone and records for the non-Azure workload clusters are supposed to be stored.
+By default, the `dns-operator-azure` uses credentials referenced in the management cluster's `AzureCluster` resource.
+In case this behaviour is acceptable, there is no need to provide any additional configuration to the operator.
+The default behaviour can be overridden by providing an explicit reference to a specific `AzureClusterIdentity` resource in the `--azure-identity-ref-name` and `--azure-identity-ref-namespace` flags.
+Additional details about the subscription need to be provided by setting the `CLUSTER_AZURE_CLIENT_ID`, `CLUSTER_AZURE_TENANT_ID`, `CLUSTER_AZURE_SUBSCRIPTION_ID` and `CLUSTER_AZURE_LOCATION` (the Azure Location of the DNS records for the non-Azure workload clusters) flags.
