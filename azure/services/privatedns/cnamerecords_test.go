@@ -262,7 +262,7 @@ func Test_CnameRecords(t *testing.T) {
 				BaseDomain:  "basedomain.io",
 				ClusterName: "test-cluster",
 				APIServerIP: "127.0.0.1",
-				ManagementClusterSpec: infrav1.AzureClusterSpec{
+				ClusterSpecToAttachPrivateDNS: infrav1.AzureClusterSpec{
 					NetworkSpec: infrav1.NetworkSpec{
 						Subnets: infrav1.Subnets{
 							{

@@ -143,7 +143,7 @@ func TestService_calculateMissingARecords(t *testing.T) {
 			privateDNSScopeParams: scope.PrivateDNSScopeParams{
 				BaseDomain:  "basedomain.io",
 				ClusterName: "test-cluster",
-				ManagementClusterSpec: infrav1.AzureClusterSpec{
+				ClusterSpecToAttachPrivateDNS: infrav1.AzureClusterSpec{
 					NetworkSpec: infrav1.NetworkSpec{
 						Subnets: infrav1.Subnets{
 							{
@@ -188,7 +188,7 @@ func TestService_calculateMissingARecords(t *testing.T) {
 				BaseDomain:  "basedomain.io",
 				ClusterName: "test-cluster",
 				APIServerIP: "127.0.0.1",
-				ManagementClusterSpec: infrav1.AzureClusterSpec{
+				ClusterSpecToAttachPrivateDNS: infrav1.AzureClusterSpec{
 					NetworkSpec: infrav1.NetworkSpec{
 						Subnets: infrav1.Subnets{
 							{

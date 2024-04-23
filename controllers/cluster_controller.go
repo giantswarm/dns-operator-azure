@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/go-logr/logr"
 	"github.com/prometheus/client_golang/prometheus"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -47,7 +48,7 @@ import (
 
 const (
 	AzureClusterControllerFinalizer                 string = "dns-operator-azure.giantswarm.io/azurecluster"
-	azurePrivateEndpointOperatorApiserverAnnotation string = "azure-private-endpoint-operator.giantswarm.io/private-link-apiserver-ip"
+	azurePrivateEndpointOperatorApiServerAnnotation string = "azure-private-endpoint-operator.giantswarm.io/private-link-apiserver-ip"
 	azurePrivateEndpointOperatorMcIngressAnnotation string = "azure-private-endpoint-operator.giantswarm.io/private-link-mc-ingress-ip"
 )
 
@@ -63,24 +64,24 @@ type ClusterReconciler struct {
 	BaseZoneTenantID        string
 	Recorder                record.EventRecorder
 
-	ManagementClusterName      string
-	ManagementClusterNamespace string
+	ManagementClusterConfig     infracluster.ManagementClusterConfig
+	InfraClusterZoneAzureConfig infracluster.ClusterZoneAzureConfig
 
-	InfraClusterZoneAzureConfig      infracluster.ClusterZoneAzureConfig
-	ClusterAzureIdentityRefName      string
-	ClusterAzureIdentityRefNamespace string
+	ClusterAzureIdentityRef *corev1.ObjectReference
 }
 
 // +kubebuilder:rbac:groups=cluster.x-k8s.io,resources=clusters,verbs=get;list;watch;update;patch
 
 func (r *ClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_ ctrl.Result, reterr error) {
-	log := log.FromContext(ctx)
-	log.WithValues("cluster", req.NamespacedName)
+	logger := log.FromContext(ctx)
+	logger.WithValues("cluster", req.NamespacedName)
 
 	cluster, err := util.GetClusterByName(ctx, r.Client, req.Namespace, req.Name)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return reconcile.Result{}, nil
+		} else {
+			return reconcile.Result{}, err
 		}
 	}
 
@@ -91,7 +92,7 @@ func (r *ClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_ 
 	infraRef := cluster.Spec.InfrastructureRef
 
 	if infraRef == nil {
-		log.Info("infrastructure cluster ref for core cluster is not ready", "Cluster", cluster.Name)
+		logger.Info("infrastructure cluster ref for core cluster is not ready", "Cluster", cluster.Name)
 		return reconcile.Result{RequeueAfter: 1 * time.Minute}, nil
 	}
 
@@ -100,40 +101,29 @@ func (r *ClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_ 
 
 	if err := r.Client.Get(ctx, client.ObjectKey{Namespace: infraRef.Namespace, Name: infraRef.Name}, infraCluster); err != nil {
 		if apierrors.IsNotFound(err) {
-			log.Info("infrastructure cluster for core cluster is not ready", "Cluster", cluster.Name)
+			logger.Info("infrastructure cluster for core cluster is not ready", "Cluster", cluster.Name)
 			return reconcile.Result{RequeueAfter: 1 * time.Minute}, nil
 		}
 		return reconcile.Result{}, microerror.Mask(err)
 	}
 
-	log.WithValues("infrastructure cluster", infraCluster.GetName())
-	log.WithValues("infrastructure group", infraCluster.GroupVersionKind().Group, "infrastructure kind", infraCluster.GroupVersionKind().Kind, "infrastructure version", infraCluster.GroupVersionKind().Version)
+	logger.WithValues("infrastructure cluster", infraCluster.GetName())
+	logger.WithValues("infrastructure group", infraCluster.GroupVersionKind().Group, "infrastructure kind", infraCluster.GroupVersionKind().Kind, "infrastructure version", infraCluster.GroupVersionKind().Version)
 
 	// Return early if the core or infrastructure cluster is paused.
 	if annotations.IsPaused(cluster, infraCluster) {
-		log.Info("infrastructure or core cluster is marked as paused. Won't reconcile")
+		logger.Info("infrastructure or core cluster is marked as paused. Won't reconcile")
 		return ctrl.Result{}, nil
-	}
-
-	var clusterIdentityRef *corev1.ObjectReference
-	if r.ClusterAzureIdentityRefName != "" && r.ClusterAzureIdentityRefNamespace != "" {
-		clusterIdentityRef = &corev1.ObjectReference{
-			Name:      r.ClusterAzureIdentityRefName,
-			Namespace: r.ClusterAzureIdentityRefNamespace,
-		}
 	}
 
 	// Create the cluster scope.
 	clusterScope, err := infracluster.NewScope(ctx, infracluster.ScopeParams{
-		Client:                 r.Client,
-		Cluster:                cluster,
-		InfraCluster:           infraCluster,
-		ClusterZoneAzureConfig: r.InfraClusterZoneAzureConfig,
-		ClusterIdentityRef:     clusterIdentityRef,
-		ManagementClusterConfig: infracluster.ManagementClusterConfig{
-			Name:      r.ManagementClusterName,
-			Namespace: r.ManagementClusterNamespace,
-		},
+		Client:                  r.Client,
+		Cluster:                 cluster,
+		InfraCluster:            infraCluster,
+		ClusterZoneAzureConfig:  r.InfraClusterZoneAzureConfig,
+		ClusterIdentityRef:      r.ClusterAzureIdentityRef,
+		ManagementClusterConfig: r.ManagementClusterConfig,
 	})
 	if err != nil {
 		return reconcile.Result{}, microerror.Mask(err)
@@ -146,7 +136,7 @@ func (r *ClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_ 
 	}()
 
 	// Handle deleted clusters
-	if !cluster.DeletionTimestamp.IsZero() || !infraCluster.GetDeletionTimestamp().IsZero() {
+	if !cluster.GetDeletionTimestamp().IsZero() || !infraCluster.GetDeletionTimestamp().IsZero() {
 		return r.reconcileDelete(ctx, clusterScope)
 	}
 
@@ -154,38 +144,13 @@ func (r *ClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_ 
 	return r.reconcileNormal(ctx, clusterScope)
 }
 
-func (r *ClusterReconciler) SetupWithManager(mgr ctrl.Manager, options controller.Options) error {
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&capi.Cluster{}).
-		WithOptions(options).
-		Complete(r)
-}
-
 func (r *ClusterReconciler) reconcileNormal(ctx context.Context, clusterScope *infracluster.Scope) (ctrl.Result, error) {
-	log := log.FromContext(ctx)
-	log.Info("Reconciling AzureCluster DNS zones")
+	logger := log.FromContext(ctx)
+	logger.Info("Reconciling AzureCluster DNS zones")
 
 	var err error
-
 	cluster := clusterScope.Cluster
 	infraCluster := clusterScope.InfraCluster
-
-	if clusterScope.IsAzureCluster() {
-		// only act on Clusters where the LoadBalancersReady condition is true
-		infraClusterStatus := clusterScope.AzureClusterStatus()
-		if infraClusterStatus != nil {
-			infraClusterIsReady := false
-			for _, condition := range infraClusterStatus.Conditions {
-				if condition.Type == infrav1.LoadBalancersReadyCondition {
-					infraClusterIsReady = true
-					break
-				}
-			}
-			if !infraClusterIsReady {
-				return reconcile.Result{}, nil
-			}
-		}
-	}
 
 	// If the AzureCluster doesn't have our finalizer, add it.
 	if !controllerutil.ContainsFinalizer(infraCluster, AzureClusterControllerFinalizer) {
@@ -196,106 +161,22 @@ func (r *ClusterReconciler) reconcileNormal(ctx context.Context, clusterScope *i
 		}
 	}
 
-	// If a cluster isn't provisioned we don't need to reconcile it
-	// as not all information for creating DNS records are available yet.
-	if cluster.Status.Phase != string(capi.ClusterPhaseProvisioned) {
-		log.Info(fmt.Sprintf("Requeuing cluster %s - phase %s", cluster.Name, cluster.Status.Phase))
-		return ctrl.Result{RequeueAfter: 2 * time.Minute}, nil
-	}
-
-	azureClusterIdentity, err := clusterScope.InfraClusterIdentity(ctx)
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			log.V(1).Info("cluster object was not found", "error", err)
-			return reconcile.Result{}, nil
-		}
-		return reconcile.Result{}, microerror.Mask(err)
-	}
-
-	log.V(1).Info("azureClusterIdentity information",
-		"spec.Type", azureClusterIdentity.Spec.Type,
-		"spec.tenantID", azureClusterIdentity.Spec.TenantID,
-		"spec.clientID", azureClusterIdentity.Spec.ClientID,
-	)
-
-	// Reconcile workload cluster DNS records
-
-	staticServicePrincipalSecret, err := r.infraClusterStaticServicePrincipalSecret(ctx, azureClusterIdentity)
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			log.V(1).Info("static service principal secret object was not found", "error", err)
-			return reconcile.Result{}, nil
-		}
-		return reconcile.Result{}, microerror.Mask(err)
-	}
-
-	params := azurescope.DNSScopeParams{
-		ClusterScope:                       clusterScope,
-		AzureClusterIdentity:               *azureClusterIdentity,
-		AzureClusterServicePrincipalSecret: *staticServicePrincipalSecret,
-		BaseDomain:                         r.BaseDomain,
-		BaseDomainResourceGroup:            r.BaseDomainResourceGroup,
-		BaseZoneCredentials: azurescope.BaseZoneCredentials{
-			ClientID:       r.BaseZoneClientID,
-			ClientSecret:   r.BaseZoneClientSecret,
-			SubscriptionID: r.BaseZoneSubscriptionID,
-			TenantID:       r.BaseZoneTenantID,
-		},
+	result, err, isReady := isClusterReadyForDnsManagements(cluster, logger, clusterScope)
+	if !isReady {
+		return result, err
 	}
 
 	clusterAnnotations := infraCluster.GetAnnotations()
-
 	azureClusterSpec := clusterScope.AzureClusterSpec()
-	if azureClusterSpec != nil && clusterAnnotations[azurePrivateEndpointOperatorApiserverAnnotation] != "" {
 
-		log.V(1).Info(fmt.Sprintf("annotation %s found", azurePrivateEndpointOperatorApiserverAnnotation))
+	// Private DNS for MC-to-WC api
+	if azureClusterSpec != nil && clusterAnnotations[azurePrivateEndpointOperatorApiServerAnnotation] != "" {
 
-		managementCluster, err := clusterScope.ManagementCluster(ctx)
+		logger.V(1).Info(fmt.Sprintf("annotation %s found", azurePrivateEndpointOperatorApiServerAnnotation))
+
+		privateDnsService, result, err := r.getPrivateDnsServiceForMcToWcApi(ctx, logger, clusterScope)
 		if err != nil {
-			return reconcile.Result{}, microerror.Mask(err)
-		}
-
-		managementClusterAzureIdentity, err := clusterScope.ManagementClusterIdentity(ctx)
-		if err != nil {
-			return reconcile.Result{}, microerror.Mask(err)
-		}
-
-		managementClusterStaticServicePrincipalSecret := &corev1.Secret{}
-		if managementClusterAzureIdentity.Spec.Type == infrav1.ManualServicePrincipal {
-			log.V(1).Info(fmt.Sprintf("try to get the referenced secret - %s/%s", managementClusterAzureIdentity.Spec.ClientSecret.Namespace, managementClusterAzureIdentity.Spec.ClientSecret.Name))
-
-			err = r.Client.Get(ctx, types.NamespacedName{
-				Name:      managementClusterAzureIdentity.Spec.ClientSecret.Name,
-				Namespace: managementClusterAzureIdentity.Spec.ClientSecret.Namespace,
-			}, managementClusterStaticServicePrincipalSecret)
-			if err != nil {
-				if apierrors.IsNotFound(err) {
-					log.V(1).Info("static service principal secret object was not found", "error", err)
-					return reconcile.Result{}, nil
-				}
-				return reconcile.Result{}, microerror.Mask(err)
-			}
-		}
-
-		privateParams := azurescope.PrivateDNSScopeParams{
-			BaseDomain:                              r.BaseDomain,
-			ClusterName:                             infraCluster.GetName(),
-			ManagementClusterSpec:                   managementCluster.Spec,
-			ManagementClusterAzureIdentity:          *managementClusterAzureIdentity,
-			ManagementClusterServicePrincipalSecret: *managementClusterStaticServicePrincipalSecret,
-			VirtualNetworkID:                        managementCluster.Spec.NetworkSpec.Vnet.ID,
-		}
-
-		privateParams.APIServerIP = clusterAnnotations[azurePrivateEndpointOperatorApiserverAnnotation]
-
-		privateDnsScope, err := azurescope.NewPrivateDNSScope(ctx, privateParams)
-		if err != nil {
-			return reconcile.Result{}, microerror.Mask(err)
-		}
-
-		privateDnsService, err := privatedns.New(*privateDnsScope)
-		if err != nil {
-			return reconcile.Result{}, microerror.Mask(err)
+			return result, err
 		}
 
 		err = privateDnsService.Reconcile(ctx)
@@ -304,56 +185,14 @@ func (r *ClusterReconciler) reconcileNormal(ctx context.Context, clusterScope *i
 		}
 	}
 
+	// Private DNS for WC-to-MC ingress
 	if azureClusterSpec != nil && clusterAnnotations[azurePrivateEndpointOperatorMcIngressAnnotation] != "" {
 
-		log.V(1).Info(fmt.Sprintf("annotation %s found", azurePrivateEndpointOperatorMcIngressAnnotation))
+		logger.V(1).Info(fmt.Sprintf("annotation %s found", azurePrivateEndpointOperatorMcIngressAnnotation))
 
-		managementCluster, err := clusterScope.ManagementCluster(ctx)
+		privateDnsService, result, err := r.getPrivateDnsServiceForWcToMcIngress(ctx, logger, clusterScope)
 		if err != nil {
-			return reconcile.Result{}, microerror.Mask(err)
-		}
-
-		infraClusterAzureIdentity, err := clusterScope.InfraClusterIdentity(ctx)
-		if err != nil {
-			return reconcile.Result{}, microerror.Mask(err)
-		}
-
-		infraClusterStaticServicePrincipalSecret := &corev1.Secret{}
-		if infraClusterAzureIdentity.Spec.Type == infrav1.ManualServicePrincipal {
-			log.V(1).Info(fmt.Sprintf("try to get the referenced secret - %s/%s", infraClusterAzureIdentity.Spec.ClientSecret.Namespace, infraClusterAzureIdentity.Spec.ClientSecret.Name))
-
-			err = r.Client.Get(ctx, types.NamespacedName{
-				Name:      infraClusterAzureIdentity.Spec.ClientSecret.Name,
-				Namespace: infraClusterAzureIdentity.Spec.ClientSecret.Namespace,
-			}, infraClusterStaticServicePrincipalSecret)
-			if err != nil {
-				if apierrors.IsNotFound(err) {
-					log.V(1).Info("static service principal secret object was not found", "error", err)
-					return reconcile.Result{}, nil
-				}
-				return reconcile.Result{}, microerror.Mask(err)
-			}
-		}
-
-		privateParams := azurescope.PrivateDNSScopeParams{
-			BaseDomain:                              r.BaseDomain,
-			ClusterName:                             managementCluster.GetName(),
-			ManagementClusterSpec:                   *azureClusterSpec,
-			ManagementClusterAzureIdentity:          *infraClusterAzureIdentity,
-			ManagementClusterServicePrincipalSecret: *infraClusterStaticServicePrincipalSecret,
-			VirtualNetworkID:                        (*azureClusterSpec).NetworkSpec.Vnet.ID,
-		}
-
-		privateParams.MCIngressIP = clusterAnnotations[azurePrivateEndpointOperatorMcIngressAnnotation]
-
-		privateDnsScope, err := azurescope.NewPrivateDNSScope(ctx, privateParams)
-		if err != nil {
-			return reconcile.Result{}, microerror.Mask(err)
-		}
-
-		privateDnsService, err := privatedns.New(*privateDnsScope)
-		if err != nil {
-			return reconcile.Result{}, microerror.Mask(err)
+			return result, microerror.Mask(err)
 		}
 
 		err = privateDnsService.Reconcile(ctx)
@@ -362,14 +201,10 @@ func (r *ClusterReconciler) reconcileNormal(ctx context.Context, clusterScope *i
 		}
 	}
 
-	dnsScope, err := azurescope.NewDNSScope(ctx, params)
+	// Public DNS
+	dnsService, result, err := r.getDnsServiceForPublicRecords(ctx, logger, clusterScope)
 	if err != nil {
-		return reconcile.Result{}, microerror.Mask(err)
-	}
-
-	dnsService, err := dns.New(*dnsScope, clusterScope.PublicIPsService())
-	if err != nil {
-		return reconcile.Result{}, microerror.Mask(err)
+		return result, microerror.Mask(err)
 	}
 
 	// generate base domain info metric
@@ -387,99 +222,29 @@ func (r *ClusterReconciler) reconcileNormal(ctx context.Context, clusterScope *i
 		return reconcile.Result{}, microerror.Mask(err)
 	}
 
-	log.Info("Successfully reconciled InfraCluster DNS zones")
+	logger.Info("Successfully reconciled InfraCluster DNS zones")
 	return reconcile.Result{RequeueAfter: 5 * time.Minute}, nil
 }
 
 func (r *ClusterReconciler) reconcileDelete(ctx context.Context, clusterScope *infracluster.Scope) (ctrl.Result, error) {
-	log := log.FromContext(ctx)
+	logger := log.FromContext(ctx)
 
 	deletedMetrics := 0
 
-	log.Info("Reconciling AzureCluster DNS zones delete")
+	logger.Info("Reconciling AzureCluster DNS zones delete")
 
 	infraCluster := clusterScope.InfraCluster
-
-	azureClusterIdentity, err := clusterScope.InfraClusterIdentity(ctx)
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			log.V(1).Info("cluster object was not found", "error", err)
-			return reconcile.Result{}, nil
-		}
-		return reconcile.Result{}, microerror.Mask(err)
-	}
-
-	staticServicePrincipalSecret, err := r.infraClusterStaticServicePrincipalSecret(ctx, azureClusterIdentity)
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			log.V(1).Info("static service principal secret object was not found", "error", err)
-			return reconcile.Result{}, nil
-		}
-		return reconcile.Result{}, microerror.Mask(err)
-	}
-
-	params := azurescope.DNSScopeParams{
-		ClusterScope:                       clusterScope,
-		AzureClusterIdentity:               *azureClusterIdentity,
-		AzureClusterServicePrincipalSecret: *staticServicePrincipalSecret,
-		BaseDomain:                         r.BaseDomain,
-		BaseDomainResourceGroup:            r.BaseDomainResourceGroup,
-		BaseZoneCredentials: azurescope.BaseZoneCredentials{
-			ClientID:       r.BaseZoneClientID,
-			ClientSecret:   r.BaseZoneClientSecret,
-			SubscriptionID: r.BaseZoneSubscriptionID,
-			TenantID:       r.BaseZoneTenantID,
-		},
-	}
-
 	clusterAnnotations := infraCluster.GetAnnotations()
-
 	azureClusterSpec := clusterScope.AzureClusterSpec()
 
-	if azureClusterSpec != nil && clusterAnnotations[azurePrivateEndpointOperatorApiserverAnnotation] != "" {
-		managementCluster, err := clusterScope.ManagementCluster(ctx)
+	// Private DNS for MC-to-WC api
+	if azureClusterSpec != nil && clusterAnnotations[azurePrivateEndpointOperatorApiServerAnnotation] != "" {
+
+		logger.V(1).Info(fmt.Sprintf("annotation %s found", azurePrivateEndpointOperatorApiServerAnnotation))
+
+		privateDnsService, result, err := r.getPrivateDnsServiceForMcToWcApi(ctx, logger, clusterScope)
 		if err != nil {
-			return reconcile.Result{}, microerror.Mask(err)
-		}
-
-		managementClusterAzureIdentity, err := clusterScope.ManagementClusterIdentity(ctx)
-		if err != nil {
-			return reconcile.Result{}, microerror.Mask(err)
-		}
-
-		managementClusterStaticServicePrincipalSecret := &corev1.Secret{}
-		if managementClusterAzureIdentity.Spec.Type == infrav1.ManualServicePrincipal {
-			log.V(1).Info(fmt.Sprintf("try to get the referenced secret - %s/%s", managementClusterAzureIdentity.Spec.ClientSecret.Namespace, managementClusterAzureIdentity.Spec.ClientSecret.Name))
-
-			err = r.Client.Get(ctx, types.NamespacedName{
-				Name:      managementClusterAzureIdentity.Spec.ClientSecret.Name,
-				Namespace: managementClusterAzureIdentity.Spec.ClientSecret.Namespace,
-			}, managementClusterStaticServicePrincipalSecret)
-			if err != nil {
-				if apierrors.IsNotFound(err) {
-					log.V(1).Info("static service principal secret object was not found", "error", err)
-					return reconcile.Result{}, nil
-				}
-				return reconcile.Result{}, microerror.Mask(err)
-			}
-		}
-
-		privateParams := azurescope.PrivateDNSScopeParams{
-			BaseDomain:                              r.BaseDomain,
-			ClusterName:                             clusterScope.Cluster.Name,
-			ManagementClusterSpec:                   managementCluster.Spec,
-			ManagementClusterAzureIdentity:          *managementClusterAzureIdentity,
-			ManagementClusterServicePrincipalSecret: *managementClusterStaticServicePrincipalSecret,
-		}
-
-		privateDnsScope, err := azurescope.NewPrivateDNSScope(ctx, privateParams)
-		if err != nil {
-			return reconcile.Result{}, microerror.Mask(err)
-		}
-
-		privateDnsService, err := privatedns.New(*privateDnsScope)
-		if err != nil {
-			return reconcile.Result{}, microerror.Mask(err)
+			return result, err
 		}
 
 		err = privateDnsService.ReconcileDelete(ctx)
@@ -493,56 +258,14 @@ func (r *ClusterReconciler) reconcileDelete(ctx context.Context, clusterScope *i
 		)
 	}
 
+	// Private DNS for WC-to-MC ingress
 	if azureClusterSpec != nil && clusterAnnotations[azurePrivateEndpointOperatorMcIngressAnnotation] != "" {
 
-		log.V(1).Info(fmt.Sprintf("annotation %s found", azurePrivateEndpointOperatorMcIngressAnnotation))
+		logger.V(1).Info(fmt.Sprintf("annotation %s found", azurePrivateEndpointOperatorMcIngressAnnotation))
 
-		managementCluster, err := clusterScope.ManagementCluster(ctx)
+		privateDnsService, result, err := r.getPrivateDnsServiceForWcToMcIngress(ctx, logger, clusterScope)
 		if err != nil {
-			return reconcile.Result{}, microerror.Mask(err)
-		}
-
-		infraClusterAzureIdentity, err := clusterScope.InfraClusterIdentity(ctx)
-		if err != nil {
-			return reconcile.Result{}, microerror.Mask(err)
-		}
-
-		infraClusterStaticServicePrincipalSecret := &corev1.Secret{}
-		if infraClusterAzureIdentity.Spec.Type == infrav1.ManualServicePrincipal {
-			log.V(1).Info(fmt.Sprintf("try to get the referenced secret - %s/%s", infraClusterAzureIdentity.Spec.ClientSecret.Namespace, infraClusterAzureIdentity.Spec.ClientSecret.Name))
-
-			err = r.Client.Get(ctx, types.NamespacedName{
-				Name:      infraClusterAzureIdentity.Spec.ClientSecret.Name,
-				Namespace: infraClusterAzureIdentity.Spec.ClientSecret.Namespace,
-			}, infraClusterStaticServicePrincipalSecret)
-			if err != nil {
-				if apierrors.IsNotFound(err) {
-					log.V(1).Info("static service principal secret object was not found", "error", err)
-					return reconcile.Result{}, nil
-				}
-				return reconcile.Result{}, microerror.Mask(err)
-			}
-		}
-
-		privateParams := azurescope.PrivateDNSScopeParams{
-			BaseDomain:                              r.BaseDomain,
-			ClusterName:                             managementCluster.GetName(),
-			ManagementClusterSpec:                   *azureClusterSpec,
-			ManagementClusterAzureIdentity:          *infraClusterAzureIdentity,
-			ManagementClusterServicePrincipalSecret: *infraClusterStaticServicePrincipalSecret,
-			VirtualNetworkID:                        (*azureClusterSpec).NetworkSpec.Vnet.ID,
-		}
-
-		privateParams.MCIngressIP = clusterAnnotations[azurePrivateEndpointOperatorMcIngressAnnotation]
-
-		privateDnsScope, err := azurescope.NewPrivateDNSScope(ctx, privateParams)
-		if err != nil {
-			return reconcile.Result{}, microerror.Mask(err)
-		}
-
-		privateDnsService, err := privatedns.New(*privateDnsScope)
-		if err != nil {
-			return reconcile.Result{}, microerror.Mask(err)
+			return result, err
 		}
 
 		err = privateDnsService.ReconcileDelete(ctx)
@@ -556,14 +279,10 @@ func (r *ClusterReconciler) reconcileDelete(ctx context.Context, clusterScope *i
 		)
 	}
 
-	dnsScope, err := azurescope.NewDNSScope(ctx, params)
+	// Public DNS
+	dnsService, result, err := r.getDnsServiceForPublicRecords(ctx, logger, clusterScope)
 	if err != nil {
-		return reconcile.Result{}, microerror.Mask(err)
-	}
-
-	dnsService, err := dns.New(*dnsScope, nil)
-	if err != nil {
-		return reconcile.Result{}, microerror.Mask(err)
+		return result, microerror.Mask(err)
 	}
 
 	err = dnsService.ReconcileDelete(ctx)
@@ -580,13 +299,167 @@ func (r *ClusterReconciler) reconcileDelete(ctx context.Context, clusterScope *i
 		fmt.Sprintf("%s.%s", clusterScope.Patcher.ClusterName(), r.BaseDomain),
 		metrics.ZoneTypePublic,
 	)
-	log.V(1).Info(fmt.Sprintf("%d metrics for cluster %s got deleted", deletedMetrics, clusterScope.Patcher.ClusterName()))
+	logger.V(1).Info(fmt.Sprintf("%d metrics for cluster %s got deleted", deletedMetrics, clusterScope.Patcher.ClusterName()))
 
-	log.Info("Successfully reconciled AzureCluster DNS zones delete")
+	logger.Info("Successfully reconciled AzureCluster DNS zones delete")
 	return reconcile.Result{}, nil
 }
 
-func (r *ClusterReconciler) infraClusterStaticServicePrincipalSecret(ctx context.Context, identity *infrav1.AzureClusterIdentity) (*corev1.Secret, error) {
+func (r *ClusterReconciler) SetupWithManager(mgr ctrl.Manager, options controller.Options) error {
+	return ctrl.NewControllerManagedBy(mgr).
+		For(&capi.Cluster{}).
+		WithOptions(options).
+		Complete(r)
+}
+
+func (r *ClusterReconciler) getDnsServiceForPublicRecords(ctx context.Context, logger logr.Logger, clusterScope *infracluster.Scope) (*dns.Service, ctrl.Result, error) {
+	azureClusterIdentity, err := clusterScope.InfraClusterIdentity(ctx)
+	if err != nil {
+		return nil, reconcile.Result{}, microerror.Mask(err)
+	}
+
+	staticServicePrincipalSecret, err := r.getInfraClusterStaticServicePrincipalSecret(ctx, azureClusterIdentity)
+	if err != nil {
+		return nil, reconcile.Result{}, microerror.Mask(err)
+	}
+
+	params := azurescope.DNSScopeParams{
+		ClusterScope:                       clusterScope,
+		AzureClusterIdentity:               *azureClusterIdentity,
+		AzureClusterServicePrincipalSecret: *staticServicePrincipalSecret,
+		BaseDomain:                         r.BaseDomain,
+		BaseDomainResourceGroup:            r.BaseDomainResourceGroup,
+		BaseZoneCredentials: azurescope.BaseZoneCredentials{
+			ClientID:       r.BaseZoneClientID,
+			ClientSecret:   r.BaseZoneClientSecret,
+			SubscriptionID: r.BaseZoneSubscriptionID,
+			TenantID:       r.BaseZoneTenantID,
+		},
+	}
+
+	dnsScope, err := azurescope.NewDNSScope(ctx, params)
+	if err != nil {
+		return nil, reconcile.Result{}, microerror.Mask(err)
+	}
+
+	dnsService, err := dns.New(*dnsScope, clusterScope.PublicIPsService())
+	if err != nil {
+		return nil, reconcile.Result{}, microerror.Mask(err)
+	}
+
+	return dnsService, ctrl.Result{}, nil
+}
+
+func (r *ClusterReconciler) getPrivateDnsServiceForMcToWcApi(ctx context.Context, logger logr.Logger, clusterScope *infracluster.Scope) (*privatedns.Service, ctrl.Result, error) {
+	managementCluster, err := clusterScope.ManagementCluster(ctx)
+	if err != nil {
+		return nil, reconcile.Result{}, microerror.Mask(err)
+	}
+
+	managementClusterAzureIdentity, err := clusterScope.ManagementClusterIdentity(ctx)
+	if err != nil {
+		return nil, reconcile.Result{}, microerror.Mask(err)
+	}
+
+	managementClusterStaticServicePrincipalSecret := &corev1.Secret{}
+	if managementClusterAzureIdentity.Spec.Type == infrav1.ManualServicePrincipal {
+		logger.V(1).Info(fmt.Sprintf("try to get the referenced secret - %s/%s", managementClusterAzureIdentity.Spec.ClientSecret.Namespace, managementClusterAzureIdentity.Spec.ClientSecret.Name))
+
+		err = r.Client.Get(ctx, types.NamespacedName{
+			Name:      managementClusterAzureIdentity.Spec.ClientSecret.Name,
+			Namespace: managementClusterAzureIdentity.Spec.ClientSecret.Namespace,
+		}, managementClusterStaticServicePrincipalSecret)
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				logger.V(1).Info("static service principal secret object was not found", "error", err)
+				return nil, reconcile.Result{}, nil
+			}
+			return nil, reconcile.Result{}, microerror.Mask(err)
+		}
+	}
+
+	infraCluster := clusterScope.InfraCluster
+	clusterAnnotations := infraCluster.GetAnnotations()
+
+	privateParams := azurescope.PrivateDNSScopeParams{
+		BaseDomain:                             r.BaseDomain,
+		ClusterName:                            infraCluster.GetName(),
+		ClusterSpecToAttachPrivateDNS:          managementCluster.Spec,
+		ClusterAzureIdentityToAttachPrivateDNS: *managementClusterAzureIdentity,
+		ClusterServicePrincipalSecretToAttachPrivateDNS: *managementClusterStaticServicePrincipalSecret,
+		VirtualNetworkIDToAttachPrivateDNS:              managementCluster.Spec.NetworkSpec.Vnet.ID,
+		APIServerIP:                                     clusterAnnotations[azurePrivateEndpointOperatorApiServerAnnotation],
+	}
+
+	privateDnsScope, err := azurescope.NewPrivateDNSScope(ctx, privateParams)
+	if err != nil {
+		return nil, reconcile.Result{}, microerror.Mask(err)
+	}
+
+	privateDnsService, err := privatedns.New(*privateDnsScope)
+	if err != nil {
+		return nil, reconcile.Result{}, microerror.Mask(err)
+	}
+
+	return privateDnsService, ctrl.Result{}, nil
+}
+
+func (r *ClusterReconciler) getPrivateDnsServiceForWcToMcIngress(ctx context.Context, logger logr.Logger, clusterScope *infracluster.Scope) (*privatedns.Service, ctrl.Result, error) {
+	managementCluster, err := clusterScope.ManagementCluster(ctx)
+	if err != nil {
+		return nil, reconcile.Result{}, microerror.Mask(err)
+	}
+
+	infraClusterAzureIdentity, err := clusterScope.InfraClusterIdentity(ctx)
+	if err != nil {
+		return nil, reconcile.Result{}, microerror.Mask(err)
+	}
+
+	infraClusterStaticServicePrincipalSecret := &corev1.Secret{}
+	if infraClusterAzureIdentity.Spec.Type == infrav1.ManualServicePrincipal {
+		logger.V(1).Info(fmt.Sprintf("try to get the referenced secret - %s/%s", infraClusterAzureIdentity.Spec.ClientSecret.Namespace, infraClusterAzureIdentity.Spec.ClientSecret.Name))
+
+		err = r.Client.Get(ctx, types.NamespacedName{
+			Name:      infraClusterAzureIdentity.Spec.ClientSecret.Name,
+			Namespace: infraClusterAzureIdentity.Spec.ClientSecret.Namespace,
+		}, infraClusterStaticServicePrincipalSecret)
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				logger.V(1).Info("static service principal secret object was not found", "error", err)
+				return nil, reconcile.Result{}, nil
+			}
+			return nil, reconcile.Result{}, microerror.Mask(err)
+		}
+	}
+
+	infraCluster := clusterScope.InfraCluster
+	clusterAnnotations := infraCluster.GetAnnotations()
+	azureClusterSpec := clusterScope.AzureClusterSpec()
+
+	privateParams := azurescope.PrivateDNSScopeParams{
+		BaseDomain:                             r.BaseDomain,
+		ClusterName:                            managementCluster.GetName(),
+		ClusterSpecToAttachPrivateDNS:          *azureClusterSpec,
+		ClusterAzureIdentityToAttachPrivateDNS: *infraClusterAzureIdentity,
+		ClusterServicePrincipalSecretToAttachPrivateDNS: *infraClusterStaticServicePrincipalSecret,
+		VirtualNetworkIDToAttachPrivateDNS:              (*azureClusterSpec).NetworkSpec.Vnet.ID,
+		MCIngressIP:                                     clusterAnnotations[azurePrivateEndpointOperatorMcIngressAnnotation],
+	}
+
+	privateDnsScope, err := azurescope.NewPrivateDNSScope(ctx, privateParams)
+	if err != nil {
+		return nil, reconcile.Result{}, microerror.Mask(err)
+	}
+
+	privateDnsService, err := privatedns.New(*privateDnsScope)
+	if err != nil {
+		return nil, reconcile.Result{}, microerror.Mask(err)
+	}
+
+	return privateDnsService, ctrl.Result{}, nil
+}
+
+func (r *ClusterReconciler) getInfraClusterStaticServicePrincipalSecret(ctx context.Context, identity *infrav1.AzureClusterIdentity) (*corev1.Secret, error) {
 	staticServicePrincipalSecret := &corev1.Secret{}
 	if identity.Spec.Type == infrav1.ManualServicePrincipal {
 		err := r.Client.Get(ctx, types.NamespacedName{
@@ -598,6 +471,35 @@ func (r *ClusterReconciler) infraClusterStaticServicePrincipalSecret(ctx context
 		}
 	}
 	return staticServicePrincipalSecret, nil
+}
+
+func isClusterReadyForDnsManagements(cluster *capi.Cluster, logger logr.Logger, clusterScope *infracluster.Scope) (ctrl.Result, error, bool) {
+	// If a cluster isn't provisioned we don't need to reconcile it
+	// as not all information for creating DNS records are available yet.
+	if cluster.Status.Phase != string(capi.ClusterPhaseProvisioned) {
+		logger.Info(fmt.Sprintf("Requeuing cluster %s - phase %s", cluster.Name, cluster.Status.Phase))
+		return ctrl.Result{RequeueAfter: 2 * time.Minute}, nil, false
+	}
+
+	if clusterScope.IsAzureCluster() {
+		// only act on Clusters where the LoadBalancersReady condition is true
+		infraClusterStatus := clusterScope.AzureClusterStatus()
+		infraClusterIsReady := false
+		if infraClusterStatus != nil {
+			for _, condition := range infraClusterStatus.Conditions {
+				if condition.Type == infrav1.LoadBalancersReadyCondition {
+					infraClusterIsReady = true
+					break
+				}
+			}
+		}
+		if !infraClusterIsReady {
+			logger.Info(fmt.Sprintf("Requeuing cluster %s. Load Balancer is not ready.", cluster.Name))
+			return ctrl.Result{RequeueAfter: 2 * time.Minute}, nil, false
+		}
+	}
+
+	return ctrl.Result{}, nil, true
 }
 
 // deleteClusterMetrics delete all given metrics where

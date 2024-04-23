@@ -23,12 +23,12 @@ type PrivateDNSScopeParams struct {
 	APIServerIP string
 	MCIngressIP string
 
-	VirtualNetworkID string
+	VirtualNetworkIDToAttachPrivateDNS string
 
-	ManagementClusterAzureIdentity          infrav1.AzureClusterIdentity
-	ManagementClusterServicePrincipalSecret corev1.Secret
+	ClusterAzureIdentityToAttachPrivateDNS          infrav1.AzureClusterIdentity
+	ClusterServicePrincipalSecretToAttachPrivateDNS corev1.Secret
 
-	ManagementClusterSpec infrav1.AzureClusterSpec
+	ClusterSpecToAttachPrivateDNS infrav1.AzureClusterSpec
 }
 
 // DNSScope defines the basic context for an actuator to operate upon.
@@ -59,13 +59,13 @@ func NewPrivateDNSScope(_ context.Context, params PrivateDNSScopeParams) (*Priva
 		baseDomain:  params.BaseDomain,
 		clusterName: params.ClusterName,
 		managementClusterIdentity: identity{
-			clusterIdentity: params.ManagementClusterAzureIdentity,
-			secret:          params.ManagementClusterServicePrincipalSecret,
+			clusterIdentity: params.ClusterAzureIdentityToAttachPrivateDNS,
+			secret:          params.ClusterServicePrincipalSecretToAttachPrivateDNS,
 		},
-		managementClusterSpec: params.ManagementClusterSpec,
+		managementClusterSpec: params.ClusterSpecToAttachPrivateDNS,
 		apiServerIP:           params.APIServerIP,
 		mcIngressIP:           params.MCIngressIP,
-		virtualNetworkID:      params.VirtualNetworkID,
+		virtualNetworkID:      params.VirtualNetworkIDToAttachPrivateDNS,
 	}
 
 	return scope, nil
