@@ -24,6 +24,7 @@ import (
 
 	aadpodv1 "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	"go.uber.org/zap/zapcore"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -180,20 +181,29 @@ func mainError() error {
 		Location:       os.Getenv(InfraClusterLocation),
 	}
 
+	var clusterIdentityRef *corev1.ObjectReference
+	if azureIdentityRefName != "" && azureIdentityRefNamespace != "" {
+		clusterIdentityRef = &corev1.ObjectReference{
+			Name:      azureIdentityRefName,
+			Namespace: azureIdentityRefNamespace,
+		}
+	}
+
 	if err := (&controllers.ClusterReconciler{
-		Client:                           mgr.GetClient(),
-		BaseDomain:                       baseDomain,
-		BaseDomainResourceGroup:          baseDomainResourceGroup,
-		BaseZoneClientID:                 baseZoneClientID,
-		BaseZoneClientSecret:             baseZoneClientSecret,
-		BaseZoneSubscriptionID:           baseZoneSubscriptionID,
-		BaseZoneTenantID:                 baseZoneTenantID,
-		Recorder:                         mgr.GetEventRecorderFor("azurecluster-reconciler"),
-		ManagementClusterName:            managementClusterName,
-		ManagementClusterNamespace:       managementClusterNamespace,
-		InfraClusterZoneAzureConfig:      infraClusterZoneAzureConfig,
-		ClusterAzureIdentityRefName:      azureIdentityRefName,
-		ClusterAzureIdentityRefNamespace: azureIdentityRefNamespace,
+		Client:                  mgr.GetClient(),
+		BaseDomain:              baseDomain,
+		BaseDomainResourceGroup: baseDomainResourceGroup,
+		BaseZoneClientID:        baseZoneClientID,
+		BaseZoneClientSecret:    baseZoneClientSecret,
+		BaseZoneSubscriptionID:  baseZoneSubscriptionID,
+		BaseZoneTenantID:        baseZoneTenantID,
+		Recorder:                mgr.GetEventRecorderFor("azurecluster-reconciler"),
+		ManagementClusterConfig: infracluster.ManagementClusterConfig{
+			Name:      managementClusterName,
+			Namespace: managementClusterNamespace,
+		},
+		InfraClusterZoneAzureConfig: infraClusterZoneAzureConfig,
+		ClusterAzureIdentityRef:     clusterIdentityRef,
 	}).SetupWithManager(mgr, controller.Options{MaxConcurrentReconciles: clusterConcurrency}); err != nil {
 		setupLog.Error(errors.FatalError, "unable to create controller AzureCluster")
 		return microerror.Mask(err)
