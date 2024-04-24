@@ -13,7 +13,7 @@ require (
 	github.com/giantswarm/k8sclient/v7 v7.0.1
 	github.com/giantswarm/microerror v0.4.0
 	github.com/giantswarm/micrologger v0.6.0
-	github.com/go-logr/logr v1.2.4
+	github.com/go-logr/logr v1.4.1
 	github.com/google/uuid v1.3.1
 	github.com/prometheus/client_golang v1.15.0
 	go.uber.org/zap v1.24.0
