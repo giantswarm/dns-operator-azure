@@ -10,9 +10,9 @@ import (
 
 	"github.com/giantswarm/microerror"
 
-	"github.com/giantswarm/dns-operator-azure/v2/azure"
-	"github.com/giantswarm/dns-operator-azure/v2/azure/scope"
-	"github.com/giantswarm/dns-operator-azure/v2/pkg/metrics"
+	"github.com/giantswarm/dns-operator-azure/v3/azure"
+	"github.com/giantswarm/dns-operator-azure/v3/azure/scope"
+	"github.com/giantswarm/dns-operator-azure/v3/pkg/metrics"
 
 	capzazure "sigs.k8s.io/cluster-api-provider-azure/azure"
 )

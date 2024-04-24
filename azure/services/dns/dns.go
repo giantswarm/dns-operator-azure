@@ -11,9 +11,9 @@ import (
 	"sigs.k8s.io/cluster-api-provider-azure/azure/services/async"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	"github.com/giantswarm/dns-operator-azure/v2/azure"
-	"github.com/giantswarm/dns-operator-azure/v2/azure/scope"
-	"github.com/giantswarm/dns-operator-azure/v2/pkg/metrics"
+	"github.com/giantswarm/dns-operator-azure/v3/azure"
+	"github.com/giantswarm/dns-operator-azure/v3/azure/scope"
+	"github.com/giantswarm/dns-operator-azure/v3/pkg/metrics"
 )
 
 type client interface {

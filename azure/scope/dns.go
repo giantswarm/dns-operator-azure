@@ -9,8 +9,8 @@ import (
 
 	"github.com/giantswarm/microerror"
 
-	"github.com/giantswarm/dns-operator-azure/v2/pkg/errors"
-	"github.com/giantswarm/dns-operator-azure/v2/pkg/infracluster"
+	"github.com/giantswarm/dns-operator-azure/v3/pkg/errors"
+	"github.com/giantswarm/dns-operator-azure/v3/pkg/infracluster"
 )
 
 const (

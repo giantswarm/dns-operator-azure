@@ -16,7 +16,7 @@ import (
 	infrav1 "sigs.k8s.io/cluster-api-provider-azure/api/v1beta1"
 	"sigs.k8s.io/cluster-api/api/v1beta1"
 
-	"github.com/giantswarm/dns-operator-azure/v2/azure/scope"
+	"github.com/giantswarm/dns-operator-azure/v3/azure/scope"
 )
 
 func Test_CnameRecords(t *testing.T) {
