@@ -10,8 +10,8 @@ import (
 	"github.com/giantswarm/microerror"
 	infrav1 "sigs.k8s.io/cluster-api-provider-azure/api/v1beta1"
 
-	"github.com/giantswarm/dns-operator-azure/v2/azure/scope"
-	"github.com/giantswarm/dns-operator-azure/v2/pkg/metrics"
+	"github.com/giantswarm/dns-operator-azure/v3/azure/scope"
+	"github.com/giantswarm/dns-operator-azure/v3/pkg/metrics"
 )
 
 type azureClient struct {

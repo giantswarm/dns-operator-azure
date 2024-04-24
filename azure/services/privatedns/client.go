@@ -11,8 +11,8 @@ import (
 
 	"github.com/giantswarm/microerror"
 
-	"github.com/giantswarm/dns-operator-azure/v2/azure/scope"
-	"github.com/giantswarm/dns-operator-azure/v2/pkg/metrics"
+	"github.com/giantswarm/dns-operator-azure/v3/azure/scope"
+	"github.com/giantswarm/dns-operator-azure/v3/pkg/metrics"
 
 	infrav1 "sigs.k8s.io/cluster-api-provider-azure/api/v1beta1"
 	capzazure "sigs.k8s.io/cluster-api-provider-azure/azure"

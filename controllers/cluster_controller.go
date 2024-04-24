@@ -39,11 +39,11 @@ import (
 
 	"github.com/giantswarm/microerror"
 
-	azurescope "github.com/giantswarm/dns-operator-azure/v2/azure/scope"
-	"github.com/giantswarm/dns-operator-azure/v2/azure/services/dns"
-	"github.com/giantswarm/dns-operator-azure/v2/azure/services/privatedns"
-	"github.com/giantswarm/dns-operator-azure/v2/pkg/infracluster"
-	"github.com/giantswarm/dns-operator-azure/v2/pkg/metrics"
+	azurescope "github.com/giantswarm/dns-operator-azure/v3/azure/scope"
+	"github.com/giantswarm/dns-operator-azure/v3/azure/services/dns"
+	"github.com/giantswarm/dns-operator-azure/v3/azure/services/privatedns"
+	"github.com/giantswarm/dns-operator-azure/v3/pkg/infracluster"
+	"github.com/giantswarm/dns-operator-azure/v3/pkg/metrics"
 )
 
 const (

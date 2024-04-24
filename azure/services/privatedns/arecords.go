@@ -18,7 +18,7 @@ import (
 
 	"github.com/giantswarm/microerror"
 
-	"github.com/giantswarm/dns-operator-azure/v2/pkg/metrics"
+	"github.com/giantswarm/dns-operator-azure/v3/pkg/metrics"
 )
 
 const (
