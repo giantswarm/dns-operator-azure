@@ -1,3 +1,4 @@
+{{ if .Values.monitoring.enabled }}
 apiVersion: monitoring.coreos.com/v1
 kind: PodMonitor
 metadata:
@@ -13,3 +14,4 @@ spec:
   selector:
     matchLabels:
       {{- include "labels.selector" . | nindent 6 }}
+{{ end }}
