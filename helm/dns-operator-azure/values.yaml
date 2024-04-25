@@ -44,3 +44,6 @@ secondaryProviders:
 # - kind: openstack
 # - kind: cloud-director
 - kind: vsphere
+
+monitoring:
+  enabled: true
