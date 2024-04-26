@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.2] - 2024-04-26
+
 ### Fixed
 
 - Revert azure sdk package versions. The newer versions cause authentication failures.
@@ -132,7 +134,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - First release
 
-[Unreleased]: https://github.com/giantswarm/dns-operator-azure/compare/v2.0.1...HEAD
+[Unreleased]: https://github.com/giantswarm/dns-operator-azure/compare/v2.0.2...HEAD
+[2.0.2]: https://github.com/giantswarm/dns-operator-azure/compare/v2.0.1...v2.0.2
 [2.0.1]: https://github.com/giantswarm/dns-operator-azure/compare/v2.0.0...v2.0.1
 [2.0.0]: https://github.com/giantswarm/dns-operator-azure/compare/v1.3.4...v2.0.0
 [1.3.4]: https://github.com/giantswarm/dns-operator-azure/compare/v1.3.3...v1.3.4
