@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Revert azure sdk package versions. The newer versions cause authentication failures.
+- Revert github.com/Azure/azure-sdk-for-go/sdk/azidentity to v1.2.2
+- Revert github.com/Azure/azure-sdk-for-go/sdk/azcore to v1.4.0
+- Revert github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/privatedns/armprivatedns to v1.1.0
+- Revert github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resources/armprivatedns to v1.1.0
+
 ## [2.0.1] - 2024-04-25
 
 ### Added
