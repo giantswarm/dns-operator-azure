@@ -34,7 +34,6 @@ spec:
         runAsGroup: {{ .Values.pod.group.id }}
         seccompProfile:
           type: RuntimeDefault
-      hostNetwork: true
       containers:
       - name: {{ .Chart.Name }}
         image: "{{ .Values.registry.domain }}/{{ .Values.image.name }}:{{ .Values.image.tag }}"
@@ -83,7 +82,6 @@ spec:
         ports:
         - name: metrics
           containerPort: 8666
-          hostPort: 8666
           protocol: TCP
         resources:
           requests:
