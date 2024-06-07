@@ -166,7 +166,7 @@ replace (
 	k8s.io/client-go => k8s.io/client-go v0.25.4
 
 	// CPI
-	sigs.k8s.io/cloud-provider-azure => sigs.k8s.io/cloud-provider-azure v1.25.5
+	sigs.k8s.io/cloud-provider-azure => sigs.k8s.io/cloud-provider-azure v1.30.3
 
 	// CAPI
 	sigs.k8s.io/cluster-api => sigs.k8s.io/cluster-api v1.3.5
