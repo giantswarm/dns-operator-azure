@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.1] - 2024-08-21
+
 ### Fixed
 
 - Disable logger development mode to avoid panicking
@@ -144,7 +146,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - First release
 
-[Unreleased]: https://github.com/giantswarm/dns-operator-azure/compare/v2.1.0...HEAD
+[Unreleased]: https://github.com/giantswarm/dns-operator-azure/compare/v2.1.1...HEAD
+[2.1.1]: https://github.com/giantswarm/dns-operator-azure/compare/v2.1.0...v2.1.1
 [2.1.0]: https://github.com/giantswarm/dns-operator-azure/compare/v2.0.2...v2.1.0
 [2.0.2]: https://github.com/giantswarm/dns-operator-azure/compare/v2.0.1...v2.0.2
 [2.0.1]: https://github.com/giantswarm/dns-operator-azure/compare/v2.0.0...v2.0.1
