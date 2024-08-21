@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Disable logger development mode to avoid panicking
+
 ## [2.1.0] - 2024-05-02
 
 ### Changed
@@ -43,7 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Add seccomp annotation to PSP. 
+- Add seccomp annotation to PSP.
 - Add seccompProfile for pod too to fix failing deployments because of PSPs.
 
 ## [1.3.2] - 2024-01-22

@@ -130,7 +130,7 @@ func mainError() error {
 
 	// configure the logger
 	opts := zap.Options{
-		Development: true,
+		Development: false,
 		TimeEncoder: zapcore.RFC3339TimeEncoder,
 	}
 	opts.BindFlags(flag.CommandLine)
