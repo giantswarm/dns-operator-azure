@@ -46,6 +46,9 @@ func (s *Service) createClusterResourceGroup(ctx context.Context) (armresources.
 		Name:     &resourceGroupName,
 		Location: location,
 	}
+	if tags := s.scope.ResourceTags(); tags != nil {
+		resourceGroupParams.Tags = tags
+	}
 
 	resourceGroup, err := s.azureClient.CreateOrUpdateResourceGroup(ctx, resourceGroupName, resourceGroupParams)
 	if err != nil {

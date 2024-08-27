@@ -142,6 +142,10 @@ func (s *Scope) InfraClusterIdentity(ctx context.Context) (*infrav1.AzureCluster
 	return s.ManagementClusterIdentity(ctx)
 }
 
+func (s *Scope) InfraClusterAnnotations() map[string]string {
+	return s.InfraCluster.GetAnnotations()
+}
+
 func (s *Scope) ClusterK8sClient(ctx context.Context) (client.Client, error) {
 	if s.clusterK8sClient == nil {
 		var err error
