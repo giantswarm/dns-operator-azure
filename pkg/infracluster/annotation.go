@@ -17,7 +17,8 @@ func GetResourceTagsFromInfraClusterAnnotations(annotations map[string]string) m
 	for key, value := range annotations {
 		if strings.HasPrefix(key, ResourceTagNamePrefix) {
 			tagKey := strings.TrimPrefix(key, ResourceTagNamePrefix)
-			tags[tagKey] = &value
+			tagValue := value
+			tags[tagKey] = &tagValue
 		}
 	}
 	if len(tags) == 0 {
