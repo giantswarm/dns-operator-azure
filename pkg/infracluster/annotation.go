@@ -3,7 +3,7 @@ package infracluster
 import "strings"
 
 const (
-	ResourceTagNamePrefix = "azure-resource-tag/"
+	ResourceTagNamePrefix = "azure-resource-tag."
 )
 
 func GetResourceTagsFromInfraClusterAnnotations(annotations map[string]string) map[string]*string {
