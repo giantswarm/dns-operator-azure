@@ -22,7 +22,7 @@ func Test_GetResourceTagsFromInfraClusterAnnotation(t *testing.T) {
 			infraCluster: &infrav1.AzureCluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
-						"azure-resource-tag.test-key": testValue,
+						"azure-resourcegroup-tag.test-key": testValue,
 					},
 				},
 			},
@@ -35,8 +35,8 @@ func Test_GetResourceTagsFromInfraClusterAnnotation(t *testing.T) {
 			infraCluster: &infrav1.AzureCluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
-						"azure-resource-tag.test-key":  testValue,
-						"azure-resource-tag.test-key1": testValue,
+						"azure-resourcegroup-tag.test-key":  testValue,
+						"azure-resourcegroup-tag.test-key1": testValue,
 					},
 				},
 			},
@@ -77,8 +77,8 @@ func Test_GetResourceTagsFromInfraClusterAnnotation(t *testing.T) {
 			infraCluster: &infrav1.AzureCluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
-						"azure-resource-tag.test-key": testValue,
-						"test-key":                    testValue,
+						"azure-resourcegroup-tag.test-key": testValue,
+						"test-key":                         testValue,
 					},
 				},
 			},

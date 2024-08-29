@@ -33,8 +33,8 @@ CAPZ allows for tagging the resource group of the DNS zone with additional tags 
 For non-CAPZ workload clusters, the resource group of the DNS zone is managed by `dns-operator-azure`.
 The `dns-operator-azure` supports tagging the resource group of the DNS zone via prefixed annotations on the non-CAPZ workload cluster's Infrastructure Cluster resource.
 
-Annotations prefixed by `azure-resource-tag.` will be used to tag the resource group of the DNS zone.
-Note that the prefix `azure-resource-tag.` will be stripped from the annotation key when tagging the resource group.
+Annotations prefixed by `azure-resourcegroup-tag.` will be used to tag the resource group of the DNS zone.
+Note that the prefix `azure-resourcegroup-tag.` will be stripped from the annotation key when tagging the resource group.
 
 ## Expected Behavior
 
