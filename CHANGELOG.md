@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Add support for tagging the resource group of the DNS zone for non-CAPZ workload clusters via prefixed annotations on the non-CAPZ workload cluster's Infrastructure Cluster resource.
+
 ## [2.1.1] - 2024-08-21
 
 ### Fixed

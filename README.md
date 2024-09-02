@@ -26,6 +26,16 @@ We manage non-CAPZ workload clusters in CAPZ MCs too. We call this concept as `m
 Supported non-CAPZ providers:
 - CAPV WCs (Vsphere)
 
+#### Tagging Resource Groups for Non-CAPZ workload clusters
+
+For CAPZ workload clusters, the resource group of the DNS zone is managed by CAPZ.
+CAPZ allows for tagging the resource group of the DNS zone with additional tags set in the `AzureCluster` resource.
+For non-CAPZ workload clusters, the resource group of the DNS zone is managed by `dns-operator-azure`.
+The `dns-operator-azure` supports tagging the resource group of the DNS zone via prefixed annotations on the non-CAPZ workload cluster's Infrastructure Cluster resource.
+
+Annotations prefixed by `azure-resourcegroup-tag.` will be used to tag the resource group of the DNS zone.
+Note that the prefix `azure-resourcegroup-tag.` will be stripped from the annotation key when tagging the resource group.
+
 ## Expected Behavior
 
 ### Public DNS Zone <wc_name>.<base_domain> in <wc_name> resource group

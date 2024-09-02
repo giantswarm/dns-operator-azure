@@ -39,6 +39,8 @@ type DNSScopeParams struct {
 	ManagementClusterServicePrincipalSecret corev1.Secret
 
 	ManagementClusterSpec infrav1.AzureClusterSpec
+
+	ResourceTags map[string]*string
 }
 
 // DNSScope defines the basic context for an actuator to operate upon.
@@ -53,6 +55,8 @@ type DNSScope struct {
 	managementClusterIdentity Identity
 
 	managementClusterSpec infrav1.AzureClusterSpec
+
+	resourceTags map[string]*string
 }
 
 type Identity struct {
@@ -87,6 +91,7 @@ func NewDNSScope(_ context.Context, params DNSScopeParams) (*DNSScope, error) {
 			secret:          params.ManagementClusterServicePrincipalSecret,
 		},
 		managementClusterSpec: params.ManagementClusterSpec,
+		resourceTags:          params.ResourceTags,
 	}
 
 	return scope, nil
@@ -122,4 +127,8 @@ func (s *DNSScope) AzureClusterIdentity() infrav1.AzureClusterIdentity {
 
 func (s *DNSScope) AzureClientSecret() string {
 	return string(s.identity.secret.Data[clientSecretKeyName])
+}
+
+func (s *DNSScope) ResourceTags() map[string]*string {
+	return s.resourceTags
 }

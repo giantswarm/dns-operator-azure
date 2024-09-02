@@ -335,6 +335,7 @@ func (r *ClusterReconciler) getDnsServiceForPublicRecords(ctx context.Context, l
 			SubscriptionID: r.BaseZoneSubscriptionID,
 			TenantID:       r.BaseZoneTenantID,
 		},
+		ResourceTags: infracluster.GetResourceTagsFromInfraClusterAnnotations(clusterScope.InfraClusterAnnotations()),
 	}
 
 	dnsScope, err := azurescope.NewDNSScope(ctx, params)
