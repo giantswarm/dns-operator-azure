@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.0] - 2024-09-02
+
 ### Added
 - Add support for tagging the resource group of the DNS zone for non-CAPZ workload clusters via prefixed annotations on the non-CAPZ workload cluster's Infrastructure Cluster resource.
 
@@ -149,7 +151,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - First release
 
-[Unreleased]: https://github.com/giantswarm/dns-operator-azure/compare/v2.1.1...HEAD
+[Unreleased]: https://github.com/giantswarm/dns-operator-azure/compare/v2.2.0...HEAD
+[2.2.0]: https://github.com/giantswarm/dns-operator-azure/compare/v2.1.1...v2.2.0
 [2.1.1]: https://github.com/giantswarm/dns-operator-azure/compare/v2.1.0...v2.1.1
 [2.1.0]: https://github.com/giantswarm/dns-operator-azure/compare/v2.0.2...v2.1.0
 [2.0.2]: https://github.com/giantswarm/dns-operator-azure/compare/v2.0.1...v2.0.2
