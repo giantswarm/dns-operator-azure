@@ -71,6 +71,7 @@ func (s *Service) updateClusterResourceGroup(ctx context.Context, existingResour
 		)
 
 		existingResourceGroup.Tags = mergeResourceTags(existingResourceGroup.Tags, tags)
+		existingResourceGroup.Properties.ProvisioningState = nil
 		_, err := s.azureClient.CreateOrUpdateResourceGroup(ctx, resourceGroupName, existingResourceGroup)
 		if err != nil {
 			return armresources.ResourceGroup{}, microerror.Mask(err)
