@@ -1,7 +1,7 @@
 cloud.google.com/go v0.26.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=
 cloud.google.com/go v0.34.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=
-github.com/Azure/aad-pod-identity v1.8.14 h1:Jx2xJC+CXCEO4ZEOCwH1p3qnDQVIaXJA7S+NOxoN3Ts=
-github.com/Azure/aad-pod-identity v1.8.14/go.mod h1:O36iZm20TUZnaFt1DIZxuFpbfY2Kvf2VoJTBA9LPZ4Y=
+github.com/Azure/aad-pod-identity v1.8.17 h1:fJ4eGIJs8MO0Y1BN35mwkDcmdVfITuFVsiUBlwng+L8=
+github.com/Azure/aad-pod-identity v1.8.17/go.mod h1:7ud3OsPAmBmebLCcyKO2mQHlJmHbmvgOhv9SFnbXTk8=
 github.com/Azure/azure-sdk-for-go v68.0.0+incompatible h1:fcYLmCpyNYRnvJbPerq7U0hS+6+I79yEDJBqVNcqUzU=
 github.com/Azure/azure-sdk-for-go v68.0.0+incompatible/go.mod h1:9XXNKU+eRnpl9moKnB4QOLf1HestfXbmab5FXxiDBjc=
 github.com/Azure/azure-sdk-for-go/sdk/azcore v1.14.0 h1:nyQWyZvwGTvunIMxi1Y9uXkcyr+I7TeNrr/foo4Kpk8=
@@ -25,8 +25,8 @@ github.com/Azure/go-autorest/autorest v0.11.24/go.mod h1:G6kyRlFnTuSbEYkQGawPfsC
 github.com/Azure/go-autorest/autorest v0.11.28 h1:ndAExarwr5Y+GaHE6VCaY1kyS/HwwGGyuimVhWsHOEM=
 github.com/Azure/go-autorest/autorest v0.11.28/go.mod h1:MrkzG3Y3AH668QyF9KRk5neJnGgmhQ6krbhR8Q5eMvA=
 github.com/Azure/go-autorest/autorest/adal v0.9.18/go.mod h1:XVVeme+LZwABT8K5Lc3hA4nAe8LDBVle26gTrguhhPQ=
-github.com/Azure/go-autorest/autorest/adal v0.9.21 h1:jjQnVFXPfekaqb8vIsv2G1lxshoW+oGv4MDlhRtnYZk=
-github.com/Azure/go-autorest/autorest/adal v0.9.21/go.mod h1:zua7mBUaCc5YnSLKYgGJR/w5ePdMDA6H56upLsHzA9U=
+github.com/Azure/go-autorest/autorest/adal v0.9.23 h1:Yepx8CvFxwNKpH6ja7RZ+sKX+DWYNldbLiALMC3BTz8=
+github.com/Azure/go-autorest/autorest/adal v0.9.23/go.mod h1:5pcMqFkdPhviJdlEy3kC/v1ZLnQl0MH6XA5YCcMhy4c=
 github.com/Azure/go-autorest/autorest/azure/auth v0.5.12 h1:wkAZRgT/pn8HhFyzfe9UnqOjJYqlembgCTi72Bm/xKk=
 github.com/Azure/go-autorest/autorest/azure/auth v0.5.12/go.mod h1:84w/uV8E37feW2NCJ08uT9VBfjfUHpgLVnG2InYD6cg=
 github.com/Azure/go-autorest/autorest/azure/cli v0.4.5 h1:0W/yGmFdTIT77fvdlGZ0LMISoLHFJ7Tx4U0yeB+uFs4=
@@ -305,6 +305,7 @@ github.com/stretchr/testify v1.7.0/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/
 github.com/stretchr/testify v1.7.1/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
 github.com/stretchr/testify v1.8.0/go.mod h1:yNjHg4UonilssWZ8iaSj1OCr/vHnekPRkoO+kdMU+MU=
 github.com/stretchr/testify v1.8.1/go.mod h1:w2LPCIKwWwSfY2zedu0+kehJoqGctiVI29o6fzry7u4=
+github.com/stretchr/testify v1.8.2/go.mod h1:w2LPCIKwWwSfY2zedu0+kehJoqGctiVI29o6fzry7u4=
 github.com/stretchr/testify v1.9.0 h1:HtqpIVDClZ4nwg75+f6Lvsy/wHu+3BoSGCbBAcpTsTg=
 github.com/xeipuuv/gojsonpointer v0.0.0-20180127040702-4e3ac2762d5f/go.mod h1:N2zxlSyiKSe5eX1tZViRH5QA0qijqEDrYZiPEAiq3wU=
 github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415/go.mod h1:GwrjFmJcFw6At/Gs6z4yjiIwzuJ1/+UwLxMQDVQXShQ=
