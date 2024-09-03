@@ -12,7 +12,7 @@ require (
 	github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resources/armresources v1.2.0
 	github.com/giantswarm/k8sclient/v7 v7.0.1
 	github.com/giantswarm/microerror v0.4.1
-	github.com/giantswarm/micrologger v0.6.0
+	github.com/giantswarm/micrologger v1.1.1
 	github.com/go-logr/logr v1.4.2
 	github.com/google/uuid v1.6.0
 	github.com/prometheus/client_golang v1.19.0
@@ -63,7 +63,7 @@ require (
 	github.com/giantswarm/backoff v1.0.0 // indirect
 	github.com/go-errors/errors v1.0.1 // indirect
 	github.com/go-kit/log v0.2.1 // indirect
-	github.com/go-logfmt/logfmt v0.5.1 // indirect
+	github.com/go-logfmt/logfmt v0.6.0 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-logr/zapr v1.2.3 // indirect
 	github.com/go-openapi/jsonpointer v0.19.5 // indirect
