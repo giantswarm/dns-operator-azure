@@ -154,7 +154,7 @@ replace (
 	github.com/containerd/containerd => github.com/containerd/containerd v1.7.21
 	github.com/coreos/etcd v3.3.13+incompatible => github.com/coreos/etcd v3.3.24+incompatible
 	github.com/dgrijalva/jwt-go => github.com/dgrijalva/jwt-go/v4 v4.0.0-preview1
-	golang.org/x/crypto => golang.org/x/crypto v0.18.0
+	golang.org/x/crypto => golang.org/x/crypto v0.26.0
 	golang.org/x/net => golang.org/x/net v0.28.0
 	google.golang.org/protobuf => google.golang.org/protobuf v1.33.0
 	helm.sh/helm/v3 => helm.sh/helm/v3 v3.12.0
