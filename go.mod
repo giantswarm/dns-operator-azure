@@ -17,7 +17,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/prometheus/client_golang v1.19.0
 	go.uber.org/zap v1.27.0
-	golang.org/x/exp v0.0.0-20230131160201-f062dba9d201
+	golang.org/x/exp v0.0.0-20240823005443-9b4947da3948
 	k8s.io/api v0.26.2
 	k8s.io/apimachinery v0.26.2
 	k8s.io/client-go v0.26.2
@@ -117,7 +117,7 @@ require (
 	go.starlark.net v0.0.0-20200306205701-8dd3e2ee1dd5 // indirect
 	go.uber.org/multierr v1.10.0 // indirect
 	golang.org/x/crypto v0.25.0 // indirect
-	golang.org/x/mod v0.17.0 // indirect
+	golang.org/x/mod v0.20.0 // indirect
 	golang.org/x/net v0.27.0 // indirect
 	golang.org/x/oauth2 v0.16.0 // indirect
 	golang.org/x/sys v0.22.0 // indirect
