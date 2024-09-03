@@ -157,7 +157,7 @@ replace (
 	golang.org/x/crypto => golang.org/x/crypto v0.26.0
 	golang.org/x/net => golang.org/x/net v0.28.0
 	google.golang.org/protobuf => google.golang.org/protobuf v1.33.0
-	helm.sh/helm/v3 => helm.sh/helm/v3 v3.12.0
+	helm.sh/helm/v3 => helm.sh/helm/v3 v3.15.4
 
 	// use v0.25 client-go
 	k8s.io/apimachinery => k8s.io/apimachinery v0.25.4
