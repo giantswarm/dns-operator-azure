@@ -1,6 +1,8 @@
 module github.com/giantswarm/dns-operator-azure/v3
 
-go 1.19
+go 1.21
+
+toolchain go1.23.2
 
 require (
 	github.com/Azure/aad-pod-identity v1.8.17
@@ -156,7 +158,7 @@ replace (
 	github.com/dgrijalva/jwt-go => github.com/dgrijalva/jwt-go/v4 v4.0.0-preview1
 	golang.org/x/crypto => golang.org/x/crypto v0.28.0
 	golang.org/x/net => golang.org/x/net v0.30.0
-	google.golang.org/protobuf => google.golang.org/protobuf v1.34.2
+	google.golang.org/protobuf => google.golang.org/protobuf v1.35.1
 	helm.sh/helm/v3 => helm.sh/helm/v3 v3.16.1
 
 	// use v0.25 client-go
