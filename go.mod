@@ -20,11 +20,11 @@ require (
 	github.com/prometheus/client_golang v1.20.4
 	go.uber.org/zap v1.27.0
 	golang.org/x/exp v0.0.0-20240823005443-9b4947da3948
-	k8s.io/api v0.26.2
-	k8s.io/apimachinery v0.26.2
-	k8s.io/client-go v0.26.2
-	k8s.io/kubectl v0.26.1
-	k8s.io/utils v0.0.0-20230220204549-a5ecb0141aa5
+	k8s.io/api v0.31.1
+	k8s.io/apimachinery v0.31.1
+	k8s.io/client-go v0.31.1
+	k8s.io/kubectl v0.31.1
+	k8s.io/utils 49e7df575cb6
 	sigs.k8s.io/cluster-api v1.3.5
 	sigs.k8s.io/cluster-api-provider-azure v1.6.1
 	sigs.k8s.io/controller-runtime v0.13.1
@@ -162,9 +162,9 @@ replace (
 	helm.sh/helm/v3 => helm.sh/helm/v3 v3.16.1
 
 	// use v0.25 client-go
-	k8s.io/apimachinery => k8s.io/apimachinery v0.25.4
-	k8s.io/cli-runtime => k8s.io/cli-runtime v0.25.4
-	k8s.io/client-go => k8s.io/client-go v0.25.4
+	k8s.io/apimachinery => k8s.io/apimachinery v0.31.1
+	k8s.io/cli-runtime => k8s.io/cli-runtime v0.31.1
+	k8s.io/client-go => k8s.io/client-go v0.31.1
 
 	// CPI
 	sigs.k8s.io/cloud-provider-azure => sigs.k8s.io/cloud-provider-azure v1.25.5
