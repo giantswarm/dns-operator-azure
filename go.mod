@@ -174,7 +174,7 @@ replace (
 
 	// GiantSwarm fork
 	// before: sigs.k8s.io/cluster-api-provider-azure => sigs.k8s.io/cluster-api-provider-azure v1.8.3
-	sigs.k8s.io/cluster-api-provider-azure => github.com/giantswarm/cluster-api-provider-azure v1.9.0-gs.alpha.13
+	sigs.k8s.io/cluster-api-provider-azure => github.com/giantswarm/cluster-api-provider-azure v1.9.0-gs.alpha.21
 
 	// controller runtime + CAPI test
 	sigs.k8s.io/cluster-api/test => sigs.k8s.io/cluster-api/test v1.3.5

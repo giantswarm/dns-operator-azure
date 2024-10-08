@@ -129,8 +129,8 @@ github.com/fsnotify/fsnotify v1.6.0/go.mod h1:sl3t1tCWJFWoRz9R8WJCbQihKKwmorjAbS
 github.com/ghodss/yaml v1.0.0/go.mod h1:4dBDuWmgqj2HViK6kFavaiC9ZROes6MMH2rRYeMEF04=
 github.com/giantswarm/backoff v1.0.0 h1:1oeTvyPsm1tJrHlSmfxbIWuoCNWPOkWJCb8kfLvE2T0=
 github.com/giantswarm/backoff v1.0.0/go.mod h1:l/WqbggvG5Ndxxws0LUgVEvP5E82Qj5/PF8SMip/1QM=
-github.com/giantswarm/cluster-api-provider-azure v1.9.0-gs.alpha.13 h1:NEGgiQ+t8wen4RwM1M/1v7sHczou3tVL8eocTAawkYE=
-github.com/giantswarm/cluster-api-provider-azure v1.9.0-gs.alpha.13/go.mod h1:MGpUoGCih7Skb+J4BCnBHQSe7WIn567/8Db7/yjuqAg=
+github.com/giantswarm/cluster-api-provider-azure v1.9.0-gs.alpha.21 h1:kOxfC8Kw+K5euy2bdY7O9dbIVTiuGFkRZ3MsnaYBKcc=
+github.com/giantswarm/cluster-api-provider-azure v1.9.0-gs.alpha.21/go.mod h1:MGpUoGCih7Skb+J4BCnBHQSe7WIn567/8Db7/yjuqAg=
 github.com/giantswarm/k8sclient/v7 v7.0.1 h1:UmRwgsw5Uda27tpIblPo7nWjp/nq5qwqxEPHWcvzsHk=
 github.com/giantswarm/k8sclient/v7 v7.0.1/go.mod h1:zJTXammjLHSiukMIO4+a6eUDgzj/lJxEXFZ22mC0WXc=
 github.com/giantswarm/microerror v0.4.1 h1:WMiD7HQASoUA9lZzPlPK+erCEOJ0uT4cyo18VfCXHD0=
