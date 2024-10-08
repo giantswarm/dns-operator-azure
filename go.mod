@@ -27,7 +27,7 @@ require (
 	k8s.io/utils v0.0.0-20230220204549-a5ecb0141aa5
 	sigs.k8s.io/cluster-api v1.3.5
 	sigs.k8s.io/cluster-api-provider-azure v1.6.1
-	sigs.k8s.io/controller-runtime v0.13.1
+	sigs.k8s.io/controller-runtime v0.19.0
 )
 
 replace google.golang.org/protobuf v1.30.0 => google.golang.org/protobuf v1.33.0
@@ -167,7 +167,7 @@ replace (
 	k8s.io/client-go => k8s.io/client-go v0.25.4
 
 	// CPI
-	sigs.k8s.io/cloud-provider-azure => sigs.k8s.io/cloud-provider-azure v1.25.5
+	sigs.k8s.io/cloud-provider-azure => sigs.k8s.io/cloud-provider-azure v1.31.1
 
 	// CAPI
 	sigs.k8s.io/cluster-api => sigs.k8s.io/cluster-api v1.3.5
@@ -178,5 +178,5 @@ replace (
 
 	// controller runtime + CAPI test
 	sigs.k8s.io/cluster-api/test => sigs.k8s.io/cluster-api/test v1.3.5
-	sigs.k8s.io/controller-runtime => sigs.k8s.io/controller-runtime v0.13.1
+	sigs.k8s.io/controller-runtime => sigs.k8s.io/controller-runtime v0.19.0
 )
