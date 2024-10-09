@@ -1,6 +1,6 @@
 module github.com/giantswarm/dns-operator-azure/v3
 
-go 1.21
+go 1.22.0
 
 toolchain go1.23.2
 
@@ -19,7 +19,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/prometheus/client_golang v1.20.4
 	go.uber.org/zap v1.27.0
-	golang.org/x/exp v0.0.0-20240823005443-9b4947da3948
+	golang.org/x/exp v0.0.0-20241009180824-f66d83c29e7c
 	k8s.io/api v0.26.2
 	k8s.io/apimachinery v0.26.2
 	k8s.io/client-go v0.26.2
@@ -120,7 +120,7 @@ require (
 	go.starlark.net v0.0.0-20200306205701-8dd3e2ee1dd5 // indirect
 	go.uber.org/multierr v1.10.0 // indirect
 	golang.org/x/crypto v0.28.0 // indirect
-	golang.org/x/mod v0.20.0 // indirect
+	golang.org/x/mod v0.21.0 // indirect
 	golang.org/x/net v0.29.0 // indirect
 	golang.org/x/oauth2 v0.21.0 // indirect
 	golang.org/x/sys v0.26.0 // indirect
