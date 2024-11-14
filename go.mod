@@ -158,7 +158,7 @@ replace (
 	github.com/dgrijalva/jwt-go => github.com/dgrijalva/jwt-go/v4 v4.0.0-preview1
 	golang.org/x/crypto => golang.org/x/crypto v0.29.0
 	golang.org/x/net => golang.org/x/net v0.31.0
-	google.golang.org/protobuf => google.golang.org/protobuf v1.35.1
+	google.golang.org/protobuf => google.golang.org/protobuf v1.35.2
 	helm.sh/helm/v3 => helm.sh/helm/v3 v3.16.3
 
 	// use v0.25 client-go
