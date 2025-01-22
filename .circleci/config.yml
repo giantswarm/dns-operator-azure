@@ -34,6 +34,7 @@ workflows:
     - architect/push-to-app-catalog:
         context: architect
         name: push-to-app-catalog
+        executor: app-build-suite
         app_catalog: control-plane-catalog
         app_catalog_test: control-plane-test-catalog
         chart: dns-operator-azure
@@ -43,11 +44,8 @@ workflows:
           # Trigger the job also on git tag.
           tags:
             only: /^v.*/
-
           branches:
-            ignore:
-            - main
-            - master
+            only: /.*/
     - architect/push-to-app-collection:
         name: capz-app-collection
         context: architect
