@@ -2,7 +2,7 @@ module github.com/giantswarm/dns-operator-azure/v3
 
 go 1.22.0
 
-toolchain go1.23.5
+toolchain go1.23.6
 
 require (
 	github.com/Azure/aad-pod-identity v1.8.17
