@@ -99,7 +99,7 @@ func (r *ClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_ 
 	// set the GVK to the unstructured infraCluster
 	infraCluster.SetGroupVersionKind(infraRef.GroupVersionKind())
 
-	if err := r.Client.Get(ctx, client.ObjectKey{Namespace: infraRef.Namespace, Name: infraRef.Name}, infraCluster); err != nil {
+	if err := r.Get(ctx, client.ObjectKey{Namespace: infraRef.Namespace, Name: infraRef.Name}, infraCluster); err != nil {
 		if apierrors.IsNotFound(err) {
 			logger.Info("infrastructure cluster for core cluster is not ready", "Cluster", cluster.Name)
 			return reconcile.Result{RequeueAfter: 1 * time.Minute}, nil
@@ -366,7 +366,7 @@ func (r *ClusterReconciler) getPrivateDnsServiceForMcToWcApi(ctx context.Context
 	if managementClusterAzureIdentity.Spec.Type == infrav1.ManualServicePrincipal {
 		logger.V(1).Info(fmt.Sprintf("try to get the referenced secret - %s/%s", managementClusterAzureIdentity.Spec.ClientSecret.Namespace, managementClusterAzureIdentity.Spec.ClientSecret.Name))
 
-		err = r.Client.Get(ctx, types.NamespacedName{
+		err = r.Get(ctx, types.NamespacedName{
 			Name:      managementClusterAzureIdentity.Spec.ClientSecret.Name,
 			Namespace: managementClusterAzureIdentity.Spec.ClientSecret.Namespace,
 		}, managementClusterStaticServicePrincipalSecret)
@@ -420,7 +420,7 @@ func (r *ClusterReconciler) getPrivateDnsServiceForWcToMcIngress(ctx context.Con
 	if infraClusterAzureIdentity.Spec.Type == infrav1.ManualServicePrincipal {
 		logger.V(1).Info(fmt.Sprintf("try to get the referenced secret - %s/%s", infraClusterAzureIdentity.Spec.ClientSecret.Namespace, infraClusterAzureIdentity.Spec.ClientSecret.Name))
 
-		err = r.Client.Get(ctx, types.NamespacedName{
+		err = r.Get(ctx, types.NamespacedName{
 			Name:      infraClusterAzureIdentity.Spec.ClientSecret.Name,
 			Namespace: infraClusterAzureIdentity.Spec.ClientSecret.Namespace,
 		}, infraClusterStaticServicePrincipalSecret)
@@ -463,7 +463,7 @@ func (r *ClusterReconciler) getPrivateDnsServiceForWcToMcIngress(ctx context.Con
 func (r *ClusterReconciler) getInfraClusterStaticServicePrincipalSecret(ctx context.Context, identity *infrav1.AzureClusterIdentity) (*corev1.Secret, error) {
 	staticServicePrincipalSecret := &corev1.Secret{}
 	if identity.Spec.Type == infrav1.ManualServicePrincipal {
-		err := r.Client.Get(ctx, types.NamespacedName{
+		err := r.Get(ctx, types.NamespacedName{
 			Name:      identity.Spec.ClientSecret.Name,
 			Namespace: identity.Spec.ClientSecret.Namespace,
 		}, staticServicePrincipalSecret)

@@ -24,11 +24,11 @@ func (s *Service) createClusterResourceGroup(ctx context.Context) (armresources.
 		"resource group", resourceGroupName,
 	)
 
-	location := pointer.String(s.scope.Scope.AzureLocation)
+	location := pointer.String(s.scope.AzureLocation)
 	if location == nil || *location == "" {
 		logger.V(1).Info("retrieving resource group location from management cluster")
 
-		managementCluster, err := s.scope.Scope.ManagementCluster(ctx)
+		managementCluster, err := s.scope.ManagementCluster(ctx)
 		if err != nil {
 			return armresources.ResourceGroup{}, microerror.Mask(err)
 		}

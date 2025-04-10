@@ -109,7 +109,7 @@ func (ac *azureClient) ListPrivateRecordSets(ctx context.Context, resourceGroupN
 		if err != nil {
 			return nil, microerror.Mask(err)
 		}
-		recordSets = append(recordSets, nextPage.RecordSetListResult.Value...)
+		recordSets = append(recordSets, nextPage.Value...)
 	}
 
 	return recordSets, nil
@@ -190,7 +190,7 @@ func (ac *azureClient) ListVirtualNetworkLink(ctx context.Context, resourceGroup
 		if err != nil {
 			return nil, err
 		}
-		networkLinks = append(networkLinks, nextPage.VirtualNetworkLinkListResult.Value...)
+		networkLinks = append(networkLinks, nextPage.Value...)
 	}
 
 	return networkLinks, nil
@@ -269,7 +269,7 @@ func (ac *azureClient) ListRecordSets(ctx context.Context, resourceGroupName str
 		if err != nil {
 			return nil, microerror.Mask(err)
 		}
-		recordSets = append(recordSets, nextPage.RecordSetListResult.Value...)
+		recordSets = append(recordSets, nextPage.Value...)
 	}
 
 	return recordSets, nil
