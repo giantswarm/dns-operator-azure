@@ -156,7 +156,7 @@ replace (
 	github.com/containerd/containerd => github.com/containerd/containerd v1.7.27
 	github.com/coreos/etcd v3.3.13+incompatible => github.com/coreos/etcd v3.3.24+incompatible
 	github.com/dgrijalva/jwt-go => github.com/dgrijalva/jwt-go/v4 v4.0.0-preview1
-	google.golang.org/protobuf => google.golang.org/protobuf v1.36.5
+	google.golang.org/protobuf => google.golang.org/protobuf v1.36.6
 	helm.sh/helm/v3 => helm.sh/helm/v3 v3.16.4
 
 	// use v0.25 client-go
