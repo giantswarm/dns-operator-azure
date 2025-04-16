@@ -174,7 +174,7 @@ func (ac *azureClient) ListRecordSets(ctx context.Context, resourceGroupName str
 		if err != nil {
 			return nil, microerror.Mask(err)
 		}
-		recordSets = append(recordSets, nextPage.RecordSetListResult.Value...)
+		recordSets = append(recordSets, nextPage.Value...)
 	}
 
 	return recordSets, nil
