@@ -25,8 +25,8 @@ require (
 	k8s.io/client-go v0.26.2
 	k8s.io/kubectl v0.26.1
 	k8s.io/utils v0.0.0-20230220204549-a5ecb0141aa5
-	sigs.k8s.io/cluster-api v1.3.5
-	sigs.k8s.io/cluster-api-provider-azure v1.6.1
+	sigs.k8s.io/cluster-api v1.10.2
+	sigs.k8s.io/cluster-api-provider-azure v1.19.4
 	sigs.k8s.io/controller-runtime v0.13.1
 )
 
@@ -168,13 +168,13 @@ replace (
 	sigs.k8s.io/cloud-provider-azure => sigs.k8s.io/cloud-provider-azure v1.25.5
 
 	// CAPI
-	sigs.k8s.io/cluster-api => sigs.k8s.io/cluster-api v1.3.5
+	sigs.k8s.io/cluster-api => sigs.k8s.io/cluster-api v1.10.2
 
 	// GiantSwarm fork
 	// before: sigs.k8s.io/cluster-api-provider-azure => sigs.k8s.io/cluster-api-provider-azure v1.8.3
 	sigs.k8s.io/cluster-api-provider-azure => github.com/giantswarm/cluster-api-provider-azure v1.9.0-gs.alpha.21
 
 	// controller runtime + CAPI test
-	sigs.k8s.io/cluster-api/test => sigs.k8s.io/cluster-api/test v1.3.5
+	sigs.k8s.io/cluster-api/test => sigs.k8s.io/cluster-api/test v1.10.2
 	sigs.k8s.io/controller-runtime => sigs.k8s.io/controller-runtime v0.13.1
 )
