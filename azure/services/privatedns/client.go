@@ -61,6 +61,14 @@ func newPrivateDNSClient(scope scope.PrivateDNSScope) (*azureClient, error) {
 		if err != nil {
 			return nil, err
 		}
+	case infrav1.WorkloadIdentity:
+		cred, err = azidentity.NewWorkloadIdentityCredential(&azidentity.WorkloadIdentityCredentialOptions{
+			TenantID: managementClusterIdentity.Spec.TenantID,
+			ClientID: managementClusterIdentity.Spec.ClientID,
+		})
+		if err != nil {
+			return nil, microerror.Mask(err)
+		}
 	}
 
 	privateZonesClient, err := newPrivateZonesClient(scope.ManagementClusterSubscriptionID(), cred)
