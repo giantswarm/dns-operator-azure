@@ -45,6 +45,15 @@ func newAzureClient(scope scope.DNSScope) (*azureClient, error) {
 		if err != nil {
 			return nil, err
 		}
+
+	case infrav1.WorkloadIdentity:
+		cred, err = azidentity.NewWorkloadIdentityCredential(&azidentity.WorkloadIdentityCredentialOptions{
+			TenantID: clusterIdentity.Spec.TenantID,
+			ClientID: clusterIdentity.Spec.ClientID,
+		})
+		if err != nil {
+			return nil, microerror.Mask(err)
+		}
 	}
 
 	zonesClient, err := newZonesClient(scope.Patcher.SubscriptionID(), cred)
