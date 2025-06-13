@@ -1,12 +1,1 @@
-# pkg:golang/github.com/hashicorp/consul/api@v1.15.3
-# pkg:golang/github.com/hashicorp/consul/sdk@v0.11.0
-CVE-2022-29153 until=2024-01-01
-CVE-2021-41803 until=2024-01-01
-
-# pkg:golang/k8s.io/apiserver@v0.22.5
-# This is present in the current latest v0.26.0 as well
-sonatype-2022-6522 until=2024-01-01
-CVE-2020-8561 until=2024-01-01
-
-# pkg:golang/golang.org/x/net@v0.29.0
-CVE-2024-8421
+CVE-2025-4673 until=2025-07-13 # golang.org/x/net@v0.39.0
