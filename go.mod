@@ -152,7 +152,7 @@ replace (
 	// fix CVEs
 	github.com/Microsoft/hcsshim v0.8.7 => github.com/Microsoft/hcsshim v0.8.21
 	github.com/aws/aws-sdk-go => github.com/aws/aws-sdk-go v1.55.7
-	github.com/containerd/containerd => github.com/containerd/containerd v1.7.27
+	github.com/containerd/containerd/v2 => github.com/containerd/containerd v2.1.3
 	github.com/coreos/etcd v3.3.13+incompatible => github.com/coreos/etcd v3.3.24+incompatible
 	github.com/dgrijalva/jwt-go => github.com/dgrijalva/jwt-go/v4 v4.0.0-preview1
 	google.golang.org/protobuf => google.golang.org/protobuf v1.36.6
