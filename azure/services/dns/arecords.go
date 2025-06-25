@@ -235,14 +235,14 @@ func (s *Service) getIPAddressForPublicDNS(ctx context.Context) (string, error) 
 			return "", microerror.Mask(err)
 		}
 
-		_, ok := publicIPIface.(armnetwork.PublicIPAddress)
+		publicIP, ok := publicIPIface.(*armnetwork.PublicIPAddress)
 		if !ok {
-			return "", microerror.Mask(fmt.Errorf("%T is not a armnetwork.PublicIPAddress", publicIPIface))
+			return "", microerror.Mask(fmt.Errorf("%T is not a *armnetwork.PublicIPAddress", publicIPIface))
 		}
 
-		logger.V(1).Info(fmt.Sprintf("got IP %v for %s/%s", *publicIPIface.(armnetwork.PublicIPAddress).Properties.IPAddress, s.scope.Patcher.APIServerPublicIP().Name, s.scope.Patcher.APIServerPublicIP().DNSName))
+		logger.V(1).Info(fmt.Sprintf("got IP %v for %s/%s", *publicIP.Properties.IPAddress, s.scope.Patcher.APIServerPublicIP().Name, s.scope.Patcher.APIServerPublicIP().DNSName))
 
-		return *publicIPIface.(armnetwork.PublicIPAddress).Properties.IPAddress, nil
+		return *publicIP.Properties.IPAddress, nil
 	}
 
 	return s.scope.Patcher.APIServerPublicIP().Name, nil
