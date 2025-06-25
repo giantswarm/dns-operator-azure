@@ -33,8 +33,11 @@ import (
 	capi "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/cluster-api/util/record"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
+	webhookserver "sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	"github.com/giantswarm/microerror"
 
@@ -141,12 +144,18 @@ func mainError() error {
 	restConfig := ctrl.GetConfigOrDie()
 	restConfig.UserAgent = "dns-operator-azure"
 	mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
-		Scheme:             scheme,
-		MetricsBindAddress: metricsAddr,
-		Port:               9443,
-		LeaderElection:     enableLeaderElection,
-		LeaderElectionID:   "dns-operator-azure-leader-election",
-		SyncPeriod:         &syncPeriod,
+		Scheme: scheme,
+		Metrics: metricsserver.Options{
+			BindAddress: metricsAddr,
+		},
+		WebhookServer: webhookserver.NewServer(
+			webhookserver.Options{
+				Port: 9443,
+			},
+		),
+		LeaderElection:   enableLeaderElection,
+		LeaderElectionID: "dns-operator-azure-leader-election",
+		Cache:            cache.Options{SyncPeriod: &syncPeriod},
 	})
 	if err != nil {
 		setupLog.Error(errors.FatalError, "unable to start manager")

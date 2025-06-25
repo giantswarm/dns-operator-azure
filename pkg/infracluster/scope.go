@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/giantswarm/k8sclient/v7/pkg/k8sclient"
-	"github.com/giantswarm/k8sclient/v7/pkg/k8srestconfig"
+	"github.com/giantswarm/k8sclient/v8/pkg/k8sclient"
+	"github.com/giantswarm/k8sclient/v8/pkg/k8srestconfig"
 	"github.com/giantswarm/microerror"
 	"github.com/giantswarm/micrologger"
 	corev1 "k8s.io/api/core/v1"
@@ -181,13 +181,18 @@ func NewScope(ctx context.Context, params ScopeParams) (*Scope, error) {
 			return nil, err
 		}
 
+		publicips, err := publicips.New(clusterScope)
+		if err != nil {
+			return nil, err
+		}
+
 		return &Scope{
 			Client:                  params.Client,
 			Cluster:                 params.Cluster,
 			InfraCluster:            params.InfraCluster,
 			Patcher:                 clusterScope,
 			cache:                   params.Cache,
-			publicIPService:         publicips.New(clusterScope),
+			publicIPService:         publicips,
 			managementClusterConfig: params.ManagementClusterConfig,
 		}, nil
 	}
