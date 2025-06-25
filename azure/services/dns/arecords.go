@@ -7,6 +7,7 @@ import (
 	"reflect"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/dns/armdns"
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork"
 	"golang.org/x/exp/slices"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -14,7 +15,7 @@ import (
 
 	// Latest capz controller still depends on this library
 	// https://github.com/kubernetes-sigs/cluster-api-provider-azure/blob/v1.6.0/azure/services/publicips/client.go#L56
-	"github.com/Azure/azure-sdk-for-go/services/network/mgmt/2021-08-01/network" //nolint
+	//nolint
 
 	"github.com/go-logr/logr"
 	capzpublicips "sigs.k8s.io/cluster-api-provider-azure/azure/services/publicips"
@@ -234,14 +235,14 @@ func (s *Service) getIPAddressForPublicDNS(ctx context.Context) (string, error) 
 			return "", microerror.Mask(err)
 		}
 
-		_, ok := publicIPIface.(network.PublicIPAddress)
+		_, ok := publicIPIface.(armnetwork.PublicIPAddress)
 		if !ok {
-			return "", microerror.Mask(fmt.Errorf("%T is not a network.PublicIPAddress", publicIPIface))
+			return "", microerror.Mask(fmt.Errorf("%T is not a armnetwork.PublicIPAddress", publicIPIface))
 		}
 
-		logger.V(1).Info(fmt.Sprintf("got IP %v for %s/%s", *publicIPIface.(network.PublicIPAddress).IPAddress, s.scope.Patcher.APIServerPublicIP().Name, s.scope.Patcher.APIServerPublicIP().DNSName))
+		logger.V(1).Info(fmt.Sprintf("got IP %v for %s/%s", *publicIPIface.(armnetwork.PublicIPAddress).Properties.IPAddress, s.scope.Patcher.APIServerPublicIP().Name, s.scope.Patcher.APIServerPublicIP().DNSName))
 
-		return *publicIPIface.(network.PublicIPAddress).IPAddress, nil
+		return *publicIPIface.(armnetwork.PublicIPAddress).Properties.IPAddress, nil
 	}
 
 	return s.scope.Patcher.APIServerPublicIP().Name, nil

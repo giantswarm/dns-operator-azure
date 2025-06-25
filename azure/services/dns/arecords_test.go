@@ -226,6 +226,7 @@ func TestService_calculateMissingARecords(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+
 			dnsService, err := New(*dnsScope, publicIPsService)
 			if err != nil {
 				t.Fatal(err)
