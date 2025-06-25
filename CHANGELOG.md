@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add azure workload cluster identity annotations and labels.
 - Add workload cluster identity authentication method.
 
 ## [2.2.0] - 2024-09-02
