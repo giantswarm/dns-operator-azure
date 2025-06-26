@@ -9,10 +9,6 @@ import (
 	"golang.org/x/exp/slices"
 	"k8s.io/utils/pointer"
 
-	// Latest capz controller still depends on this library
-	// https://github.com/kubernetes-sigs/cluster-api-provider-azure/blob/v1.6.0/azure/services/publicips/client.go#L56
-	//nolint
-
 	"github.com/go-logr/logr"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
