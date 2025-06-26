@@ -24,6 +24,14 @@
                             "type": "string"
                         }
                     }
+                },
+                "workloadIdentity": {
+                    "type": "object",
+                    "properties": {
+                        "clientID": {
+                            "type": "string"
+                        }
+                    }
                 }
             }
         },

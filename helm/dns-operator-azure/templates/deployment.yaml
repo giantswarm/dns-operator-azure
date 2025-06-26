@@ -18,6 +18,9 @@ spec:
         releaseRevision: {{ .Release.Revision | quote }}
       labels:
         {{- include "labels.common" . | nindent 8 }}
+        {{- if .Values.azure.workloadIdentity.clientID }}
+        azure.workload.identity/use: "true"
+        {{- end }}
     spec:
       affinity:
         nodeAffinity:
