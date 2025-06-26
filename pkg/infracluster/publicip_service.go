@@ -5,8 +5,7 @@ import (
 	"fmt"
 	"net"
 
-	//nolint
-	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v7"
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v4"
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/cluster-api-provider-azure/azure"
 	capi "sigs.k8s.io/cluster-api/api/v1beta1"
