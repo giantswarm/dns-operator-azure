@@ -11,9 +11,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add workload cluster identity authentication method.
 
+### Changed
+
+- Repository: Some chores. ([#269](https://github.com/giantswarm/dns-operator-azure/pull/269))
+  - CircleCI: Rework `config.yml`.
+  - Chart: Update `values.schema.json`.
+  - Chart: Rework `Chart.yaml`.
+  - Repository: Remove leading whitespace from `.gitignore`.
+
 ## [2.2.0] - 2024-09-02
 
 ### Added
+
 - Add support for tagging the resource group of the DNS zone for non-CAPZ workload clusters via prefixed annotations on the non-CAPZ workload cluster's Infrastructure Cluster resource.
 
 ## [2.1.1] - 2024-08-21
