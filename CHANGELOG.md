@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add workload cluster identity authentication method.
 
+### Changed
+
+- Repository: Some chores. ([#269](https://github.com/giantswarm/dns-operator-azure/pull/269))
+  - CircleCI: Rework `config.yml`.
+
 ## [2.2.0] - 2024-09-02
 
 ### Added
