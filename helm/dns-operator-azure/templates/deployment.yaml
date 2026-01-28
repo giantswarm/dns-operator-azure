@@ -39,7 +39,7 @@ spec:
           type: RuntimeDefault
       containers:
       - name: {{ .Chart.Name }}
-        image: "{{ .Values.registry.domain }}/{{ .Values.image.name }}:{{ .Values.image.tag }}"
+        image: "{{ .Values.registry.domain }}/{{ .Values.image.name }}:{{ include "image.tag" . }}"
         command:
         - /manager
         args:

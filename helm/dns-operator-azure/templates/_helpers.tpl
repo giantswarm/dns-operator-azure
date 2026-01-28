@@ -19,9 +19,7 @@ Common labels
 {{- define "labels.common" -}}
 app: {{ include "name" . | quote }}
 {{ include "labels.selector" . }}
-application.giantswarm.io/branch: {{ .Values.project.branch | quote }}
-application.giantswarm.io/commit: {{ .Values.project.commit | quote }}
-application.giantswarm.io/team: {{ index .Chart.Annotations "application.giantswarm.io/team" | quote }}
+application.giantswarm.io/team: {{ index .Chart.Annotations "io.giantswarm.application.team" | quote }}
 app.kubernetes.io/managed-by: {{ .Release.Service | quote }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 helm.sh/chart: {{ include "chart" . | quote }}
@@ -33,6 +31,13 @@ Selector labels
 {{- define "labels.selector" -}}
 app.kubernetes.io/name: {{ include "name" . | quote }}
 app.kubernetes.io/instance: {{ .Release.Name | quote }}
+{{- end -}}
+
+{{/*
+Image tag helper
+*/}}
+{{- define "image.tag" -}}
+{{- .Values.image.tag | default .Chart.AppVersion -}}
 {{- end -}}
 
 {{/*
