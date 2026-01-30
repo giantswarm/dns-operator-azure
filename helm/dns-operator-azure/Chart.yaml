@@ -1,8 +1,8 @@
 apiVersion: v2
 name: dns-operator-azure
 description: Operator for managing DNS zones and records for CAPZ clusters.
-version: 2.3.1-dev
-appVersion: 2.3.1-dev
+version: 2.3.2
+appVersion: 2.3.2
 home: https://github.com/giantswarm/dns-operator-azure
 icon: https://s.giantswarm.io/app-icons/giantswarm/1/dark.svg
 annotations:

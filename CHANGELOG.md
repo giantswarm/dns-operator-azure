@@ -7,8 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
+## [2.3.2] - 2026-01-30
 
+### Changed
+- Build with up-to-date pipelines.
 - Migrate to App Build Suite (ABS) for building and publishing Helm charts.
 
 ## [2.3.1] - 2025-08-29
@@ -176,7 +178,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - First release
 
-[Unreleased]: https://github.com/giantswarm/dns-operator-azure/compare/v2.3.1...HEAD
+[Unreleased]: https://github.com/giantswarm/dns-operator-azure/compare/v2.3.2...HEAD
+[2.3.2]: https://github.com/giantswarm/dns-operator-azure/compare/v2.3.1...v2.3.2
 [2.3.1]: https://github.com/giantswarm/dns-operator-azure/compare/v2.3.0...v2.3.1
 [2.3.0]: https://github.com/giantswarm/dns-operator-azure/compare/v2.2.0...v2.3.0
 [2.2.0]: https://github.com/giantswarm/dns-operator-azure/compare/v2.1.1...v2.2.0
