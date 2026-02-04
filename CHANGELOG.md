@@ -7,9 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.3] - 2026-02-04
+
+### Changed
+
+- Go: Downgrade `github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork` to v4. ([#331](https://github.com/giantswarm/dns-operator-azure/pull/331))
+
 ## [2.3.2] - 2026-01-30
 
 ### Changed
+
 - Build with up-to-date pipelines.
 - Migrate to App Build Suite (ABS) for building and publishing Helm charts.
 
@@ -178,7 +185,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - First release
 
-[Unreleased]: https://github.com/giantswarm/dns-operator-azure/compare/v2.3.2...HEAD
+[Unreleased]: https://github.com/giantswarm/dns-operator-azure/compare/v2.3.3...HEAD
+[2.3.3]: https://github.com/giantswarm/dns-operator-azure/compare/v2.3.2...v2.3.3
 [2.3.2]: https://github.com/giantswarm/dns-operator-azure/compare/v2.3.1...v2.3.2
 [2.3.1]: https://github.com/giantswarm/dns-operator-azure/compare/v2.3.0...v2.3.1
 [2.3.0]: https://github.com/giantswarm/dns-operator-azure/compare/v2.2.0...v2.3.0
