@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.3] - 2026-02-04
+
 ## [2.3.2] - 2026-01-30
 
 ### Changed
@@ -178,7 +180,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - First release
 
-[Unreleased]: https://github.com/giantswarm/dns-operator-azure/compare/v2.3.2...HEAD
+[Unreleased]: https://github.com/giantswarm/dns-operator-azure/compare/v2.3.3...HEAD
+[2.3.3]: https://github.com/giantswarm/dns-operator-azure/compare/v2.3.2...v2.3.3
 [2.3.2]: https://github.com/giantswarm/dns-operator-azure/compare/v2.3.1...v2.3.2
 [2.3.1]: https://github.com/giantswarm/dns-operator-azure/compare/v2.3.0...v2.3.1
 [2.3.0]: https://github.com/giantswarm/dns-operator-azure/compare/v2.2.0...v2.3.0
