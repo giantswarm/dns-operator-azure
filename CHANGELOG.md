@@ -9,9 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.3.3] - 2026-02-04
 
+### Changed
+
+- Go: Downgrade `github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork` to v4. ([#331](https://github.com/giantswarm/dns-operator-azure/pull/331))
+
 ## [2.3.2] - 2026-01-30
 
 ### Changed
+
 - Build with up-to-date pipelines.
 - Migrate to App Build Suite (ABS) for building and publishing Helm charts.
 
