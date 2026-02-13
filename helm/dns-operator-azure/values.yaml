@@ -33,10 +33,6 @@ kyvernoPolicyExceptions:
   enabled: true
   namespace: giantswarm
 
-global:
-  podSecurityStandards:
-    enforced: false
-
 # necessary for RBACs
 secondaryProviders:
 # e.g.

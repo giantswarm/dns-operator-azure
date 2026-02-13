@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- Removed `PodSecurityPolicy`.
+- Removed `global.podSecurityStandards.enforced` helm value.
+
 ## [2.3.3] - 2026-02-04
 
 ### Changed
