@@ -1,6 +1,6 @@
 module github.com/giantswarm/dns-operator-azure/v3
 
-go 1.24.4
+go 1.25.0
 
 require (
 	github.com/Azure/aad-pod-identity v1.8.17
@@ -17,7 +17,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/prometheus/client_golang v1.23.2
 	go.uber.org/zap v1.27.1
-	golang.org/x/exp v0.0.0-20260209203927-2842357ff358
+	golang.org/x/exp v0.0.0-20260218203240-3dfff04db8fa
 	k8s.io/api v0.33.2
 	k8s.io/apimachinery v0.33.2
 	k8s.io/client-go v0.33.2
