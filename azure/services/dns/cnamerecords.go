@@ -66,7 +66,11 @@ func (s *Service) updateCnameRecords(ctx context.Context, currentRecordSets []*a
 func (s *Service) calculateMissingCnameRecords(logger logr.Logger, currentRecordSets []*armdns.RecordSet) []*armdns.RecordSet {
 
 	clusterZoneName := s.scope.ClusterDomain()
-	desiredRecords := desiredCnameRecords(clusterZoneName)
+	wildcardTarget := s.scope.WildcardCNAMETarget()
+	if wildcardTarget == "" {
+		wildcardTarget = fmt.Sprintf("ingress.%s", clusterZoneName)
+	}
+	desiredRecords := desiredCnameRecords(wildcardTarget)
 
 	var recordsToCreate []*armdns.RecordSet
 
@@ -93,7 +97,7 @@ func (s *Service) calculateMissingCnameRecords(logger logr.Logger, currentRecord
 	return recordsToCreate
 }
 
-func desiredCnameRecords(clusterZoneName string) []*armdns.RecordSet {
+func desiredCnameRecords(wildcardTarget string) []*armdns.RecordSet {
 	return []*armdns.RecordSet{
 		{
 			Name: pointer.String("*"),
@@ -101,7 +105,7 @@ func desiredCnameRecords(clusterZoneName string) []*armdns.RecordSet {
 			Properties: &armdns.RecordSetProperties{
 				TTL: pointer.Int64(cnameRecordTTL),
 				CnameRecord: &armdns.CnameRecord{
-					Cname: pointer.String(fmt.Sprintf("ingress.%s", clusterZoneName)),
+					Cname: pointer.String(wildcardTarget),
 				},
 			},
 		},
