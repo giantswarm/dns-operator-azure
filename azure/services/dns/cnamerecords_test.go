@@ -226,6 +226,63 @@ func Test_CnameRecords(t *testing.T) {
 			},
 		},
 		{
+			name: "use annotation override for wildcard CNAME target",
+			cluster: &v1beta1.Cluster{
+				ObjectMeta: v1.ObjectMeta{
+					Name:      "test-cluster",
+					Namespace: "default",
+					Annotations: map[string]string{
+						scope.AnnotationWildcardCNAMETarget: "custom.target.example.com",
+					},
+				},
+				Spec: v1beta1.ClusterSpec{
+					ControlPlaneEndpoint: v1beta1.APIEndpoint{
+						Host: "api-server.mydomain.io",
+						Port: 6443,
+					},
+					InfrastructureRef: &corev1.ObjectReference{
+						Name:      "test-cluster",
+						Namespace: "default",
+					},
+				},
+			},
+			azureCluster: &infrav1.AzureCluster{
+				TypeMeta: v1.TypeMeta{
+					Kind:       "AzureCluster",
+					APIVersion: "infrastructure.cluster.x-k8s.io/v1beta1",
+				},
+				ObjectMeta: v1.ObjectMeta{
+					Name:      "test-cluster",
+					Namespace: "default",
+				},
+				Spec: infrav1.AzureClusterSpec{
+					ResourceGroup: "flkjd",
+					AzureClusterClassSpec: infrav1.AzureClusterClassSpec{
+						SubscriptionID: uuid.New().String(),
+					},
+					ControlPlaneEndpoint: v1beta1.APIEndpoint{
+						Host: "api-server.mydomain.io",
+						Port: 6443,
+					},
+				},
+			},
+			args: args{
+				ctx: context.TODO(),
+			},
+			expectedRecords: []*armdns.RecordSet{
+				{
+					Properties: &armdns.RecordSetProperties{
+						CnameRecord: &armdns.CnameRecord{
+							Cname: pointer.String("custom.target.example.com"),
+						},
+						TTL: pointer.Int64(300),
+					},
+					Name: pointer.String("*"),
+					Type: pointer.String("CNAME"),
+				},
+			},
+		},
+		{
 			name: "update CNAME record as current value is not equal",
 			cluster: &v1beta1.Cluster{
 				ObjectMeta: v1.ObjectMeta{

@@ -184,6 +184,11 @@ func (s *Service) Reconcile(ctx context.Context) error {
 		return microerror.Mask(err)
 	}
 
+	// Create required gateway A records for envoy-gateway-system services
+	if err = s.updateGatewayARecords(ctx, clusterRecordSets); err != nil {
+		return microerror.Mask(err)
+	}
+
 	log.Info("Successfully reconciled DNS", "DNSZone", clusterZoneName)
 	return nil
 }
