@@ -232,6 +232,11 @@ func TestService_calculateMissingARecords(t *testing.T) {
 				t.Fatal(err)
 			}
 
+			// inject empty workload cluster client so getGatewayARecords finds no services
+			dnsService.scope.SetClusterK8sClient(
+				fakeclient.NewClientBuilder().WithScheme(scheme.Scheme).Build(),
+			)
+
 			got, err := dnsService.calculateMissingARecords(tt.args.ctx, tt.args.logger, tt.args.currentRecordSets)
 			if err != nil {
 				t.Errorf("Service.calculateMissingARecords() error = %v", err)

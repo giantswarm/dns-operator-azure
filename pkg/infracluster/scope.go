@@ -157,6 +157,12 @@ func (s *Scope) ClusterK8sClient(ctx context.Context) (client.Client, error) {
 	return s.clusterK8sClient, nil
 }
 
+// SetClusterK8sClient sets the workload cluster k8s client directly, bypassing
+// kubeconfig resolution. Used in tests to inject a fake client.
+func (s *Scope) SetClusterK8sClient(c client.Client) {
+	s.clusterK8sClient = c
+}
+
 func NewScope(ctx context.Context, params ScopeParams) (*Scope, error) {
 	var err error
 
