@@ -133,4 +133,4 @@ require (
 	sigs.k8s.io/yaml v1.4.0 // indirect
 )
 
-replace sigs.k8s.io/cluster-api-provider-azure => github.com/giantswarm/cluster-api-provider-azure v1.12.4-gs.alpha.2
+replace sigs.k8s.io/cluster-api-provider-azure => github.com/giantswarm/cluster-api-provider-azure v1.22.0
