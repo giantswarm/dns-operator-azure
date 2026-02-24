@@ -19,7 +19,7 @@ import (
 	capzscope "sigs.k8s.io/cluster-api-provider-azure/azure/scope"
 	"sigs.k8s.io/cluster-api-provider-azure/azure/services/async"
 	"sigs.k8s.io/cluster-api-provider-azure/azure/services/publicips"
-	capi "sigs.k8s.io/cluster-api/api/v1beta1"
+	capi "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -163,8 +163,7 @@ func NewScope(ctx context.Context, params ScopeParams) (*Scope, error) {
 	if isAzureCluster(params.InfraCluster) {
 		azureCluster := &infrav1.AzureCluster{}
 		err = params.Client.Get(ctx, types.NamespacedName{
-			Name:      params.Cluster.Spec.InfrastructureRef.Name,
-			Namespace: params.Cluster.Spec.InfrastructureRef.Namespace,
+			Name: params.Cluster.Spec.InfrastructureRef.Name,
 		}, azureCluster)
 
 		if err != nil {

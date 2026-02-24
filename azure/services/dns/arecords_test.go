@@ -9,7 +9,6 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/dns/armdns"
 	"github.com/go-logr/logr"
 	"github.com/google/uuid"
-	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -18,7 +17,8 @@ import (
 	infrav1 "sigs.k8s.io/cluster-api-provider-azure/api/v1beta1"
 	capzscope "sigs.k8s.io/cluster-api-provider-azure/azure/scope"
 	"sigs.k8s.io/cluster-api-provider-azure/azure/services/publicips"
-	"sigs.k8s.io/cluster-api/api/v1beta1"
+	"sigs.k8s.io/cluster-api/api/core/v1beta1"
+	capi "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
 	fakeclient "sigs.k8s.io/controller-runtime/pkg/client/fake"
 
@@ -34,26 +34,25 @@ func TestService_calculateMissingARecords(t *testing.T) {
 	}
 	tests := []struct {
 		name         string
-		cluster      *v1beta1.Cluster
+		cluster      *capi.Cluster
 		azureCluster *infrav1.AzureCluster
 		args         args
 		want         []*armdns.RecordSet
 	}{
 		{
 			name: "private cluster - update A record as current TTL is not equal",
-			cluster: &v1beta1.Cluster{
+			cluster: &capi.Cluster{
 				ObjectMeta: v1.ObjectMeta{
 					Name:      "test-cluster",
 					Namespace: "default",
 				},
-				Spec: v1beta1.ClusterSpec{
-					ControlPlaneEndpoint: v1beta1.APIEndpoint{
+				Spec: capi.ClusterSpec{
+					ControlPlaneEndpoint: capi.APIEndpoint{
 						Host: "api-server.mydomain.io",
 						Port: 6443,
 					},
-					InfrastructureRef: &corev1.ObjectReference{
-						Name:      "test-cluster",
-						Namespace: "default",
+					InfrastructureRef: capi.ContractVersionedObjectReference{
+						Name: "test-cluster",
 					},
 				},
 			},
@@ -76,7 +75,7 @@ func TestService_calculateMissingARecords(t *testing.T) {
 						Port: 6443,
 					},
 					NetworkSpec: infrav1.NetworkSpec{
-						APIServerLB: infrav1.LoadBalancerSpec{
+						APIServerLB: &infrav1.LoadBalancerSpec{
 							LoadBalancerClassSpec: infrav1.LoadBalancerClassSpec{
 								SKU:  infrav1.SKUStandard,
 								Type: infrav1.Internal,
@@ -164,7 +163,7 @@ func TestService_calculateMissingARecords(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 
 			schemeBuilder := runtime.SchemeBuilder{
-				v1beta1.AddToScheme,
+				capi.AddToScheme,
 				infrav1.AddToScheme,
 			}
 
