@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"reflect"
+	"strings"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/dns/armdns"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v9"
@@ -30,9 +31,15 @@ const (
 
 	apiRecordTTL     = 300
 	ingressRecordTTL = 300
+	gatewayRecordTTL = 300
 
 	ingressServiceSelector = "app.kubernetes.io/name in (ingress-nginx,nginx-ingress-controller)"
 	ingressAppNamespace    = "kube-system"
+
+	gatewayNamespace              = "envoy-gateway-system"
+	externalDNSManagedAnnotation  = "giantswarm.io/external-dns"
+	externalDNSManagedValue       = "managed"
+	externalDNSHostnameAnnotation = "external-dns.alpha.kubernetes.io/hostname"
 )
 
 func (s *Service) updateARecords(ctx context.Context, currentRecordSets []*armdns.RecordSet) error {
@@ -195,6 +202,7 @@ func (s *Service) getDesiredARecords(ctx context.Context) ([]*armdns.RecordSet, 
 	}
 
 	if !s.scope.IsAzureCluster() {
+		// ingress: fixed A record for the nginx ingress controller.
 		ingressIP, err := s.getIngressIP(ctx)
 		if err != nil {
 			return nil, microerror.Mask(err)
@@ -212,6 +220,13 @@ func (s *Service) getDesiredARecords(ctx context.Context) ([]*armdns.RecordSet, 
 				},
 			})
 		}
+
+		// gateway: one A record per annotated service in envoy-gateway-system.
+		gatewayRecords, err := s.getGatewayARecords(ctx)
+		if err != nil {
+			return nil, microerror.Mask(err)
+		}
+		armdnsRecordSet = append(armdnsRecordSet, gatewayRecords...)
 	}
 
 	return armdnsRecordSet, nil
@@ -278,4 +293,49 @@ func (s *Service) getIngressIP(ctx context.Context) (string, error) {
 	}
 
 	return icServiceIP, nil
+}
+
+func (s *Service) getGatewayARecords(ctx context.Context) ([]*armdns.RecordSet, error) {
+	k8sClient, err := s.scope.ClusterK8sClient(ctx)
+	if err != nil {
+		return nil, microerror.Mask(err)
+	}
+
+	var services corev1.ServiceList
+	if err = k8sClient.List(ctx, &services, kubeclient.InNamespace(gatewayNamespace)); err != nil {
+		return nil, microerror.Mask(err)
+	}
+
+	clusterZone := s.scope.ClusterDomain()
+	var recordSets []*armdns.RecordSet
+
+	for _, svc := range services.Items {
+		if svc.Annotations[externalDNSManagedAnnotation] != externalDNSManagedValue {
+			continue
+		}
+		hostname, ok := svc.Annotations[externalDNSHostnameAnnotation]
+		if !ok || hostname == "" {
+			continue
+		}
+		if svc.Spec.Type != corev1.ServiceTypeLoadBalancer {
+			continue
+		}
+		if len(svc.Status.LoadBalancer.Ingress) < 1 || svc.Status.LoadBalancer.Ingress[0].IP == "" {
+			continue
+		}
+
+		recordName := strings.TrimSuffix(hostname, "."+clusterZone)
+		recordSets = append(recordSets, &armdns.RecordSet{
+			Name: pointer.String(recordName),
+			Type: pointer.String(string(armdns.RecordTypeA)),
+			Properties: &armdns.RecordSetProperties{
+				TTL: pointer.Int64(gatewayRecordTTL),
+				ARecords: []*armdns.ARecord{
+					{IPv4Address: pointer.String(svc.Status.LoadBalancer.Ingress[0].IP)},
+				},
+			},
+		})
+	}
+
+	return recordSets, nil
 }
