@@ -1,7 +1,7 @@
 version: 2.1
 
 orbs:
-  architect: giantswarm/architect@6.14.0
+  architect: giantswarm/architect@6.14.1
 
 workflows:
   build:
@@ -42,19 +42,5 @@ workflows:
               ignore:
                 - main
                 - master
-            tags:
-              only: /^v.*/
-
-      - architect/push-to-app-collection:
-          name: push-to-capz-app-collection
-          context: architect
-          app_name: dns-operator-azure
-          app_namespace: giantswarm
-          app_collection_repo: capz-app-collection
-          requires:
-            - push-to-control-plane-catalog
-          filters:
-            branches:
-              ignore: /.*/
             tags:
               only: /^v.*/
