@@ -9,6 +9,8 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/dns/armdns"
 	"github.com/go-logr/logr"
 	"github.com/google/uuid"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -38,6 +40,8 @@ func Test_CnameRecords(t *testing.T) {
 		name            string
 		cluster         *capi.Cluster
 		azureCluster    *infrav1.AzureCluster
+		identity        *infrav1.AzureClusterIdentity
+		identitySecret  *corev1.Secret
 		args            args
 		expectedRecords []*armdns.RecordSet
 	}{
@@ -70,6 +74,10 @@ func Test_CnameRecords(t *testing.T) {
 				Spec: infrav1.AzureClusterSpec{
 					ResourceGroup: "flkjd",
 					AzureClusterClassSpec: infrav1.AzureClusterClassSpec{
+						IdentityRef: &corev1.ObjectReference{
+							Kind: infrav1.AzureClusterIdentityKind,
+							Name: "fake-identity",
+						},
 						SubscriptionID: uuid.New().String(),
 					},
 					ControlPlaneEndpoint: v1beta1.APIEndpoint{
@@ -78,6 +86,18 @@ func Test_CnameRecords(t *testing.T) {
 					},
 				},
 			},
+			identity: &infrav1.AzureClusterIdentity{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "fake-identity",
+					Namespace: "default",
+				},
+				Spec: infrav1.AzureClusterIdentitySpec{
+					Type:     infrav1.ServicePrincipal,
+					ClientID: fakeClientID,
+					TenantID: fakeTenantID,
+				},
+			},
+			identitySecret: &corev1.Secret{Data: map[string][]byte{"clientSecret": []byte("fooSecret")}},
 			args: args{
 				ctx: context.TODO(),
 			},
@@ -123,6 +143,10 @@ func Test_CnameRecords(t *testing.T) {
 				Spec: infrav1.AzureClusterSpec{
 					ResourceGroup: "flkjd",
 					AzureClusterClassSpec: infrav1.AzureClusterClassSpec{
+						IdentityRef: &corev1.ObjectReference{
+							Kind: infrav1.AzureClusterIdentityKind,
+							Name: "fake-identity",
+						},
 						SubscriptionID: uuid.New().String(),
 					},
 					ControlPlaneEndpoint: v1beta1.APIEndpoint{
@@ -131,6 +155,18 @@ func Test_CnameRecords(t *testing.T) {
 					},
 				},
 			},
+			identity: &infrav1.AzureClusterIdentity{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "fake-identity",
+					Namespace: "default",
+				},
+				Spec: infrav1.AzureClusterIdentitySpec{
+					Type:     infrav1.ServicePrincipal,
+					ClientID: fakeClientID,
+					TenantID: fakeTenantID,
+				},
+			},
+			identitySecret: &corev1.Secret{Data: map[string][]byte{"clientSecret": []byte("fooSecret")}},
 			args: args{
 				ctx: context.TODO(),
 				currentRecordSets: []*armdns.RecordSet{
@@ -188,6 +224,10 @@ func Test_CnameRecords(t *testing.T) {
 				Spec: infrav1.AzureClusterSpec{
 					ResourceGroup: "flkjd",
 					AzureClusterClassSpec: infrav1.AzureClusterClassSpec{
+						IdentityRef: &corev1.ObjectReference{
+							Kind: infrav1.AzureClusterIdentityKind,
+							Name: "fake-identity",
+						},
 						SubscriptionID: uuid.New().String(),
 					},
 					ControlPlaneEndpoint: v1beta1.APIEndpoint{
@@ -196,6 +236,18 @@ func Test_CnameRecords(t *testing.T) {
 					},
 				},
 			},
+			identity: &infrav1.AzureClusterIdentity{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "fake-identity",
+					Namespace: "default",
+				},
+				Spec: infrav1.AzureClusterIdentitySpec{
+					Type:     infrav1.ServicePrincipal,
+					ClientID: fakeClientID,
+					TenantID: fakeTenantID,
+				},
+			},
+			identitySecret: &corev1.Secret{Data: map[string][]byte{"clientSecret": []byte("fooSecret")}},
 			args: args{
 				ctx: context.TODO(),
 				currentRecordSets: []*armdns.RecordSet{
@@ -253,6 +305,10 @@ func Test_CnameRecords(t *testing.T) {
 				Spec: infrav1.AzureClusterSpec{
 					ResourceGroup: "flkjd",
 					AzureClusterClassSpec: infrav1.AzureClusterClassSpec{
+						IdentityRef: &corev1.ObjectReference{
+							Kind: infrav1.AzureClusterIdentityKind,
+							Name: "fake-identity",
+						},
 						SubscriptionID: uuid.New().String(),
 					},
 					ControlPlaneEndpoint: v1beta1.APIEndpoint{
@@ -261,6 +317,18 @@ func Test_CnameRecords(t *testing.T) {
 					},
 				},
 			},
+			identity: &infrav1.AzureClusterIdentity{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "fake-identity",
+					Namespace: "default",
+				},
+				Spec: infrav1.AzureClusterIdentitySpec{
+					Type:     infrav1.ServicePrincipal,
+					ClientID: fakeClientID,
+					TenantID: fakeTenantID,
+				},
+			},
+			identitySecret: &corev1.Secret{Data: map[string][]byte{"clientSecret": []byte("fooSecret")}},
 			args: args{
 				ctx: context.TODO(),
 				currentRecordSets: []*armdns.RecordSet{
@@ -305,7 +373,7 @@ func Test_CnameRecords(t *testing.T) {
 
 			kubeClient := fakeclient.NewClientBuilder().
 				WithScheme(scheme.Scheme).
-				WithRuntimeObjects(tt.azureCluster, tt.cluster).
+				WithRuntimeObjects(tt.azureCluster, tt.cluster, tt.identity, tt.identitySecret).
 				Build()
 
 			infraCluster := &unstructured.Unstructured{}
