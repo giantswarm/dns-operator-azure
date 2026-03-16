@@ -15,8 +15,10 @@ import (
 	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/utils/pointer"
 	infrav1 "sigs.k8s.io/cluster-api-provider-azure/api/v1beta1"
+	"sigs.k8s.io/cluster-api-provider-azure/azure"
 	capzscope "sigs.k8s.io/cluster-api-provider-azure/azure/scope"
 	"sigs.k8s.io/cluster-api-provider-azure/azure/services/publicips"
+	"sigs.k8s.io/cluster-api-provider-azure/util/reconciler"
 	"sigs.k8s.io/cluster-api/api/core/v1beta1"
 	capi "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -314,9 +316,11 @@ func Test_CnameRecords(t *testing.T) {
 			}
 
 			clusterScope, err := capzscope.NewClusterScope(tt.args.ctx, capzscope.ClusterScopeParams{
-				Client:       kubeClient,
-				Cluster:      tt.cluster,
-				AzureCluster: tt.azureCluster,
+				Client:          kubeClient,
+				Cluster:         tt.cluster,
+				AzureCluster:    tt.azureCluster,
+				CredentialCache: azure.NewCredentialCache(),
+				Timeouts:        reconciler.Timeouts{},
 			})
 			if err != nil {
 				t.Fatal(err)

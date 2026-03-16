@@ -16,9 +16,11 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
 	infrav1 "sigs.k8s.io/cluster-api-provider-azure/api/v1beta1"
+	"sigs.k8s.io/cluster-api-provider-azure/azure"
 	capzscope "sigs.k8s.io/cluster-api-provider-azure/azure/scope"
 	"sigs.k8s.io/cluster-api-provider-azure/azure/services/async"
 	"sigs.k8s.io/cluster-api-provider-azure/azure/services/publicips"
+	"sigs.k8s.io/cluster-api-provider-azure/util/reconciler"
 	capi "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -163,7 +165,8 @@ func NewScope(ctx context.Context, params ScopeParams) (*Scope, error) {
 	if isAzureCluster(params.InfraCluster) {
 		azureCluster := &infrav1.AzureCluster{}
 		err = params.Client.Get(ctx, types.NamespacedName{
-			Name: params.Cluster.Spec.InfrastructureRef.Name,
+			Name:      params.Cluster.Spec.InfrastructureRef.Name,
+			Namespace: params.Cluster.Namespace,
 		}, azureCluster)
 
 		if err != nil {
@@ -171,9 +174,11 @@ func NewScope(ctx context.Context, params ScopeParams) (*Scope, error) {
 		}
 
 		clusterScope, err := capzscope.NewClusterScope(ctx, capzscope.ClusterScopeParams{
-			Client:       params.Client,
-			Cluster:      params.Cluster,
-			AzureCluster: azureCluster,
+			Client:          params.Client,
+			Cluster:         params.Cluster,
+			AzureCluster:    azureCluster,
+			CredentialCache: azure.NewCredentialCache(),
+			Timeouts:        reconciler.Timeouts{},
 		})
 
 		if err != nil {
