@@ -10,20 +10,30 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/google/uuid"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/utils/pointer"
 	infrav1 "sigs.k8s.io/cluster-api-provider-azure/api/v1beta1"
+	"sigs.k8s.io/cluster-api-provider-azure/azure"
 	capzscope "sigs.k8s.io/cluster-api-provider-azure/azure/scope"
 	"sigs.k8s.io/cluster-api-provider-azure/azure/services/publicips"
-	"sigs.k8s.io/cluster-api/api/v1beta1"
+	"sigs.k8s.io/cluster-api-provider-azure/util/reconciler"
+	"sigs.k8s.io/cluster-api/api/core/v1beta1"
+	capi "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
 	fakeclient "sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/giantswarm/dns-operator-azure/v3/azure/scope"
 	"github.com/giantswarm/dns-operator-azure/v3/pkg/infracluster"
+)
+
+const (
+	fakeClientID       = "fake-client-id"
+	fakeTenantID       = "fake-tenant-id"
+	fakeSubscriptionID = "123"
 )
 
 func TestService_calculateMissingARecords(t *testing.T) {
@@ -33,27 +43,30 @@ func TestService_calculateMissingARecords(t *testing.T) {
 		currentRecordSets []*armdns.RecordSet
 	}
 	tests := []struct {
-		name         string
-		cluster      *v1beta1.Cluster
-		azureCluster *infrav1.AzureCluster
-		args         args
-		want         []*armdns.RecordSet
+		name           string
+		cluster        *capi.Cluster
+		azureCluster   *infrav1.AzureCluster
+		identity       *infrav1.AzureClusterIdentity
+		identitySecret *corev1.Secret
+		args           args
+		want           []*armdns.RecordSet
 	}{
 		{
 			name: "private cluster - update A record as current TTL is not equal",
-			cluster: &v1beta1.Cluster{
+			cluster: &capi.Cluster{
 				ObjectMeta: v1.ObjectMeta{
 					Name:      "test-cluster",
 					Namespace: "default",
 				},
-				Spec: v1beta1.ClusterSpec{
-					ControlPlaneEndpoint: v1beta1.APIEndpoint{
+				Spec: capi.ClusterSpec{
+					ControlPlaneEndpoint: capi.APIEndpoint{
 						Host: "api-server.mydomain.io",
 						Port: 6443,
 					},
-					InfrastructureRef: &corev1.ObjectReference{
-						Name:      "test-cluster",
-						Namespace: "default",
+					InfrastructureRef: capi.ContractVersionedObjectReference{
+						APIGroup: "infrastructure.cluster.x-k8s.io",
+						Kind:     "AzureCluster",
+						Name:     "test-cluster",
 					},
 				},
 			},
@@ -69,6 +82,10 @@ func TestService_calculateMissingARecords(t *testing.T) {
 				Spec: infrav1.AzureClusterSpec{
 					ResourceGroup: "flkjd",
 					AzureClusterClassSpec: infrav1.AzureClusterClassSpec{
+						IdentityRef: &corev1.ObjectReference{
+							Kind: infrav1.AzureClusterIdentityKind,
+							Name: "fake-identity",
+						},
 						SubscriptionID: uuid.New().String(),
 					},
 					ControlPlaneEndpoint: v1beta1.APIEndpoint{
@@ -76,7 +93,7 @@ func TestService_calculateMissingARecords(t *testing.T) {
 						Port: 6443,
 					},
 					NetworkSpec: infrav1.NetworkSpec{
-						APIServerLB: infrav1.LoadBalancerSpec{
+						APIServerLB: &infrav1.LoadBalancerSpec{
 							LoadBalancerClassSpec: infrav1.LoadBalancerClassSpec{
 								SKU:  infrav1.SKUStandard,
 								Type: infrav1.Internal,
@@ -94,6 +111,18 @@ func TestService_calculateMissingARecords(t *testing.T) {
 					},
 				},
 			},
+			identity: &infrav1.AzureClusterIdentity{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "fake-identity",
+					Namespace: "default",
+				},
+				Spec: infrav1.AzureClusterIdentitySpec{
+					Type:     infrav1.ServicePrincipal,
+					ClientID: fakeClientID,
+					TenantID: fakeTenantID,
+				},
+			},
+			identitySecret: &corev1.Secret{Data: map[string][]byte{"clientSecret": []byte("fooSecret")}},
 			args: args{
 				ctx: context.TODO(),
 				currentRecordSets: []*armdns.RecordSet{
@@ -164,7 +193,7 @@ func TestService_calculateMissingARecords(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 
 			schemeBuilder := runtime.SchemeBuilder{
-				v1beta1.AddToScheme,
+				capi.AddToScheme,
 				infrav1.AddToScheme,
 			}
 
@@ -175,7 +204,7 @@ func TestService_calculateMissingARecords(t *testing.T) {
 
 			kubeClient := fakeclient.NewClientBuilder().
 				WithScheme(scheme.Scheme).
-				WithRuntimeObjects(tt.azureCluster, tt.cluster).
+				WithRuntimeObjects(tt.azureCluster, tt.cluster, tt.identity, tt.identitySecret).
 				Build()
 
 			infraCluster := &unstructured.Unstructured{}
@@ -186,9 +215,11 @@ func TestService_calculateMissingARecords(t *testing.T) {
 			}
 
 			clusterScope, err := capzscope.NewClusterScope(tt.args.ctx, capzscope.ClusterScopeParams{
-				Client:       kubeClient,
-				Cluster:      tt.cluster,
-				AzureCluster: tt.azureCluster,
+				Client:          kubeClient,
+				Cluster:         tt.cluster,
+				AzureCluster:    tt.azureCluster,
+				CredentialCache: azure.NewCredentialCache(),
+				Timeouts:        reconciler.Timeouts{},
 			})
 			if err != nil {
 				t.Fatal(err)

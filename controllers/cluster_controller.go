@@ -23,11 +23,11 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	infrav1 "sigs.k8s.io/cluster-api-provider-azure/api/v1beta1"
-	capi "sigs.k8s.io/cluster-api/api/v1beta1"
+	capi "sigs.k8s.io/cluster-api/api/core/v1beta2"
+	"sigs.k8s.io/cluster-api/controllers/external"
 	"sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/annotations"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -85,21 +85,8 @@ func (r *ClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_ 
 		}
 	}
 
-	// init the unstructured client
-	infraCluster := &unstructured.Unstructured{}
-
-	// get the InfrastructureRef (v1.ObjectReference) from the CAPI cluster
-	infraRef := cluster.Spec.InfrastructureRef
-
-	if infraRef == nil {
-		logger.Info("infrastructure cluster ref for core cluster is not ready", "Cluster", cluster.Name)
-		return reconcile.Result{RequeueAfter: 1 * time.Minute}, nil
-	}
-
-	// set the GVK to the unstructured infraCluster
-	infraCluster.SetGroupVersionKind(infraRef.GroupVersionKind())
-
-	if err := r.Get(ctx, client.ObjectKey{Namespace: infraRef.Namespace, Name: infraRef.Name}, infraCluster); err != nil {
+	infraCluster, err := external.GetObjectFromContractVersionedRef(ctx, r.Client, cluster.Spec.InfrastructureRef, cluster.Namespace)
+	if err != nil {
 		if apierrors.IsNotFound(err) {
 			logger.Info("infrastructure cluster for core cluster is not ready", "Cluster", cluster.Name)
 			return reconcile.Result{RequeueAfter: 1 * time.Minute}, nil

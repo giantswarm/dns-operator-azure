@@ -14,7 +14,7 @@ import (
 	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/utils/pointer"
 	infrav1 "sigs.k8s.io/cluster-api-provider-azure/api/v1beta1"
-	"sigs.k8s.io/cluster-api/api/v1beta1"
+	"sigs.k8s.io/cluster-api/api/core/v1beta1"
 
 	"github.com/giantswarm/dns-operator-azure/v3/azure/scope"
 )

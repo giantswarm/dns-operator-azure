@@ -12,8 +12,13 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/kubectl/pkg/scheme"
 	infrav1 "sigs.k8s.io/cluster-api-provider-azure/api/v1beta1"
-	capi "sigs.k8s.io/cluster-api/api/v1beta1"
+	capi "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	fakeclient "sigs.k8s.io/controller-runtime/pkg/client/fake"
+)
+
+const (
+	fakeClientID = "fake-client-id"
+	fakeTenantID = "fake-tenant-id"
 )
 
 func Test_CreateScope(t *testing.T) {
@@ -25,6 +30,8 @@ func Test_CreateScope(t *testing.T) {
 		cluster                    *capi.Cluster
 		infraCluster               runtime.Object
 		managementCluster          runtime.Object
+		identity                   *infrav1.AzureClusterIdentity
+		identitySecret             *corev1.Secret
 		expectAzureCluster         bool
 		expectedAzureClusterSpec   *infrav1.AzureClusterSpec
 		expectedAzureClusterStatus *infrav1.AzureClusterStatus
@@ -37,9 +44,8 @@ func Test_CreateScope(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: capi.ClusterSpec{
-					InfrastructureRef: &corev1.ObjectReference{
-						Name:      "test-infra-cluster-azure",
-						Namespace: "default",
+					InfrastructureRef: capi.ContractVersionedObjectReference{
+						Name: "test-infra-cluster-azure",
 					},
 				},
 			},
@@ -55,6 +61,10 @@ func Test_CreateScope(t *testing.T) {
 				Spec: infrav1.AzureClusterSpec{
 					ResourceGroup: "flkjd",
 					AzureClusterClassSpec: infrav1.AzureClusterClassSpec{
+						IdentityRef: &corev1.ObjectReference{
+							Kind: infrav1.AzureClusterIdentityKind,
+							Name: "fake-identity",
+						},
 						SubscriptionID: testSubscriptionId,
 					},
 				},
@@ -62,10 +72,26 @@ func Test_CreateScope(t *testing.T) {
 					Ready: true,
 				},
 			},
+			identity: &infrav1.AzureClusterIdentity{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "fake-identity",
+					Namespace: "default",
+				},
+				Spec: infrav1.AzureClusterIdentitySpec{
+					Type:     infrav1.ServicePrincipal,
+					ClientID: fakeClientID,
+					TenantID: fakeTenantID,
+				},
+			},
+			identitySecret:     &corev1.Secret{Data: map[string][]byte{"clientSecret": []byte("fooSecret")}},
 			expectAzureCluster: true,
 			expectedAzureClusterSpec: &infrav1.AzureClusterSpec{
 				ResourceGroup: "flkjd",
 				AzureClusterClassSpec: infrav1.AzureClusterClassSpec{
+					IdentityRef: &corev1.ObjectReference{
+						Kind: infrav1.AzureClusterIdentityKind,
+						Name: "fake-identity",
+					},
 					SubscriptionID: testSubscriptionId,
 				},
 			},
@@ -81,9 +107,8 @@ func Test_CreateScope(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: capi.ClusterSpec{
-					InfrastructureRef: &corev1.ObjectReference{
-						Name:      "test-infra-cluster-non-azure",
-						Namespace: "default",
+					InfrastructureRef: capi.ContractVersionedObjectReference{
+						Name: "test-infra-cluster-non-azure",
 					},
 				},
 			},
@@ -93,6 +118,18 @@ func Test_CreateScope(t *testing.T) {
 					Namespace: "default",
 				},
 			},
+			identity: &infrav1.AzureClusterIdentity{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "fake-identity",
+					Namespace: "default",
+				},
+				Spec: infrav1.AzureClusterIdentitySpec{
+					Type:     infrav1.ServicePrincipal,
+					ClientID: fakeClientID,
+					TenantID: fakeTenantID,
+				},
+			},
+			identitySecret: &corev1.Secret{Data: map[string][]byte{"clientSecret": []byte("fooSecret")}},
 			managementCluster: &infrav1.AzureCluster{
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "AzureCluster",
@@ -131,7 +168,7 @@ func Test_CreateScope(t *testing.T) {
 
 			kubeClientBuilder := fakeclient.NewClientBuilder().
 				WithScheme(scheme.Scheme).
-				WithRuntimeObjects(tc.cluster, tc.infraCluster)
+				WithRuntimeObjects(tc.cluster, tc.infraCluster, tc.identity, tc.identitySecret)
 
 			if tc.managementCluster != nil {
 				kubeClientBuilder.WithRuntimeObjects(tc.managementCluster)
