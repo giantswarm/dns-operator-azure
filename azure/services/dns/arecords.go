@@ -7,6 +7,7 @@ import (
 	"reflect"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/dns/armdns"
+	armnetworkv4 "github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v4"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v9"
 	"golang.org/x/exp/slices"
 	corev1 "k8s.io/api/core/v1"
@@ -231,14 +232,21 @@ func (s *Service) getIPAddressForPublicDNS(ctx context.Context) (string, error) 
 			return "", microerror.Mask(err)
 		}
 
-		_, ok := publicIPIface.(armnetwork.PublicIPAddress)
-		if !ok {
-			return "", microerror.Mask(fmt.Errorf("%T is not a armnetwork.PublicIPAddress", publicIPIface))
+		var ipaddress string
+		switch v := publicIPIface.(type) {
+		case armnetwork.PublicIPAddress:
+			ipaddress = *v.Properties.IPAddress
+		// Version used and returned by CAPZ.
+		// Can be removed when CAPZ finally upgrades from v4.
+		case armnetworkv4.PublicIPAddress:
+			ipaddress = *v.Properties.IPAddress
+		default:
+			return "", microerror.Mask(fmt.Errorf("%T is not a armnetwork.PublicIPAddress", v))
 		}
 
-		logger.V(1).Info(fmt.Sprintf("got IP %v for %s/%s", *publicIPIface.(armnetwork.PublicIPAddress).Properties.IPAddress, s.scope.Patcher.APIServerPublicIP().Name, s.scope.Patcher.APIServerPublicIP().DNSName))
+		logger.V(1).Info(fmt.Sprintf("got IP %q for %s/%s", ipaddress, s.scope.Patcher.APIServerPublicIP().Name, s.scope.Patcher.APIServerPublicIP().DNSName))
 
-		return *publicIPIface.(armnetwork.PublicIPAddress).Properties.IPAddress, nil
+		return ipaddress, nil
 	}
 
 	return s.scope.Patcher.APIServerPublicIP().Name, nil
