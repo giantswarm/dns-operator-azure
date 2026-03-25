@@ -27,11 +27,11 @@ func Test_CnameRecords(t *testing.T) {
 		currentRecordSets []*armprivatedns.RecordSet
 	}
 	tests := []struct {
-		name            string
-		cluster         *capi.Cluster
-		azureCluster    *infrav1.AzureCluster
-		args            args
-		expectedRecords []*armprivatedns.RecordSet
+		name                string
+		cluster             *capi.Cluster
+		azureCluster        *infrav1.AzureCluster
+		args                args
+		expectedRecords     []*armprivatedns.RecordSet
 		wildcardCNAMETarget string
 	}{
 		{
@@ -248,7 +248,7 @@ func Test_CnameRecords(t *testing.T) {
 		},
 		{
 			name: "use wildcard CNAME target from annotation when set",
-			cluster: &v1beta1.Cluster{
+			cluster: &capi.Cluster{
 				ObjectMeta: v1.ObjectMeta{
 					Name: "test-cluster",
 				},

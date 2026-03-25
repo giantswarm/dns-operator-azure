@@ -310,6 +310,29 @@ func newGatewayTestService(t *testing.T, ctx context.Context, wcServices []*core
 		},
 	}
 
+	identity := &infrav1.AzureClusterIdentity{
+		ObjectMeta: v1.ObjectMeta{
+			Name:      "fake-identity",
+			Namespace: "default",
+		},
+		Spec: infrav1.AzureClusterIdentitySpec{
+			Type:     infrav1.ServicePrincipal,
+			ClientID: fakeClientID,
+			TenantID: fakeTenantID,
+			ClientSecret: corev1.SecretReference{
+				Name:      "fake-identity-secret",
+				Namespace: "default",
+			},
+		},
+	}
+	identitySecret := &corev1.Secret{
+		ObjectMeta: v1.ObjectMeta{
+			Name:      "fake-identity-secret",
+			Namespace: "default",
+		},
+		Data: map[string][]byte{"clientSecret": []byte("fooSecret")},
+	}
+
 	azureCluster := &infrav1.AzureCluster{
 		TypeMeta: v1.TypeMeta{
 			Kind:       "AzureCluster",
@@ -322,6 +345,10 @@ func newGatewayTestService(t *testing.T, ctx context.Context, wcServices []*core
 		Spec: infrav1.AzureClusterSpec{
 			ResourceGroup: "test-rg",
 			AzureClusterClassSpec: infrav1.AzureClusterClassSpec{
+				IdentityRef: &corev1.ObjectReference{
+					Kind: infrav1.AzureClusterIdentityKind,
+					Name: "fake-identity",
+				},
 				SubscriptionID: uuid.New().String(),
 			},
 			ControlPlaneEndpoint: v1beta1.APIEndpoint{
@@ -341,7 +368,7 @@ func newGatewayTestService(t *testing.T, ctx context.Context, wcServices []*core
 
 	mcClient := fakeclient.NewClientBuilder().
 		WithScheme(scheme.Scheme).
-		WithRuntimeObjects(azureCluster, cluster).
+		WithRuntimeObjects(azureCluster, cluster, identity, identitySecret).
 		Build()
 
 	infraClusterObj := &unstructured.Unstructured{}
@@ -351,9 +378,11 @@ func newGatewayTestService(t *testing.T, ctx context.Context, wcServices []*core
 	}
 
 	clusterScope, err := capzscope.NewClusterScope(ctx, capzscope.ClusterScopeParams{
-		Client:       mcClient,
-		Cluster:      cluster,
-		AzureCluster: azureCluster,
+		Client:          mcClient,
+		Cluster:         cluster,
+		AzureCluster:    azureCluster,
+		CredentialCache: azure.NewCredentialCache(),
+		Timeouts:        reconciler.Timeouts{},
 	})
 	if err != nil {
 		t.Fatal(err)

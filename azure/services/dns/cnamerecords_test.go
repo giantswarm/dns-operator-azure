@@ -308,6 +308,10 @@ func Test_CnameRecords(t *testing.T) {
 				Spec: infrav1.AzureClusterSpec{
 					ResourceGroup: "flkjd",
 					AzureClusterClassSpec: infrav1.AzureClusterClassSpec{
+						IdentityRef: &corev1.ObjectReference{
+							Kind: infrav1.AzureClusterIdentityKind,
+							Name: "fake-identity",
+						},
 						SubscriptionID: uuid.New().String(),
 					},
 					ControlPlaneEndpoint: v1beta1.APIEndpoint{
@@ -316,6 +320,18 @@ func Test_CnameRecords(t *testing.T) {
 					},
 				},
 			},
+			identity: &infrav1.AzureClusterIdentity{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "fake-identity",
+					Namespace: "default",
+				},
+				Spec: infrav1.AzureClusterIdentitySpec{
+					Type:     infrav1.ServicePrincipal,
+					ClientID: fakeClientID,
+					TenantID: fakeTenantID,
+				},
+			},
+			identitySecret: &corev1.Secret{Data: map[string][]byte{"clientSecret": []byte("fooSecret")}},
 			args: args{
 				ctx: context.TODO(),
 			},
