@@ -278,7 +278,7 @@ func Test_CnameRecords(t *testing.T) {
 		},
 		{
 			name: "use annotation override for wildcard CNAME target",
-			cluster: &v1beta1.Cluster{
+			cluster: &capi.Cluster{
 				ObjectMeta: v1.ObjectMeta{
 					Name:      "test-cluster",
 					Namespace: "default",
@@ -286,14 +286,13 @@ func Test_CnameRecords(t *testing.T) {
 						scope.AnnotationWildcardCNAMETarget: "custom.target.example.com",
 					},
 				},
-				Spec: v1beta1.ClusterSpec{
-					ControlPlaneEndpoint: v1beta1.APIEndpoint{
+				Spec: capi.ClusterSpec{
+					ControlPlaneEndpoint: capi.APIEndpoint{
 						Host: "api-server.mydomain.io",
 						Port: 6443,
 					},
-					InfrastructureRef: &corev1.ObjectReference{
-						Name:      "test-cluster",
-						Namespace: "default",
+					InfrastructureRef: capi.ContractVersionedObjectReference{
+						Name: "test-cluster",
 					},
 				},
 			},
