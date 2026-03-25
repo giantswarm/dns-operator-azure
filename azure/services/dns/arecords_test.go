@@ -294,19 +294,18 @@ func TestService_calculateMissingARecords(t *testing.T) {
 func newGatewayTestService(t *testing.T, ctx context.Context, wcServices []*corev1.Service) *Service {
 	t.Helper()
 
-	cluster := &v1beta1.Cluster{
+	cluster := &capi.Cluster{
 		ObjectMeta: v1.ObjectMeta{
 			Name:      "test-cluster",
 			Namespace: "default",
 		},
-		Spec: v1beta1.ClusterSpec{
-			ControlPlaneEndpoint: v1beta1.APIEndpoint{
+		Spec: capi.ClusterSpec{
+			ControlPlaneEndpoint: capi.APIEndpoint{
 				Host: "api-server.mydomain.io",
 				Port: 6443,
 			},
-			InfrastructureRef: &corev1.ObjectReference{
-				Name:      "test-cluster",
-				Namespace: "default",
+			InfrastructureRef: capi.ContractVersionedObjectReference{
+				Name: "test-cluster",
 			},
 		},
 	}
@@ -333,7 +332,7 @@ func newGatewayTestService(t *testing.T, ctx context.Context, wcServices []*core
 	}
 
 	schemeBuilder := runtime.SchemeBuilder{
-		v1beta1.AddToScheme,
+		capi.AddToScheme,
 		infrav1.AddToScheme,
 	}
 	if err := schemeBuilder.AddToScheme(scheme.Scheme); err != nil {
