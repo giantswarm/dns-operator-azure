@@ -14,7 +14,8 @@ import (
 	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/utils/pointer"
 	infrav1 "sigs.k8s.io/cluster-api-provider-azure/api/v1beta1"
-	"sigs.k8s.io/cluster-api/api/core/v1beta1"
+	clusterv1beta1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
+	capi "sigs.k8s.io/cluster-api/api/core/v1beta2"
 
 	"github.com/giantswarm/dns-operator-azure/v3/azure/scope"
 )
@@ -27,7 +28,7 @@ func Test_CnameRecords(t *testing.T) {
 	}
 	tests := []struct {
 		name                string
-		cluster             *v1beta1.Cluster
+		cluster             *capi.Cluster
 		azureCluster        *infrav1.AzureCluster
 		wildcardCNAMETarget string
 		args                args
@@ -35,12 +36,12 @@ func Test_CnameRecords(t *testing.T) {
 	}{
 		{
 			name: "create CNAME record in case existing records are empty",
-			cluster: &v1beta1.Cluster{
+			cluster: &capi.Cluster{
 				ObjectMeta: v1.ObjectMeta{
 					Name: "test-cluster",
 				},
-				Spec: v1beta1.ClusterSpec{
-					ControlPlaneEndpoint: v1beta1.APIEndpoint{
+				Spec: capi.ClusterSpec{
+					ControlPlaneEndpoint: capi.APIEndpoint{
 						Host: "api-server.mydomain.io",
 						Port: 6443,
 					},
@@ -55,7 +56,7 @@ func Test_CnameRecords(t *testing.T) {
 					AzureClusterClassSpec: infrav1.AzureClusterClassSpec{
 						SubscriptionID: uuid.New().String(),
 					},
-					ControlPlaneEndpoint: v1beta1.APIEndpoint{
+					ControlPlaneEndpoint: clusterv1beta1.APIEndpoint{
 						Host: "api-server.mydomain.io",
 						Port: 6443,
 					},
@@ -79,12 +80,12 @@ func Test_CnameRecords(t *testing.T) {
 		},
 		{
 			name: "create CNAME record in case it does not exist",
-			cluster: &v1beta1.Cluster{
+			cluster: &capi.Cluster{
 				ObjectMeta: v1.ObjectMeta{
 					Name: "test-cluster",
 				},
-				Spec: v1beta1.ClusterSpec{
-					ControlPlaneEndpoint: v1beta1.APIEndpoint{
+				Spec: capi.ClusterSpec{
+					ControlPlaneEndpoint: capi.APIEndpoint{
 						Host: "api-server.mydomain.io",
 						Port: 6443,
 					},
@@ -99,7 +100,7 @@ func Test_CnameRecords(t *testing.T) {
 					AzureClusterClassSpec: infrav1.AzureClusterClassSpec{
 						SubscriptionID: uuid.New().String(),
 					},
-					ControlPlaneEndpoint: v1beta1.APIEndpoint{
+					ControlPlaneEndpoint: clusterv1beta1.APIEndpoint{
 						Host: "api-server.mydomain.io",
 						Port: 6443,
 					},
@@ -135,12 +136,12 @@ func Test_CnameRecords(t *testing.T) {
 		},
 		{
 			name: "update CNAME record as current TTL is not equal",
-			cluster: &v1beta1.Cluster{
+			cluster: &capi.Cluster{
 				ObjectMeta: v1.ObjectMeta{
 					Name: "test-cluster",
 				},
-				Spec: v1beta1.ClusterSpec{
-					ControlPlaneEndpoint: v1beta1.APIEndpoint{
+				Spec: capi.ClusterSpec{
+					ControlPlaneEndpoint: capi.APIEndpoint{
 						Host: "api-server.mydomain.io",
 						Port: 6443,
 					},
@@ -155,7 +156,7 @@ func Test_CnameRecords(t *testing.T) {
 					AzureClusterClassSpec: infrav1.AzureClusterClassSpec{
 						SubscriptionID: uuid.New().String(),
 					},
-					ControlPlaneEndpoint: v1beta1.APIEndpoint{
+					ControlPlaneEndpoint: clusterv1beta1.APIEndpoint{
 						Host: "api-server.mydomain.io",
 						Port: 6443,
 					},
@@ -191,12 +192,12 @@ func Test_CnameRecords(t *testing.T) {
 		},
 		{
 			name: "update CNAME record as current value is not equal",
-			cluster: &v1beta1.Cluster{
+			cluster: &capi.Cluster{
 				ObjectMeta: v1.ObjectMeta{
 					Name: "test-cluster",
 				},
-				Spec: v1beta1.ClusterSpec{
-					ControlPlaneEndpoint: v1beta1.APIEndpoint{
+				Spec: capi.ClusterSpec{
+					ControlPlaneEndpoint: capi.APIEndpoint{
 						Host: "api-server.mydomain.io",
 						Port: 6443,
 					},
@@ -211,7 +212,7 @@ func Test_CnameRecords(t *testing.T) {
 					AzureClusterClassSpec: infrav1.AzureClusterClassSpec{
 						SubscriptionID: uuid.New().String(),
 					},
-					ControlPlaneEndpoint: v1beta1.APIEndpoint{
+					ControlPlaneEndpoint: clusterv1beta1.APIEndpoint{
 						Host: "api-server.mydomain.io",
 						Port: 6443,
 					},
@@ -247,7 +248,7 @@ func Test_CnameRecords(t *testing.T) {
 		},
 		{
 			name: "use wildcard CNAME target from annotation when set",
-			cluster: &v1beta1.Cluster{
+			cluster: &capi.Cluster{
 				ObjectMeta: v1.ObjectMeta{
 					Name: "test-cluster",
 				},
@@ -285,7 +286,7 @@ func Test_CnameRecords(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			schemeBuilder := runtime.SchemeBuilder{
-				v1beta1.AddToScheme,
+				capi.AddToScheme,
 				infrav1.AddToScheme,
 			}
 
