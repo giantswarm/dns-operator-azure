@@ -377,6 +377,7 @@ func (r *ClusterReconciler) getPrivateDnsServiceForMcToWcApi(ctx context.Context
 		ClusterServicePrincipalSecretToAttachPrivateDNS: *managementClusterStaticServicePrincipalSecret,
 		VirtualNetworkIDToAttachPrivateDNS:              managementCluster.Spec.NetworkSpec.Vnet.ID,
 		APIServerIP:                                     clusterAnnotations[azurePrivateEndpointOperatorApiServerAnnotation],
+		WildcardCNAMETarget:                             clusterAnnotations[azurescope.AnnotationWildcardCNAMETarget],
 	}
 
 	privateDnsScope, err := azurescope.NewPrivateDNSScope(ctx, privateParams)
@@ -432,6 +433,7 @@ func (r *ClusterReconciler) getPrivateDnsServiceForWcToMcIngress(ctx context.Con
 		ClusterServicePrincipalSecretToAttachPrivateDNS: *infraClusterStaticServicePrincipalSecret,
 		VirtualNetworkIDToAttachPrivateDNS:              (*azureClusterSpec).NetworkSpec.Vnet.ID,
 		MCIngressIP:                                     clusterAnnotations[azurePrivateEndpointOperatorMcIngressAnnotation],
+		WildcardCNAMETarget:                             clusterAnnotations[azurescope.AnnotationWildcardCNAMETarget],
 	}
 
 	privateDnsScope, err := azurescope.NewPrivateDNSScope(ctx, privateParams)
