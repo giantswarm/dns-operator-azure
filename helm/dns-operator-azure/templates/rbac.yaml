@@ -94,6 +94,17 @@ rules:
   - update
   - watch
 #
+# CustomResourceDefinitions (required by controller-runtime cache)
+#
+- apiGroups:
+  - apiextensions.k8s.io
+  resources:
+  - customresourcedefinitions
+  verbs:
+  - get
+  - list
+  - watch
+#
 # Secrets
 #
 - apiGroups:
