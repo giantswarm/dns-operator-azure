@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add A records for services in `envoy-gateway-system` that have the `giantswarm.io/external-dns=managed` annotation, reading the hostname from `external-dns.alpha.kubernetes.io/hostname` and the IP from the service's LoadBalancer status.
+- Allow overriding the wildcard CNAME target for public DNS zones via a `Cluster` annotation.
+- Allow overriding the wildcard CNAME target for private DNS zones via a `Cluster` annotation.
+
 ### Changed
 
 - Move to CAPI v1beta2 API.
