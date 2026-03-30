@@ -159,8 +159,8 @@ github.com/fxamacker/cbor/v2 v2.9.0 h1:NpKPmjDBgUfBms6tr6JZkTHtfFGcMKsw3eGcmD/sa
 github.com/fxamacker/cbor/v2 v2.9.0/go.mod h1:vM4b+DJCtHn+zz7h3FFp/hDAI9WNWCsZj23V5ytsSxQ=
 github.com/giantswarm/backoff v1.0.1 h1:paqQhjUsibkf+wWFCHsk7VXAkcM1L3ssAe7V7i8twpM=
 github.com/giantswarm/backoff v1.0.1/go.mod h1:RGj8b06J3irMNFRoSiMnngS50K+QbpSvu77sW03bxqQ=
-github.com/giantswarm/cluster-api-provider-azure v1.22.0-gs-a4d910c8f h1:qZFMvU96zOmLr/FBymLn0r0A/7G1+o2N/5ueTwMpyw0=
-github.com/giantswarm/cluster-api-provider-azure v1.22.0-gs-a4d910c8f/go.mod h1:ivn6SfniydSCKi+pzGUaNlH1rFcavqRKw0iy1g9l7Nc=
+github.com/giantswarm/cluster-api-provider-azure v1.22.0 h1:gGincEDyg5vw6WsGFaplzQoK2BgcADwD/x6E75XImFk=
+github.com/giantswarm/cluster-api-provider-azure v1.22.0/go.mod h1:ivn6SfniydSCKi+pzGUaNlH1rFcavqRKw0iy1g9l7Nc=
 github.com/giantswarm/k8sclient/v8 v8.1.0 h1:29pRG4TAdKn4lw+O6hBVvHIPDjrn/ikA8SgHb2TJPGE=
 github.com/giantswarm/k8sclient/v8 v8.1.0/go.mod h1:C588tvPnMQx2VzQ0WGHTXoN4wzcS0LaYr2SUzGJmzq0=
 github.com/giantswarm/microerror v0.4.1 h1:WMiD7HQASoUA9lZzPlPK+erCEOJ0uT4cyo18VfCXHD0=
