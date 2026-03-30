@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Create A records for services annotated with `giantswarm.io/external-dns: managed` in `envoy-gateway-system`, deriving the record name from `external-dns.alpha.kubernetes.io/hostname` and the IP from the service's LoadBalancer status.
+- Read the ingress A record name from the `external-dns.alpha.kubernetes.io/hostname` annotation on the nginx ingress service instead of using the hardcoded name `ingress`.
+
 ### Changed
 
 - Move to CAPI v1beta2 API.
