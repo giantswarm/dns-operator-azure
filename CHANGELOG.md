@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Move to CAPI v1beta2 API.
+- Add new RBAC permissions needed after `controller-runtime` update.
+
 ### Removed
 
 - Removed `PodSecurityPolicy`.
