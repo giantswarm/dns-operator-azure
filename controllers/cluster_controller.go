@@ -153,11 +153,11 @@ func (r *ClusterReconciler) reconcileNormal(ctx context.Context, clusterScope *i
 		return result, err
 	}
 
-	clusterAnnotations := infraCluster.GetAnnotations()
+	infraClusterAnnotations := infraCluster.GetAnnotations()
 	azureClusterSpec := clusterScope.AzureClusterSpec()
 
 	// Private DNS for MC-to-WC api
-	if azureClusterSpec != nil && clusterAnnotations[azurePrivateEndpointOperatorApiServerAnnotation] != "" {
+	if azureClusterSpec != nil && infraClusterAnnotations[azurePrivateEndpointOperatorApiServerAnnotation] != "" {
 
 		logger.V(1).Info(fmt.Sprintf("annotation %s found", azurePrivateEndpointOperatorApiServerAnnotation))
 
@@ -173,7 +173,7 @@ func (r *ClusterReconciler) reconcileNormal(ctx context.Context, clusterScope *i
 	}
 
 	// Private DNS for WC-to-MC ingress
-	if azureClusterSpec != nil && clusterAnnotations[azurePrivateEndpointOperatorMcIngressAnnotation] != "" {
+	if azureClusterSpec != nil && infraClusterAnnotations[azurePrivateEndpointOperatorMcIngressAnnotation] != "" {
 
 		logger.V(1).Info(fmt.Sprintf("annotation %s found", azurePrivateEndpointOperatorMcIngressAnnotation))
 
@@ -221,11 +221,11 @@ func (r *ClusterReconciler) reconcileDelete(ctx context.Context, clusterScope *i
 	logger.Info("Reconciling AzureCluster DNS zones delete")
 
 	infraCluster := clusterScope.InfraCluster
-	clusterAnnotations := infraCluster.GetAnnotations()
+	infraClusterAnnotations := infraCluster.GetAnnotations()
 	azureClusterSpec := clusterScope.AzureClusterSpec()
 
 	// Private DNS for MC-to-WC api
-	if azureClusterSpec != nil && clusterAnnotations[azurePrivateEndpointOperatorApiServerAnnotation] != "" {
+	if azureClusterSpec != nil && infraClusterAnnotations[azurePrivateEndpointOperatorApiServerAnnotation] != "" {
 
 		logger.V(1).Info(fmt.Sprintf("annotation %s found", azurePrivateEndpointOperatorApiServerAnnotation))
 
@@ -246,7 +246,7 @@ func (r *ClusterReconciler) reconcileDelete(ctx context.Context, clusterScope *i
 	}
 
 	// Private DNS for WC-to-MC ingress
-	if azureClusterSpec != nil && clusterAnnotations[azurePrivateEndpointOperatorMcIngressAnnotation] != "" {
+	if azureClusterSpec != nil && infraClusterAnnotations[azurePrivateEndpointOperatorMcIngressAnnotation] != "" {
 
 		logger.V(1).Info(fmt.Sprintf("annotation %s found", azurePrivateEndpointOperatorMcIngressAnnotation))
 
@@ -367,7 +367,7 @@ func (r *ClusterReconciler) getPrivateDnsServiceForMcToWcApi(ctx context.Context
 	}
 
 	infraCluster := clusterScope.InfraCluster
-	clusterAnnotations := infraCluster.GetAnnotations()
+	infraClusterAnnotations := infraCluster.GetAnnotations()
 
 	privateParams := azurescope.PrivateDNSScopeParams{
 		BaseDomain:                             r.BaseDomain,
@@ -376,8 +376,8 @@ func (r *ClusterReconciler) getPrivateDnsServiceForMcToWcApi(ctx context.Context
 		ClusterAzureIdentityToAttachPrivateDNS: *managementClusterAzureIdentity,
 		ClusterServicePrincipalSecretToAttachPrivateDNS: *managementClusterStaticServicePrincipalSecret,
 		VirtualNetworkIDToAttachPrivateDNS:              managementCluster.Spec.NetworkSpec.Vnet.ID,
-		APIServerIP:                                     clusterAnnotations[azurePrivateEndpointOperatorApiServerAnnotation],
-		WildcardCNAMETarget:                             clusterAnnotations[azurescope.AnnotationWildcardCNAMETarget],
+		APIServerIP:                                     infraClusterAnnotations[azurePrivateEndpointOperatorApiServerAnnotation],
+		WildcardCNAMETarget:                             infraClusterAnnotations[azurescope.AnnotationWildcardCNAMETarget],
 	}
 
 	privateDnsScope, err := azurescope.NewPrivateDNSScope(ctx, privateParams)
@@ -422,7 +422,7 @@ func (r *ClusterReconciler) getPrivateDnsServiceForWcToMcIngress(ctx context.Con
 	}
 
 	infraCluster := clusterScope.InfraCluster
-	clusterAnnotations := infraCluster.GetAnnotations()
+	infraClusterAnnotations := infraCluster.GetAnnotations()
 	azureClusterSpec := clusterScope.AzureClusterSpec()
 
 	privateParams := azurescope.PrivateDNSScopeParams{
@@ -432,8 +432,8 @@ func (r *ClusterReconciler) getPrivateDnsServiceForWcToMcIngress(ctx context.Con
 		ClusterAzureIdentityToAttachPrivateDNS: *infraClusterAzureIdentity,
 		ClusterServicePrincipalSecretToAttachPrivateDNS: *infraClusterStaticServicePrincipalSecret,
 		VirtualNetworkIDToAttachPrivateDNS:              (*azureClusterSpec).NetworkSpec.Vnet.ID,
-		MCIngressIP:                                     clusterAnnotations[azurePrivateEndpointOperatorMcIngressAnnotation],
-		WildcardCNAMETarget:                             clusterAnnotations[azurescope.AnnotationWildcardCNAMETarget],
+		MCIngressIP:                                     infraClusterAnnotations[azurePrivateEndpointOperatorMcIngressAnnotation],
+		WildcardCNAMETarget:                             infraClusterAnnotations[azurescope.AnnotationWildcardCNAMETarget],
 	}
 
 	privateDnsScope, err := azurescope.NewPrivateDNSScope(ctx, privateParams)
