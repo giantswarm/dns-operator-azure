@@ -282,9 +282,6 @@ func Test_CnameRecords(t *testing.T) {
 				ObjectMeta: v1.ObjectMeta{
 					Name:      "test-cluster",
 					Namespace: "default",
-					Annotations: map[string]string{
-						scope.AnnotationWildcardCNAMETarget: "custom.target.example.com",
-					},
 				},
 				Spec: capi.ClusterSpec{
 					ControlPlaneEndpoint: capi.APIEndpoint{
@@ -304,6 +301,9 @@ func Test_CnameRecords(t *testing.T) {
 				ObjectMeta: v1.ObjectMeta{
 					Name:      "test-cluster",
 					Namespace: "default",
+					Annotations: map[string]string{
+						scope.AnnotationWildcardCNAMETarget: "custom.target.example.com",
+					},
 				},
 				Spec: infrav1.AzureClusterSpec{
 					ResourceGroup: "flkjd",
