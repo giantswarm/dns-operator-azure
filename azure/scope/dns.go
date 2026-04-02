@@ -136,7 +136,7 @@ func (s *DNSScope) ResourceTags() map[string]*string {
 }
 
 // WildcardCNAMETarget returns the override value for the wildcard CNAME record
-// from the dns-operator-azure.giantswarm.io/wildcard-cname-target annotation,
+// from the `network.giantswarm.io/wildcard-cname-target` annotation,
 // or empty string if not set.
 func (s *DNSScope) WildcardCNAMETarget() string {
 	return s.Cluster.Annotations[AnnotationWildcardCNAMETarget]
