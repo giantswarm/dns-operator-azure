@@ -27,12 +27,11 @@ func Test_CnameRecords(t *testing.T) {
 		currentRecordSets []*armprivatedns.RecordSet
 	}
 	tests := []struct {
-		name                string
-		cluster             *capi.Cluster
-		azureCluster        *infrav1.AzureCluster
-		args                args
-		expectedRecords     []*armprivatedns.RecordSet
-		wildcardCNAMETarget string
+		name            string
+		cluster         *capi.Cluster
+		azureCluster    *infrav1.AzureCluster
+		args            args
+		expectedRecords []*armprivatedns.RecordSet
 	}{
 		{
 			name: "create CNAME record in case existing records are empty",
@@ -256,6 +255,9 @@ func Test_CnameRecords(t *testing.T) {
 			azureCluster: &infrav1.AzureCluster{
 				ObjectMeta: v1.ObjectMeta{
 					Name: "test-cluster",
+					Annotations: map[string]string{
+						scope.AnnotationWildcardCNAMETarget: "custom-ingress.example.com",
+					},
 				},
 				Spec: infrav1.AzureClusterSpec{
 					ResourceGroup: "flkjd",
@@ -264,7 +266,6 @@ func Test_CnameRecords(t *testing.T) {
 					},
 				},
 			},
-			wildcardCNAMETarget: "custom-ingress.example.com",
 			args: args{
 				ctx: context.TODO(),
 			},
@@ -299,7 +300,7 @@ func Test_CnameRecords(t *testing.T) {
 				BaseDomain:          "basedomain.io",
 				ClusterName:         "test-cluster",
 				APIServerIP:         "127.0.0.1",
-				WildcardCNAMETarget: tt.wildcardCNAMETarget,
+				WildcardCNAMETarget: tt.azureCluster.Annotations[scope.AnnotationWildcardCNAMETarget],
 				ClusterSpecToAttachPrivateDNS: infrav1.AzureClusterSpec{
 					NetworkSpec: infrav1.NetworkSpec{
 						Subnets: infrav1.Subnets{
