@@ -158,5 +158,8 @@ func (s *PrivateDNSScope) privateLinkedMcIngressIPFromClusterAnnotation() string
 }
 
 func (s *PrivateDNSScope) WildcardCNAMETarget() string {
-	return s.wildcardCNAMETarget
+	if s.wildcardCNAMETarget == "" {
+		return ""
+	}
+	return fmt.Sprintf("%s.%s", s.wildcardCNAMETarget, s.ClusterDomain())
 }

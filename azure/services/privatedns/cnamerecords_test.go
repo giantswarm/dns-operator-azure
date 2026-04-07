@@ -256,7 +256,7 @@ func Test_CnameRecords(t *testing.T) {
 				ObjectMeta: v1.ObjectMeta{
 					Name: "test-cluster",
 					Annotations: map[string]string{
-						scope.AnnotationWildcardCNAMETarget: "custom-ingress.example.com",
+						scope.AnnotationWildcardCNAMETarget: "custom-ingress",
 					},
 				},
 				Spec: infrav1.AzureClusterSpec{
@@ -273,7 +273,7 @@ func Test_CnameRecords(t *testing.T) {
 				{
 					Properties: &armprivatedns.RecordSetProperties{
 						CnameRecord: &armprivatedns.CnameRecord{
-							Cname: pointer.String("custom-ingress.example.com"),
+							Cname: pointer.String("custom-ingress.test-cluster.basedomain.io"),
 						},
 						TTL: pointer.Int64(300),
 					},
