@@ -302,7 +302,7 @@ func Test_CnameRecords(t *testing.T) {
 					Name:      "test-cluster",
 					Namespace: "default",
 					Annotations: map[string]string{
-						scope.AnnotationWildcardCNAMETarget: "custom.target.example.com",
+						scope.AnnotationWildcardCNAMETarget: "custom.target",
 					},
 				},
 				Spec: infrav1.AzureClusterSpec{
@@ -339,7 +339,7 @@ func Test_CnameRecords(t *testing.T) {
 				{
 					Properties: &armdns.RecordSetProperties{
 						CnameRecord: &armdns.CnameRecord{
-							Cname: pointer.String("custom.target.example.com"),
+							Cname: pointer.String("custom.target.test-cluster.basedomain.io"),
 						},
 						TTL: pointer.Int64(300),
 					},
