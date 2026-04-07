@@ -139,5 +139,9 @@ func (s *DNSScope) ResourceTags() map[string]*string {
 // from the `network.giantswarm.io/wildcard-cname-target` annotation,
 // or empty string if not set.
 func (s *DNSScope) WildcardCNAMETarget() string {
-	return s.InfraClusterAnnotations()[AnnotationWildcardCNAMETarget]
+	target := s.InfraClusterAnnotations()[AnnotationWildcardCNAMETarget]
+	if target == "" {
+		return ""
+	}
+	return fmt.Sprintf("%s.%s", target, s.ClusterDomain())
 }
