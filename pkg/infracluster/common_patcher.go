@@ -10,6 +10,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+const (
+	DnsOperatorStatusAnnotation string = "dns-operator-azure.giantswarm.io/status"
+)
+
 type CommonPatcherParams struct {
 	ClientID       string
 	SubscriptionID string
@@ -79,6 +83,15 @@ func (s *CommonPatcher) APIServerPublicIP() *infrav1.PublicIPSpec {
 	return &infrav1.PublicIPSpec{
 		Name: s.ip.String(),
 	}
+}
+
+func (s *CommonPatcher) SetAnnotation(key, value string) {
+	annotations := s.InfraCluster.GetAnnotations()
+	if annotations == nil {
+		annotations = make(map[string]string)
+	}
+	annotations[key] = value
+	s.InfraCluster.SetAnnotations(annotations)
 }
 
 func (s *CommonPatcher) Close(ctx context.Context) error {
