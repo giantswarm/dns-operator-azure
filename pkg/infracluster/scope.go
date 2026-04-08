@@ -40,6 +40,7 @@ type Patcher interface {
 	IsAPIServerPrivate() bool
 	APIServerPrivateIP() string
 	APIServerPublicIP() *infrav1.PublicIPSpec
+	SetAnnotation(key, value string)
 	Close(ctx context.Context) error
 }
 
@@ -146,6 +147,10 @@ func (s *Scope) InfraClusterIdentity(ctx context.Context) (*infrav1.AzureCluster
 
 func (s *Scope) InfraClusterAnnotations() map[string]string {
 	return s.InfraCluster.GetAnnotations()
+}
+
+func (s *Scope) SetStatusAnnotation() {
+	s.Patcher.SetAnnotation(DnsOperatorStatusAnnotation, "done")
 }
 
 func (s *Scope) ClusterK8sClient(ctx context.Context) (client.Client, error) {
