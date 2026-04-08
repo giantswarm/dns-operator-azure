@@ -15,6 +15,8 @@ import (
 
 const (
 	clientSecretKeyName = "clientSecret"
+
+	AnnotationWildcardCNAMETarget = "network.giantswarm.io/wildcard-cname-target"
 )
 
 type BaseZoneCredentials struct {
@@ -131,4 +133,15 @@ func (s *DNSScope) AzureClientSecret() string {
 
 func (s *DNSScope) ResourceTags() map[string]*string {
 	return s.resourceTags
+}
+
+// WildcardCNAMETarget returns the override value for the wildcard CNAME record
+// from the `network.giantswarm.io/wildcard-cname-target` annotation,
+// or empty string if not set.
+func (s *DNSScope) WildcardCNAMETarget() string {
+	target := s.InfraClusterAnnotations()[AnnotationWildcardCNAMETarget]
+	if target == "" {
+		return ""
+	}
+	return fmt.Sprintf("%s.%s", target, s.ClusterDomain())
 }
