@@ -1,3 +1,1 @@
-CVE-2025-47913 until=2026-01-21 # golang.org/x/crypto@v0.41.0
-CVE-2025-47914 until=2026-01-21 # golang.org/x/crypto@v0.41.0
-CVE-2025-58181 until=2026-01-21 # golang.org/x/crypto@v0.41.0
+CVE-2026-39883 until=2026-10-10 # golang/go.opentelemetry.io/otel/sdk@v1.40.0
