@@ -28,7 +28,6 @@ import (
 const (
 	apiRecordName       = "api"
 	apiserverRecordName = "apiserver"
-	ingressRecordName   = "ingress"
 
 	apiRecordTTL     = 300
 	ingressRecordTTL = 300
@@ -203,23 +202,13 @@ func (s *Service) getDesiredARecords(ctx context.Context) ([]*armdns.RecordSet, 
 	}
 
 	if !s.scope.IsAzureCluster() {
-		// ingress: fixed A record for the nginx ingress controller.
-		ingressIP, err := s.getIngressIP(ctx)
+		// ingress: A record for the nginx ingress controller, name read from external-dns annotation.
+		ingressRecord, err := s.getIngressARecord(ctx)
 		if err != nil {
 			return nil, microerror.Mask(err)
 		}
-		// TODO: Should the reconciliation fail in case the ingress IP is empty?
-		if ingressIP != "" {
-			armdnsRecordSet = append(armdnsRecordSet, &armdns.RecordSet{
-				Name: pointer.String(ingressRecordName),
-				Type: pointer.String(string(armdns.RecordTypeA)),
-				Properties: &armdns.RecordSetProperties{
-					TTL: pointer.Int64(ingressRecordTTL),
-					ARecords: []*armdns.ARecord{
-						{IPv4Address: pointer.String(ingressIP)},
-					},
-				},
-			})
+		if ingressRecord != nil {
+			armdnsRecordSet = append(armdnsRecordSet, ingressRecord)
 		}
 
 		// gateway: one A record per annotated service in envoy-gateway-system.
@@ -267,40 +256,52 @@ func (s *Service) getIPAddressForPublicDNS(ctx context.Context) (string, error) 
 	return s.scope.Patcher.APIServerPublicIP().Name, nil
 }
 
-func (s *Service) getIngressIP(ctx context.Context) (string, error) {
+func (s *Service) getIngressARecord(ctx context.Context) (*armdns.RecordSet, error) {
 	k8sClient, err := s.scope.ClusterK8sClient(ctx)
 	if err != nil {
-		return "", microerror.Mask(err)
+		return nil, microerror.Mask(err)
 	}
 
 	var icServices corev1.ServiceList
-
 	err = k8sClient.List(ctx, &icServices,
 		kubeclient.InNamespace(ingressAppNamespace),
 		&kubeclient.ListOptions{Raw: &metav1.ListOptions{LabelSelector: ingressServiceSelector}},
 	)
-
 	if err != nil {
-		return "", microerror.Mask(err)
+		return nil, microerror.Mask(err)
 	}
 
-	var icServiceIP string
+	clusterZone := s.scope.ClusterDomain()
 
 	for _, icService := range icServices.Items {
-		if icService.Spec.Type == corev1.ServiceTypeLoadBalancer {
-			if icServiceIP != "" {
-				return "", microerror.Mask(tooManyICServicesError)
-			}
-
-			if len(icService.Status.LoadBalancer.Ingress) < 1 || icService.Status.LoadBalancer.Ingress[0].IP == "" {
-				return "", microerror.Mask(ingressNotReadyError)
-			}
-
-			icServiceIP = icService.Status.LoadBalancer.Ingress[0].IP
+		if icService.Annotations[externalDNSManagedAnnotation] != externalDNSManagedValue {
+			continue
 		}
+		hostname, ok := icService.Annotations[externalDNSHostnameAnnotation]
+		if !ok || hostname == "" {
+			continue
+		}
+		if icService.Spec.Type != corev1.ServiceTypeLoadBalancer {
+			continue
+		}
+		if len(icService.Status.LoadBalancer.Ingress) < 1 || icService.Status.LoadBalancer.Ingress[0].IP == "" {
+			return nil, microerror.Mask(ingressNotReadyError)
+		}
+
+		recordName := strings.TrimSuffix(hostname, "."+clusterZone)
+		return &armdns.RecordSet{
+			Name: pointer.String(recordName),
+			Type: pointer.String(string(armdns.RecordTypeA)),
+			Properties: &armdns.RecordSetProperties{
+				TTL: pointer.Int64(ingressRecordTTL),
+				ARecords: []*armdns.ARecord{
+					{IPv4Address: pointer.String(icService.Status.LoadBalancer.Ingress[0].IP)},
+				},
+			},
+		}, nil
 	}
 
-	return icServiceIP, nil
+	return nil, nil
 }
 
 func (s *Service) getGatewayARecords(ctx context.Context) ([]*armdns.RecordSet, error) {

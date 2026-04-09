@@ -26,6 +26,8 @@ import (
 	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
 	fakeclient "sigs.k8s.io/controller-runtime/pkg/client/fake"
 
+	"github.com/giantswarm/microerror"
+
 	"github.com/giantswarm/dns-operator-azure/v3/azure/scope"
 	"github.com/giantswarm/dns-operator-azure/v3/pkg/infracluster"
 )
@@ -715,6 +717,215 @@ func TestService_getGatewayARecords(t *testing.T) {
 				gotJSON, _ := json.Marshal(got)
 				wantJSON, _ := json.Marshal(tt.want)
 				t.Errorf("getGatewayARecords() = %s, want %s", gotJSON, wantJSON)
+			}
+		})
+	}
+}
+
+func TestService_getIngressARecord(t *testing.T) {
+	// Cluster domain for the test service: test-cluster.basedomain.io
+	ctx := context.TODO()
+
+	// ingressLabels satisfies the ingressServiceSelector label selector.
+	ingressLabels := map[string]string{"app.kubernetes.io/name": "ingress-nginx"}
+
+	tests := []struct {
+		name        string
+		services    []*corev1.Service
+		want        *armdns.RecordSet
+		wantErrKind string
+	}{
+		{
+			name:     "returns nil when no services in namespace",
+			services: nil,
+			want:     nil,
+		},
+		{
+			name: "skips service without managed annotation",
+			services: []*corev1.Service{
+				{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "ingress-nginx",
+						Namespace: ingressAppNamespace,
+						Labels:    ingressLabels,
+					},
+					Spec: corev1.ServiceSpec{Type: corev1.ServiceTypeLoadBalancer},
+					Status: corev1.ServiceStatus{
+						LoadBalancer: corev1.LoadBalancerStatus{
+							Ingress: []corev1.LoadBalancerIngress{{IP: "1.2.3.4"}},
+						},
+					},
+				},
+			},
+			want: nil,
+		},
+		{
+			name: "skips service with wrong managed annotation value",
+			services: []*corev1.Service{
+				{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "ingress-nginx",
+						Namespace: ingressAppNamespace,
+						Labels:    ingressLabels,
+						Annotations: map[string]string{
+							externalDNSManagedAnnotation:  "not-managed",
+							externalDNSHostnameAnnotation: "ingress.test-cluster.basedomain.io",
+						},
+					},
+					Spec: corev1.ServiceSpec{Type: corev1.ServiceTypeLoadBalancer},
+					Status: corev1.ServiceStatus{
+						LoadBalancer: corev1.LoadBalancerStatus{
+							Ingress: []corev1.LoadBalancerIngress{{IP: "1.2.3.4"}},
+						},
+					},
+				},
+			},
+			want: nil,
+		},
+		{
+			name: "skips service without hostname annotation",
+			services: []*corev1.Service{
+				{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "ingress-nginx",
+						Namespace: ingressAppNamespace,
+						Labels:    ingressLabels,
+						Annotations: map[string]string{
+							externalDNSManagedAnnotation: externalDNSManagedValue,
+						},
+					},
+					Spec: corev1.ServiceSpec{Type: corev1.ServiceTypeLoadBalancer},
+					Status: corev1.ServiceStatus{
+						LoadBalancer: corev1.LoadBalancerStatus{
+							Ingress: []corev1.LoadBalancerIngress{{IP: "1.2.3.4"}},
+						},
+					},
+				},
+			},
+			want: nil,
+		},
+		{
+			name: "skips non-LoadBalancer service",
+			services: []*corev1.Service{
+				{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "ingress-nginx",
+						Namespace: ingressAppNamespace,
+						Labels:    ingressLabels,
+						Annotations: map[string]string{
+							externalDNSManagedAnnotation:  externalDNSManagedValue,
+							externalDNSHostnameAnnotation: "ingress.test-cluster.basedomain.io",
+						},
+					},
+					Spec: corev1.ServiceSpec{Type: corev1.ServiceTypeClusterIP},
+				},
+			},
+			want: nil,
+		},
+		{
+			name: "returns ingressNotReadyError when LB has no IP yet",
+			services: []*corev1.Service{
+				{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "ingress-nginx",
+						Namespace: ingressAppNamespace,
+						Labels:    ingressLabels,
+						Annotations: map[string]string{
+							externalDNSManagedAnnotation:  externalDNSManagedValue,
+							externalDNSHostnameAnnotation: "ingress.test-cluster.basedomain.io",
+						},
+					},
+					Spec:   corev1.ServiceSpec{Type: corev1.ServiceTypeLoadBalancer},
+					Status: corev1.ServiceStatus{},
+				},
+			},
+			want:        nil,
+			wantErrKind: ingressNotReadyError.Kind,
+		},
+		{
+			name: "creates A record with name from hostname annotation",
+			services: []*corev1.Service{
+				{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "ingress-nginx",
+						Namespace: ingressAppNamespace,
+						Labels:    ingressLabels,
+						Annotations: map[string]string{
+							externalDNSManagedAnnotation:  externalDNSManagedValue,
+							externalDNSHostnameAnnotation: "ingress.test-cluster.basedomain.io",
+						},
+					},
+					Spec: corev1.ServiceSpec{Type: corev1.ServiceTypeLoadBalancer},
+					Status: corev1.ServiceStatus{
+						LoadBalancer: corev1.LoadBalancerStatus{
+							Ingress: []corev1.LoadBalancerIngress{{IP: "1.2.3.4"}},
+						},
+					},
+				},
+			},
+			want: &armdns.RecordSet{
+				Name: pointer.String("ingress"),
+				Type: pointer.String("A"),
+				Properties: &armdns.RecordSetProperties{
+					TTL:      pointer.Int64(ingressRecordTTL),
+					ARecords: []*armdns.ARecord{{IPv4Address: pointer.String("1.2.3.4")}},
+				},
+			},
+		},
+		{
+			name: "record name uses full prefix when hostname has multiple labels",
+			services: []*corev1.Service{
+				{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "ingress-nginx",
+						Namespace: ingressAppNamespace,
+						Labels:    ingressLabels,
+						Annotations: map[string]string{
+							externalDNSManagedAnnotation:  externalDNSManagedValue,
+							externalDNSHostnameAnnotation: "my-ingress.test-cluster.basedomain.io",
+						},
+					},
+					Spec: corev1.ServiceSpec{Type: corev1.ServiceTypeLoadBalancer},
+					Status: corev1.ServiceStatus{
+						LoadBalancer: corev1.LoadBalancerStatus{
+							Ingress: []corev1.LoadBalancerIngress{{IP: "5.6.7.8"}},
+						},
+					},
+				},
+			},
+			want: &armdns.RecordSet{
+				Name: pointer.String("my-ingress"),
+				Type: pointer.String("A"),
+				Properties: &armdns.RecordSetProperties{
+					TTL:      pointer.Int64(ingressRecordTTL),
+					ARecords: []*armdns.ARecord{{IPv4Address: pointer.String("5.6.7.8")}},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			svc := newGatewayTestService(t, ctx, tt.services)
+
+			got, err := svc.getIngressARecord(ctx)
+			if tt.wantErrKind != "" {
+				if err == nil {
+					t.Fatalf("expected error with kind %q, got nil", tt.wantErrKind)
+				}
+				if cause, ok := microerror.Cause(err).(*microerror.Error); !ok || cause.Kind != tt.wantErrKind {
+					t.Fatalf("expected error kind %q, got %v", tt.wantErrKind, err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			if !reflect.DeepEqual(got, tt.want) {
+				gotJSON, _ := json.Marshal(got)
+				wantJSON, _ := json.Marshal(tt.want)
+				t.Errorf("getIngressARecord() = %s, want %s", gotJSON, wantJSON)
 			}
 		})
 	}
