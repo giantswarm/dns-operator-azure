@@ -377,7 +377,7 @@ func (r *ClusterReconciler) getPrivateDnsServiceForMcToWcApi(ctx context.Context
 		ClusterServicePrincipalSecretToAttachPrivateDNS: *managementClusterStaticServicePrincipalSecret,
 		VirtualNetworkIDToAttachPrivateDNS:              managementCluster.Spec.NetworkSpec.Vnet.ID,
 		APIServerIP:                                     infraClusterAnnotations[azurePrivateEndpointOperatorApiServerAnnotation],
-		WildcardCNAMETarget:                             infraClusterAnnotations[azurescope.AnnotationWildcardCNAMETarget],
+		WildcardCNAMETarget:                             clusterScope.Cluster.GetAnnotations()[azurescope.AnnotationWildcardCNAMETarget],
 	}
 
 	privateDnsScope, err := azurescope.NewPrivateDNSScope(ctx, privateParams)
@@ -421,6 +421,12 @@ func (r *ClusterReconciler) getPrivateDnsServiceForWcToMcIngress(ctx context.Con
 		}
 	}
 
+	managementCAPICluster := &capi.Cluster{}
+	err = r.Get(ctx, types.NamespacedName{Name: managementCluster.GetName(), Namespace: managementCluster.GetNamespace()}, managementCAPICluster)
+	if err != nil {
+		return nil, reconcile.Result{}, microerror.Mask(err)
+	}
+
 	infraCluster := clusterScope.InfraCluster
 	infraClusterAnnotations := infraCluster.GetAnnotations()
 	azureClusterSpec := clusterScope.AzureClusterSpec()
@@ -433,7 +439,7 @@ func (r *ClusterReconciler) getPrivateDnsServiceForWcToMcIngress(ctx context.Con
 		ClusterServicePrincipalSecretToAttachPrivateDNS: *infraClusterStaticServicePrincipalSecret,
 		VirtualNetworkIDToAttachPrivateDNS:              (*azureClusterSpec).NetworkSpec.Vnet.ID,
 		MCIngressIP:                                     infraClusterAnnotations[azurePrivateEndpointOperatorMcIngressAnnotation],
-		WildcardCNAMETarget:                             managementCluster.GetAnnotations()[azurescope.AnnotationWildcardCNAMETarget],
+		WildcardCNAMETarget:                             managementCAPICluster.GetAnnotations()[azurescope.AnnotationWildcardCNAMETarget],
 	}
 
 	privateDnsScope, err := azurescope.NewPrivateDNSScope(ctx, privateParams)

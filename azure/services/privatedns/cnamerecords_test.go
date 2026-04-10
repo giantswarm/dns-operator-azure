@@ -250,14 +250,14 @@ func Test_CnameRecords(t *testing.T) {
 			cluster: &capi.Cluster{
 				ObjectMeta: v1.ObjectMeta{
 					Name: "test-cluster",
+					Annotations: map[string]string{
+						scope.AnnotationWildcardCNAMETarget: "custom-ingress",
+					},
 				},
 			},
 			azureCluster: &infrav1.AzureCluster{
 				ObjectMeta: v1.ObjectMeta{
 					Name: "test-cluster",
-					Annotations: map[string]string{
-						scope.AnnotationWildcardCNAMETarget: "custom-ingress",
-					},
 				},
 				Spec: infrav1.AzureClusterSpec{
 					ResourceGroup: "flkjd",
@@ -300,7 +300,7 @@ func Test_CnameRecords(t *testing.T) {
 				BaseDomain:          "basedomain.io",
 				ClusterName:         "test-cluster",
 				APIServerIP:         "127.0.0.1",
-				WildcardCNAMETarget: tt.azureCluster.Annotations[scope.AnnotationWildcardCNAMETarget],
+				WildcardCNAMETarget: tt.cluster.Annotations[scope.AnnotationWildcardCNAMETarget],
 				ClusterSpecToAttachPrivateDNS: infrav1.AzureClusterSpec{
 					NetworkSpec: infrav1.NetworkSpec{
 						Subnets: infrav1.Subnets{
