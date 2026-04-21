@@ -66,12 +66,7 @@ func (s *Service) updateCnameRecords(ctx context.Context, currentRecordSets []*a
 
 func (s *Service) calculateMissingCnameRecords(logger logr.Logger, currentRecordSets []*armprivatedns.RecordSet) []*armprivatedns.RecordSet {
 
-	clusterZoneName := s.scope.ClusterDomain()
-	wildcardTarget := s.scope.WildcardCNAMETarget()
-	if wildcardTarget == "" {
-		wildcardTarget = fmt.Sprintf("ingress.%s", clusterZoneName)
-	}
-	desiredRecords := desiredCnameRecords(wildcardTarget)
+	desiredRecords := desiredCnameRecords(s.scope.WildcardFQDN())
 
 	var recordsToCreate []*armprivatedns.RecordSet
 

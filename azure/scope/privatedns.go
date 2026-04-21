@@ -157,9 +157,11 @@ func (s *PrivateDNSScope) privateLinkedMcIngressIPFromClusterAnnotation() string
 	return s.mcIngressIP
 }
 
-func (s *PrivateDNSScope) WildcardCNAMETarget() string {
+// WildcardFQDN returns the FQDN for the wildcard CNAME record target.
+// If the target is set, it returns "<target>.<clusterdomain>"; otherwise "ingress.<clusterdomain>".
+func (s *PrivateDNSScope) WildcardFQDN() string {
 	if s.wildcardCNAMETarget == "" {
-		return ""
+		return fmt.Sprintf("ingress.%s", s.ClusterDomain())
 	}
 	return fmt.Sprintf("%s.%s", s.wildcardCNAMETarget, s.ClusterDomain())
 }

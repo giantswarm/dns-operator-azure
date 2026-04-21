@@ -135,13 +135,12 @@ func (s *DNSScope) ResourceTags() map[string]*string {
 	return s.resourceTags
 }
 
-// WildcardCNAMETarget returns the override value for the wildcard CNAME record
-// from the `network.giantswarm.io/wildcard-cname-target` annotation,
-// or empty string if not set.
-func (s *DNSScope) WildcardCNAMETarget() string {
+// WildcardFQDN returns the FQDN for the wildcard CNAME record target.
+// If the annotation is set, it returns "<annotation>.<clusterdomain>"; otherwise "ingress.<clusterdomain>".
+func (s *DNSScope) WildcardFQDN() string {
 	target := s.Cluster.GetAnnotations()[AnnotationWildcardCNAMETarget]
 	if target == "" {
-		return ""
+		return fmt.Sprintf("ingress.%s", s.ClusterDomain())
 	}
 	return fmt.Sprintf("%s.%s", target, s.ClusterDomain())
 }
