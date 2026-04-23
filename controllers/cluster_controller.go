@@ -209,6 +209,8 @@ func (r *ClusterReconciler) reconcileNormal(ctx context.Context, clusterScope *i
 		return reconcile.Result{}, microerror.Mask(err)
 	}
 
+	clusterScope.SetStatusAnnotation()
+
 	logger.Info("Successfully reconciled InfraCluster DNS zones")
 	return reconcile.Result{RequeueAfter: 5 * time.Minute}, nil
 }
