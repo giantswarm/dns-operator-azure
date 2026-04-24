@@ -23,6 +23,8 @@ type PrivateDNSScopeParams struct {
 	APIServerIP string
 	MCIngressIP string
 
+	WildcardCNAMETarget string
+
 	VirtualNetworkIDToAttachPrivateDNS string
 
 	ClusterAzureIdentityToAttachPrivateDNS          infrav1.AzureClusterIdentity
@@ -37,6 +39,8 @@ type PrivateDNSScope struct {
 	clusterName string
 	apiServerIP string
 	mcIngressIP string
+
+	wildcardCNAMETarget string
 
 	virtualNetworkID string
 
@@ -65,6 +69,7 @@ func NewPrivateDNSScope(_ context.Context, params PrivateDNSScopeParams) (*Priva
 		managementClusterSpec: params.ClusterSpecToAttachPrivateDNS,
 		apiServerIP:           params.APIServerIP,
 		mcIngressIP:           params.MCIngressIP,
+		wildcardCNAMETarget:   params.WildcardCNAMETarget,
 		virtualNetworkID:      params.VirtualNetworkIDToAttachPrivateDNS,
 	}
 
@@ -150,4 +155,13 @@ func (s *PrivateDNSScope) privateLinkedAPIServerIPFromClusterAnnotation() string
 
 func (s *PrivateDNSScope) privateLinkedMcIngressIPFromClusterAnnotation() string {
 	return s.mcIngressIP
+}
+
+// WildcardFQDN returns the FQDN for the wildcard CNAME record target.
+// If the target is set, it returns "<target>.<clusterdomain>"; otherwise "ingress.<clusterdomain>".
+func (s *PrivateDNSScope) WildcardFQDN() string {
+	if s.wildcardCNAMETarget == "" {
+		return fmt.Sprintf("ingress.%s", s.ClusterDomain())
+	}
+	return fmt.Sprintf("%s.%s", s.wildcardCNAMETarget, s.ClusterDomain())
 }

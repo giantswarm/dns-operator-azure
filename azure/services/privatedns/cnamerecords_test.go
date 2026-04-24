@@ -245,6 +245,43 @@ func Test_CnameRecords(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "use wildcard CNAME target from annotation when set",
+			cluster: &capi.Cluster{
+				ObjectMeta: v1.ObjectMeta{
+					Name: "test-cluster",
+					Annotations: map[string]string{
+						scope.AnnotationWildcardCNAMETarget: "custom-ingress",
+					},
+				},
+			},
+			azureCluster: &infrav1.AzureCluster{
+				ObjectMeta: v1.ObjectMeta{
+					Name: "test-cluster",
+				},
+				Spec: infrav1.AzureClusterSpec{
+					ResourceGroup: "flkjd",
+					AzureClusterClassSpec: infrav1.AzureClusterClassSpec{
+						SubscriptionID: uuid.New().String(),
+					},
+				},
+			},
+			args: args{
+				ctx: context.TODO(),
+			},
+			expectedRecords: []*armprivatedns.RecordSet{
+				{
+					Properties: &armprivatedns.RecordSetProperties{
+						CnameRecord: &armprivatedns.CnameRecord{
+							Cname: pointer.String("custom-ingress.test-cluster.basedomain.io"),
+						},
+						TTL: pointer.Int64(300),
+					},
+					Name: pointer.String("*"),
+					Type: pointer.String("CNAME"),
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -260,9 +297,10 @@ func Test_CnameRecords(t *testing.T) {
 			}
 
 			dnsScopeParams := scope.PrivateDNSScopeParams{
-				BaseDomain:  "basedomain.io",
-				ClusterName: "test-cluster",
-				APIServerIP: "127.0.0.1",
+				BaseDomain:          "basedomain.io",
+				ClusterName:         "test-cluster",
+				APIServerIP:         "127.0.0.1",
+				WildcardCNAMETarget: tt.cluster.Annotations[scope.AnnotationWildcardCNAMETarget],
 				ClusterSpecToAttachPrivateDNS: infrav1.AzureClusterSpec{
 					NetworkSpec: infrav1.NetworkSpec{
 						Subnets: infrav1.Subnets{

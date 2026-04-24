@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Allow overriding the wildcard CNAME target for public DNS zones via a `Cluster` annotation.
+- Allow overriding the wildcard CNAME target for private DNS zones via a `Cluster` annotation.
+
 ## [2.4.0] - 2026-04-13
 
 ### Added
