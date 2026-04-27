@@ -11,6 +11,8 @@ import (
 	"github.com/giantswarm/micrologger"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	apimeta "k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -398,4 +400,26 @@ func getK8sClient(config k8srestconfig.Config, logger micrologger.Logger) (clien
 	}
 
 	return ctrlClient, nil
+}
+
+func SetUnstructuredCondition(obj *unstructured.Unstructured, condition metav1.Condition) error {
+	raw, found, err := unstructured.NestedSlice(obj.Object, "status", "conditions")
+	if !found {
+		return errors.New("given unstructured object does not have status.conditions field")
+	}
+	if err != nil {
+		return err
+	}
+
+	conditions := make([]metav1.Condition, len(raw))
+	for i := range raw {
+		condition, ok := raw[i].(metav1.Condition)
+		if !ok {
+			return errors.New("failed to typecast as metav1.Condition")
+		}
+		conditions[i] = condition
+	}
+
+	apimeta.SetStatusCondition(&conditions, condition)
+	return nil
 }

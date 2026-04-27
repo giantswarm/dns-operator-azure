@@ -23,6 +23,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	infrav1 "sigs.k8s.io/cluster-api-provider-azure/api/v1beta1"
@@ -208,6 +209,12 @@ func (r *ClusterReconciler) reconcileNormal(ctx context.Context, clusterScope *i
 	if err != nil {
 		return reconcile.Result{}, microerror.Mask(err)
 	}
+
+	infracluster.SetUnstructuredCondition(infraCluster, v1.Condition{
+		Type:    "GSDNSZoneReady",
+		Message: "GiantSwarm DNS Zones have been created",
+		Status:  v1.ConditionTrue,
+	})
 
 	logger.Info("Successfully reconciled InfraCluster DNS zones")
 	return reconcile.Result{RequeueAfter: 5 * time.Minute}, nil
