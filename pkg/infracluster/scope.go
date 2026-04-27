@@ -420,6 +420,15 @@ func SetUnstructuredCondition(obj *unstructured.Unstructured, condition metav1.C
 		conditions[i] = condition
 	}
 
-	apimeta.SetStatusCondition(&conditions, condition)
-	return nil
+	changed := apimeta.SetStatusCondition(&conditions, condition)
+	if !changed {
+		return nil
+	}
+
+	raw = make([]any, len(conditions))
+	for i := range raw {
+		raw[i] = conditions[i]
+	}
+
+	return unstructured.SetNestedSlice(obj.Object, raw, "status", "conditions")
 }
