@@ -215,6 +215,9 @@ func (r *ClusterReconciler) reconcileNormal(ctx context.Context, clusterScope *i
 		Message: "GiantSwarm DNS Zones have been created",
 		Status:  v1.ConditionTrue,
 	})
+	if err := clusterScope.Patcher.PatchObject(ctx); err != nil {
+		return reconcile.Result{}, err
+	}
 
 	logger.Info("Successfully reconciled InfraCluster DNS zones")
 	return reconcile.Result{RequeueAfter: 5 * time.Minute}, nil
