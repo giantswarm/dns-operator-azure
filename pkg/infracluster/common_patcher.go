@@ -58,10 +58,10 @@ func (s *CommonPatcher) ClusterName() string {
 }
 
 func (s *CommonPatcher) PatchObject(ctx context.Context) error {
-	if err := s.k8sClient.Update(ctx, s.InfraCluster); err != nil {
+	if err := s.k8sClient.Status().Update(ctx, s.InfraCluster); err != nil {
 		return err
 	}
-	return s.k8sClient.Status().Update(ctx, s.InfraCluster)
+	return s.k8sClient.Update(ctx, s.InfraCluster)
 }
 
 func (s *CommonPatcher) IsAPIServerPrivate() bool {
