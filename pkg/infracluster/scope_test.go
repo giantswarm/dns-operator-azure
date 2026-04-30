@@ -3,6 +3,7 @@ package infracluster
 import (
 	"context"
 	"reflect"
+	"slices"
 	"testing"
 
 	"github.com/google/uuid"
@@ -14,6 +15,7 @@ import (
 	"k8s.io/kubectl/pkg/scheme"
 	infrav1 "sigs.k8s.io/cluster-api-provider-azure/api/v1beta1"
 	"sigs.k8s.io/cluster-api/api/core/v1beta1"
+	clusterv1beta1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
 	capi "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	fakeclient "sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
@@ -246,6 +248,13 @@ func TestSetUnstructuredCondition(t *testing.T) {
 			Status: metav1.ConditionTrue,
 		})
 		g.Expect(err).Should(BeNil())
+		err = runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &azureCluster)
+		g.Expect(err).Should(BeNil())
+
+		found := slices.ContainsFunc(azureCluster.Status.Conditions, func(c clusterv1beta1.Condition) bool {
+			return c.Type == "Bar"
+		})
+		g.Expect(found).To(BeTrue())
 	})
 
 	t.Run("adds condition when object has no status.conditions field", func(t *testing.T) {
@@ -260,5 +269,12 @@ func TestSetUnstructuredCondition(t *testing.T) {
 			Status: metav1.ConditionTrue,
 		})
 		g.Expect(err).Should(BeNil())
+		err = runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &azureCluster)
+		g.Expect(err).Should(BeNil())
+
+		found := slices.ContainsFunc(azureCluster.Status.Conditions, func(c clusterv1beta1.Condition) bool {
+			return c.Type == "Foo"
+		})
+		g.Expect(found).To(BeTrue())
 	})
 }

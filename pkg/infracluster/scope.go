@@ -23,6 +23,7 @@ import (
 	"sigs.k8s.io/cluster-api-provider-azure/azure/services/async"
 	"sigs.k8s.io/cluster-api-provider-azure/azure/services/publicips"
 	"sigs.k8s.io/cluster-api-provider-azure/util/reconciler"
+	clusterv1beta1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
 	capi "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -402,7 +403,26 @@ func getK8sClient(config k8srestconfig.Config, logger micrologger.Logger) (clien
 	return ctrlClient, nil
 }
 
-func SetUnstructuredCondition(obj *unstructured.Unstructured, condition metav1.Condition) error {
+// SetUnstructuredCondition sets a status condition on an unstructured object.
+// The given condition can be one of these types:
+//   - [k8s.io/apimachinery/pkg/apis/meta/v1.Condition]
+//   - [sigs.k8s.io/cluster-api/api/core/v1beta1.Condition]
+//
+// The first type is used in Cluster API v1beta2. The latter type is deprecated, but still used
+// in CAPZ as of version 1.23.0. To avoid this function breaking as soon as CAPZ updates
+// to use Cluster API v1beta2, it dispatches internally to handle the correct type.
+func SetUnstructuredCondition(obj *unstructured.Unstructured, condition any) error {
+	switch c := condition.(type) {
+	case metav1.Condition:
+		return setUnstructuredCondition(obj, c)
+	case clusterv1beta1.Condition:
+		return setUnstructuredCAPICondition(obj, c)
+	default:
+		return fmt.Errorf("unsupported condition type %T", condition)
+	}
+}
+
+func setUnstructuredCondition(obj *unstructured.Unstructured, condition metav1.Condition) error {
 	conditions := make([]metav1.Condition, 0)
 
 	raw, found, err := unstructured.NestedSlice(obj.Object, "status", "conditions")
@@ -426,6 +446,52 @@ func SetUnstructuredCondition(obj *unstructured.Unstructured, condition metav1.C
 	changed := apimeta.SetStatusCondition(&conditions, condition)
 	if !changed {
 		return nil
+	}
+
+	raw = make([]any, len(conditions))
+	for i := range conditions {
+		m, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&conditions[i])
+		if err != nil {
+			return err
+		}
+		raw[i] = m
+	}
+
+	return unstructured.SetNestedSlice(obj.Object, raw, "status", "conditions")
+}
+
+// setUnstructuredCAPICondition sets a status condition in an unstructured object
+// using a Condition from Cluster API's deprecated v1beta1 types.
+func setUnstructuredCAPICondition(obj *unstructured.Unstructured, condition clusterv1beta1.Condition) error {
+	conditions := make([]clusterv1beta1.Condition, 0)
+
+	raw, found, err := unstructured.NestedSlice(obj.Object, "status", "conditions")
+	if err != nil {
+		return err
+	}
+	if found {
+		for _, item := range raw {
+			m, ok := item.(map[string]interface{})
+			if !ok {
+				return errors.New("condition item is not a map")
+			}
+			var c clusterv1beta1.Condition
+			if err := runtime.DefaultUnstructuredConverter.FromUnstructured(m, &c); err != nil {
+				return err
+			}
+			conditions = append(conditions, c)
+		}
+	}
+
+	found = false
+	for i := range conditions {
+		if conditions[i].Type == condition.Type {
+			conditions[i] = condition
+			found = true
+		}
+	}
+	if !found {
+		conditions = append(conditions, condition)
 	}
 
 	raw = make([]any, len(conditions))
