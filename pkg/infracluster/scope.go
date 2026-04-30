@@ -486,11 +486,15 @@ func setUnstructuredCAPICondition(obj *unstructured.Unstructured, condition clus
 	found = false
 	for i := range conditions {
 		if conditions[i].Type == condition.Type {
+			if condition.LastTransitionTime.IsZero() {
+				condition.LastTransitionTime = metav1.Now()
+			}
 			conditions[i] = condition
 			found = true
 		}
 	}
 	if !found {
+		condition.LastTransitionTime = metav1.Now()
 		conditions = append(conditions, condition)
 	}
 
