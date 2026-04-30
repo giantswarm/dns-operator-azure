@@ -218,6 +218,9 @@ func (r *ClusterReconciler) reconcileNormal(ctx context.Context, clusterScope *i
 	if err != nil {
 		return reconcile.Result{}, err
 	}
+	if err := clusterScope.Client.Status().Update(ctx, infraCluster); err != nil {
+		return reconcile.Result{}, err
+	}
 	if err := clusterScope.Patcher.PatchObject(ctx); err != nil {
 		return reconcile.Result{}, err
 	}
