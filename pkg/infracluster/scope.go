@@ -403,21 +403,24 @@ func getK8sClient(config k8srestconfig.Config, logger micrologger.Logger) (clien
 }
 
 func SetUnstructuredCondition(obj *unstructured.Unstructured, condition metav1.Condition) error {
+	conditions := make([]metav1.Condition, 0)
+
 	raw, found, err := unstructured.NestedSlice(obj.Object, "status", "conditions")
-	if !found {
-		return errors.New("given unstructured object does not have status.conditions field")
-	}
 	if err != nil {
 		return err
 	}
-
-	conditions := make([]metav1.Condition, len(raw))
-	for i := range raw {
-		condition, ok := raw[i].(metav1.Condition)
-		if !ok {
-			return errors.New("failed to typecast as metav1.Condition")
+	if found {
+		for _, item := range raw {
+			m, ok := item.(map[string]interface{})
+			if !ok {
+				return errors.New("condition item is not a map")
+			}
+			var c metav1.Condition
+			if err := runtime.DefaultUnstructuredConverter.FromUnstructured(m, &c); err != nil {
+				return err
+			}
+			conditions = append(conditions, c)
 		}
-		conditions[i] = condition
 	}
 
 	changed := apimeta.SetStatusCondition(&conditions, condition)
@@ -426,8 +429,12 @@ func SetUnstructuredCondition(obj *unstructured.Unstructured, condition metav1.C
 	}
 
 	raw = make([]any, len(conditions))
-	for i := range raw {
-		raw[i] = conditions[i]
+	for i := range conditions {
+		m, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&conditions[i])
+		if err != nil {
+			return err
+		}
+		raw[i] = m
 	}
 
 	return unstructured.SetNestedSlice(obj.Object, raw, "status", "conditions")

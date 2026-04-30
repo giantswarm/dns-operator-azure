@@ -210,11 +210,14 @@ func (r *ClusterReconciler) reconcileNormal(ctx context.Context, clusterScope *i
 		return reconcile.Result{}, microerror.Mask(err)
 	}
 
-	infracluster.SetUnstructuredCondition(infraCluster, v1.Condition{
+	err = infracluster.SetUnstructuredCondition(infraCluster, v1.Condition{
 		Type:    "GSDNSZoneReady",
 		Message: "GiantSwarm DNS Zones have been created",
 		Status:  v1.ConditionTrue,
 	})
+	if err != nil {
+		return reconcile.Result{}, err
+	}
 	if err := clusterScope.Patcher.PatchObject(ctx); err != nil {
 		return reconcile.Result{}, err
 	}
