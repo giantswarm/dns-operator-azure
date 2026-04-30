@@ -23,10 +23,10 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	infrav1 "sigs.k8s.io/cluster-api-provider-azure/api/v1beta1"
+	clusterv1beta1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
 	capi "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/cluster-api/controllers/external"
 	"sigs.k8s.io/cluster-api/util"
@@ -210,10 +210,12 @@ func (r *ClusterReconciler) reconcileNormal(ctx context.Context, clusterScope *i
 		return reconcile.Result{}, microerror.Mask(err)
 	}
 
-	err = infracluster.SetUnstructuredCondition(infraCluster, v1.Condition{
-		Type:    "GSDNSZoneReady",
+	err = infracluster.SetUnstructuredCondition(infraCluster, clusterv1beta1.Condition{
+		Type:   "GSDNSZoneReady",
+		Status: corev1.ConditionTrue,
+		// Reason and Message will be required in CAPI v1beta2.
+		Reason:  "GSDNSZonesCreated",
 		Message: "GiantSwarm DNS Zones have been created",
-		Status:  v1.ConditionTrue,
 	})
 	if err != nil {
 		return reconcile.Result{}, err
