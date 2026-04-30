@@ -16,6 +16,7 @@ require (
 	github.com/giantswarm/micrologger v1.1.2
 	github.com/go-logr/logr v1.4.3
 	github.com/google/uuid v1.6.0
+	github.com/onsi/gomega v1.39.0
 	github.com/prometheus/client_golang v1.23.2
 	go.uber.org/zap v1.27.1
 	golang.org/x/exp v0.0.0-20260410095643-746e56fc9e2f
@@ -89,7 +90,6 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.3-0.20250322232337-35a7c28c31ee // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
-	github.com/onsi/gomega v1.39.0 // indirect
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
