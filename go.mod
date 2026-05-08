@@ -17,7 +17,7 @@ require (
 	github.com/go-logr/logr v1.4.3
 	github.com/google/uuid v1.6.0
 	github.com/prometheus/client_golang v1.23.2
-	go.uber.org/zap v1.27.1
+	go.uber.org/zap v1.28.0
 	golang.org/x/exp v0.0.0-20260410095643-746e56fc9e2f
 	k8s.io/api v0.34.3
 	k8s.io/apimachinery v0.34.3
