@@ -26,6 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	infrav1 "sigs.k8s.io/cluster-api-provider-azure/api/v1beta1"
+	clusterv1beta1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
 	capi "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/cluster-api/controllers/external"
 	"sigs.k8s.io/cluster-api/util"
@@ -207,6 +208,23 @@ func (r *ClusterReconciler) reconcileNormal(ctx context.Context, clusterScope *i
 	err = dnsService.Reconcile(ctx)
 	if err != nil {
 		return reconcile.Result{}, microerror.Mask(err)
+	}
+
+	err = infracluster.SetUnstructuredCondition(infraCluster, clusterv1beta1.Condition{
+		Type:   "GSDNSZoneReady",
+		Status: corev1.ConditionTrue,
+		// Reason and Message will be required in CAPI v1beta2.
+		Reason:  "GSDNSZonesCreated",
+		Message: "GiantSwarm DNS Zones have been created",
+	})
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+	if err := clusterScope.Client.Status().Update(ctx, infraCluster); err != nil {
+		return reconcile.Result{}, err
+	}
+	if err := clusterScope.Patcher.PatchObject(ctx); err != nil {
+		return reconcile.Result{}, err
 	}
 
 	logger.Info("Successfully reconciled InfraCluster DNS zones")
