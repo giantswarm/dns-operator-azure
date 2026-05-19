@@ -3,15 +3,19 @@ package infracluster
 import (
 	"context"
 	"reflect"
+	"slices"
 	"testing"
 
 	"github.com/google/uuid"
+	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/kubectl/pkg/scheme"
 	infrav1 "sigs.k8s.io/cluster-api-provider-azure/api/v1beta1"
+	"sigs.k8s.io/cluster-api/api/core/v1beta1"
+	clusterv1beta1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
 	capi "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	fakeclient "sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
@@ -220,4 +224,57 @@ func Test_CreateScope(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestSetUnstructuredCondition(t *testing.T) {
+	t.Run("adds condition to the unstructured object", func(t *testing.T) {
+		g := NewWithT(t)
+		azureCluster := infrav1.AzureCluster{
+			Status: infrav1.AzureClusterStatus{
+				Conditions: v1beta1.Conditions{
+					v1beta1.Condition{
+						Type:   "Foo",
+						Status: corev1.ConditionTrue,
+					},
+				},
+			},
+		}
+		unstructuredMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&azureCluster)
+		g.Expect(err).Should(BeNil())
+
+		obj := unstructured.Unstructured{Object: unstructuredMap}
+		err = SetUnstructuredCondition(&obj, metav1.Condition{
+			Type:   "Bar",
+			Status: metav1.ConditionTrue,
+		})
+		g.Expect(err).Should(BeNil())
+		err = runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &azureCluster)
+		g.Expect(err).Should(BeNil())
+
+		found := slices.ContainsFunc(azureCluster.Status.Conditions, func(c clusterv1beta1.Condition) bool {
+			return c.Type == "Bar"
+		})
+		g.Expect(found).To(BeTrue())
+	})
+
+	t.Run("adds condition when object has no status.conditions field", func(t *testing.T) {
+		g := NewWithT(t)
+		azureCluster := infrav1.AzureCluster{}
+		unstructuredMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&azureCluster)
+		g.Expect(err).Should(BeNil())
+		obj := unstructured.Unstructured{Object: unstructuredMap}
+
+		err = SetUnstructuredCondition(&obj, metav1.Condition{
+			Type:   "Foo",
+			Status: metav1.ConditionTrue,
+		})
+		g.Expect(err).Should(BeNil())
+		err = runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &azureCluster)
+		g.Expect(err).Should(BeNil())
+
+		found := slices.ContainsFunc(azureCluster.Status.Conditions, func(c clusterv1beta1.Condition) bool {
+			return c.Type == "Foo"
+		})
+		g.Expect(found).To(BeTrue())
+	})
 }
