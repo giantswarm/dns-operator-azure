@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.5.0] - 2026-05-19
+
 ### Added
 
 - Allow overriding the wildcard CNAME target for public DNS zones via a `Cluster` annotation.
@@ -207,7 +209,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - First release
 
-[Unreleased]: https://github.com/giantswarm/dns-operator-azure/compare/v2.4.0...HEAD
+[Unreleased]: https://github.com/giantswarm/dns-operator-azure/compare/v2.5.0...HEAD
+[2.5.0]: https://github.com/giantswarm/dns-operator-azure/compare/v2.4.0...v2.5.0
 [2.4.0]: https://github.com/giantswarm/dns-operator-azure/compare/v2.3.3...v2.4.0
 [2.3.3]: https://github.com/giantswarm/dns-operator-azure/compare/v2.3.2...v2.3.3
 [2.3.2]: https://github.com/giantswarm/dns-operator-azure/compare/v2.3.1...v2.3.2
