@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Allow overriding the wildcard CNAME target for public DNS zones via a `Cluster` annotation.
 - Allow overriding the wildcard CNAME target for private DNS zones via a `Cluster` annotation.
+- Set GSDNSZoneReady status condition on the AzureCluster at the end of the reconcile loop.
 
 ## [2.4.0] - 2026-04-13
 
