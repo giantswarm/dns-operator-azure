@@ -18,7 +18,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/onsi/gomega v1.39.0
 	github.com/prometheus/client_golang v1.23.2
-	go.uber.org/zap v1.27.1
+	go.uber.org/zap v1.28.0
 	golang.org/x/exp v0.0.0-20260410095643-746e56fc9e2f
 	k8s.io/api v0.34.3
 	k8s.io/apimachinery v0.34.3
