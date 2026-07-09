@@ -29,9 +29,23 @@ import (
 )
 
 const (
-	kindAzureCluster       = "AzureCluster"
-	kubeConfigSecretSuffix = "-kubeconfig" //nolint
-	kubeConfigSecretKey    = "value"
+	kindAzureCluster           = "AzureCluster"
+	kindAzureASOManagedCluster = infrav1.AzureASOManagedClusterKind
+	kubeConfigSecretSuffix     = "-kubeconfig" //nolint
+	kubeConfigSecretKey        = "value"
+
+	// AnnotationAzureSubscriptionID is the annotation on the Cluster object that
+	// holds the ID of the Azure subscription the cluster lives in. It is used for
+	// AKS (AzureASOManagedCluster) clusters, whose subscription cannot be derived
+	// from an AzureCluster spec.
+	AnnotationAzureSubscriptionID = "giantswarm.io/azure-subscription-id"
+
+	// AnnotationAzureClusterIdentityName and AnnotationAzureClusterIdentityNamespace
+	// are the annotations on the AzureASOManagedCluster object that reference the
+	// AzureClusterIdentity to authenticate with. AKS clusters have no AzureCluster
+	// spec to carry an IdentityRef, so the reference is provided via annotations.
+	AnnotationAzureClusterIdentityName      = "azure.giantswarm.io/azure-cluster-identity"
+	AnnotationAzureClusterIdentityNamespace = "azure.giantswarm.io/azure-cluster-identity-namespace"
 )
 
 type Patcher interface {
@@ -96,6 +110,12 @@ func (s *Scope) IsAzureCluster() bool {
 	return isAzureCluster(s.InfraCluster)
 }
 
+// IsASOManagedCluster reports whether the infrastructure cluster is an
+// AzureASOManagedCluster, i.e. an AKS cluster managed via Azure Service Operator.
+func (s *Scope) IsASOManagedCluster() bool {
+	return isASOManagedCluster(s.InfraCluster)
+}
+
 func (s *Scope) PublicIPsService() async.Getter {
 	return s.publicIPService
 }
@@ -135,6 +155,13 @@ func (s *Scope) InfraClusterIdentity(ctx context.Context) (*infrav1.AzureCluster
 		if err == nil {
 			return identity, nil
 		}
+	}
+
+	// AKS (AzureASOManagedCluster) clusters reference their AzureClusterIdentity
+	// via annotations on the infrastructure cluster, since they have no
+	// AzureCluster spec to carry an IdentityRef.
+	if identityRef := asoManagedClusterIdentityRef(s.InfraCluster); identityRef != nil {
+		return azureClusterIdentity(ctx, s.Client, identityRef)
 	}
 
 	if s.clusterIdentityRef != nil {
@@ -217,6 +244,25 @@ func NewScope(ctx context.Context, params ScopeParams) (*Scope, error) {
 	clientID := params.ClusterZoneAzureConfig.ClientID
 	tenantID := params.ClusterZoneAzureConfig.TenantID
 
+	// AKS (AzureASOManagedCluster) clusters are self-contained: the subscription
+	// the cluster lives in and the AzureClusterIdentity to authenticate with are
+	// both provided via annotations (on the Cluster and the infrastructure cluster
+	// respectively). These take precedence over any env-provided values, and let
+	// us avoid falling back to the management cluster.
+	if isASOManagedCluster(params.InfraCluster) {
+		if annotationSubscriptionID := params.Cluster.GetAnnotations()[AnnotationAzureSubscriptionID]; annotationSubscriptionID != "" {
+			subscriptionID = annotationSubscriptionID
+		}
+		if identityRef := asoManagedClusterIdentityRef(params.InfraCluster); identityRef != nil {
+			identity, err := azureClusterIdentity(ctx, params.Client, identityRef)
+			if err != nil {
+				return nil, err
+			}
+			clientID = identity.Spec.ClientID
+			tenantID = identity.Spec.TenantID
+		}
+	}
+
 	if subscriptionID == "" || clientID == "" || tenantID == "" {
 		managementCluster, err = managementAzureCluster(ctx, params.Client, params.ManagementClusterConfig.Name, params.ManagementClusterConfig.Namespace)
 		if err != nil {
@@ -293,6 +339,31 @@ func azureClusterFromInfraObject(infraCluster *unstructured.Unstructured) *infra
 
 func isAzureCluster(infraCluster *unstructured.Unstructured) bool {
 	return infraCluster.GetKind() == kindAzureCluster
+}
+
+func isASOManagedCluster(infraCluster *unstructured.Unstructured) bool {
+	return infraCluster.GetKind() == kindAzureASOManagedCluster
+}
+
+// asoManagedClusterIdentityRef returns a reference to the AzureClusterIdentity
+// an AKS (AzureASOManagedCluster) cluster should authenticate with, read from
+// the annotations on the infrastructure cluster. It returns nil for other
+// cluster types or when the reference annotation is not set.
+func asoManagedClusterIdentityRef(infraCluster *unstructured.Unstructured) *corev1.ObjectReference {
+	if !isASOManagedCluster(infraCluster) {
+		return nil
+	}
+
+	annotations := infraCluster.GetAnnotations()
+	name := annotations[AnnotationAzureClusterIdentityName]
+	if name == "" {
+		return nil
+	}
+
+	return &corev1.ObjectReference{
+		Name:      name,
+		Namespace: annotations[AnnotationAzureClusterIdentityNamespace],
+	}
 }
 
 func managementAzureCluster(ctx context.Context, client client.Client, name, namespace string) (*infrav1.AzureCluster, error) {

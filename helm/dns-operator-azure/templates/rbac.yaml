@@ -21,6 +21,8 @@ rules:
 {{- end }}
   - azureclusters
   - azureclusters/status
+  - azureasomanagedclusters
+  - azureasomanagedclusters/status
   - clusters
   - clusters/status
   verbs:

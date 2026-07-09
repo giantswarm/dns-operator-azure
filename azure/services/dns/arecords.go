@@ -150,6 +150,15 @@ func (s *Service) calculateMissingARecords(ctx context.Context, logger logr.Logg
 
 func (s *Service) getDesiredARecords(ctx context.Context) ([]*armdns.RecordSet, error) {
 
+	// AKS (AzureASOManagedCluster) clusters expose their API server through an
+	// Azure-provided FQDN whose TLS certificate only matches that FQDN. Publishing
+	// api/apiserver records under our own domain would therefore cause a certificate
+	// mismatch, so we don't manage any A records for them. Ingress records for AKS
+	// clusters are handled by external-dns running inside the cluster.
+	if s.scope.IsASOManagedCluster() {
+		return nil, nil
+	}
+
 	var armdnsRecordSet []*armdns.RecordSet
 
 	armdnsRecordSet = append(armdnsRecordSet,

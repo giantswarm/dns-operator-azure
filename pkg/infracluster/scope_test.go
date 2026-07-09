@@ -226,6 +226,178 @@ func Test_CreateScope(t *testing.T) {
 	}
 }
 
+func Test_CreateScope_SubscriptionID(t *testing.T) {
+	const (
+		envSubscriptionID        = "env-subscription-id"
+		annotationSubscriptionID = "annotation-subscription-id"
+	)
+
+	testCases := []struct {
+		name          string
+		infraKind     string
+		annotations   map[string]string
+		expectedSubID string
+	}{
+		{
+			name:          "AKS cluster: subscription comes from the Cluster annotation",
+			infraKind:     infrav1.AzureASOManagedClusterKind,
+			annotations:   map[string]string{AnnotationAzureSubscriptionID: annotationSubscriptionID},
+			expectedSubID: annotationSubscriptionID,
+		},
+		{
+			name:          "AKS cluster without annotation: falls back to the configured subscription",
+			infraKind:     infrav1.AzureASOManagedClusterKind,
+			annotations:   nil,
+			expectedSubID: envSubscriptionID,
+		},
+		{
+			name:          "non-AKS cluster: annotation is ignored",
+			infraKind:     "VSphereCluster",
+			annotations:   map[string]string{AnnotationAzureSubscriptionID: annotationSubscriptionID},
+			expectedSubID: envSubscriptionID,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.TODO()
+
+			schemeBuilder := runtime.SchemeBuilder{
+				capi.AddToScheme,
+				infrav1.AddToScheme,
+			}
+			if err := schemeBuilder.AddToScheme(scheme.Scheme); err != nil {
+				t.Fatal(err)
+			}
+
+			cluster := &capi.Cluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:        "test-cluster",
+					Namespace:   "default",
+					Annotations: tc.annotations,
+				},
+				Spec: capi.ClusterSpec{
+					InfrastructureRef: capi.ContractVersionedObjectReference{
+						Name: "test-infra-cluster",
+					},
+				},
+			}
+
+			infraCluster := &unstructured.Unstructured{}
+			infraCluster.SetGroupVersionKind(infrav1.GroupVersion.WithKind(tc.infraKind))
+			infraCluster.SetName("test-infra-cluster")
+			infraCluster.SetNamespace("default")
+
+			kubeClient := fakeclient.NewClientBuilder().
+				WithScheme(scheme.Scheme).
+				WithRuntimeObjects(cluster).
+				Build()
+
+			// Provide a complete ClusterZoneAzureConfig so the scope does not
+			// look up the management cluster for credentials.
+			scope, err := NewScope(ctx, ScopeParams{
+				Client:       kubeClient,
+				Cluster:      cluster,
+				InfraCluster: infraCluster,
+				ClusterZoneAzureConfig: ClusterZoneAzureConfig{
+					SubscriptionID: envSubscriptionID,
+					ClientID:       fakeClientID,
+					TenantID:       fakeTenantID,
+				},
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if got := scope.Patcher.SubscriptionID(); got != tc.expectedSubID {
+				t.Errorf("SubscriptionID() = %q, want %q", got, tc.expectedSubID)
+			}
+		})
+	}
+}
+
+func Test_InfraClusterIdentity_ASOManagedCluster(t *testing.T) {
+	ctx := context.TODO()
+
+	const (
+		identityName      = "aks-identity"
+		identityNamespace = "org-test"
+		identityClientID  = "aks-identity-client-id"
+		identityTenantID  = "aks-identity-tenant-id"
+	)
+
+	schemeBuilder := runtime.SchemeBuilder{
+		capi.AddToScheme,
+		infrav1.AddToScheme,
+	}
+	if err := schemeBuilder.AddToScheme(scheme.Scheme); err != nil {
+		t.Fatal(err)
+	}
+
+	cluster := &capi.Cluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-aks",
+			Namespace: "default",
+		},
+		Spec: capi.ClusterSpec{
+			InfrastructureRef: capi.ContractVersionedObjectReference{
+				Name: "test-aks",
+			},
+		},
+	}
+
+	identity := &infrav1.AzureClusterIdentity{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      identityName,
+			Namespace: identityNamespace,
+		},
+		Spec: infrav1.AzureClusterIdentitySpec{
+			Type:     infrav1.WorkloadIdentity,
+			ClientID: identityClientID,
+			TenantID: identityTenantID,
+		},
+	}
+
+	infraCluster := &unstructured.Unstructured{}
+	infraCluster.SetGroupVersionKind(infrav1.GroupVersion.WithKind(infrav1.AzureASOManagedClusterKind))
+	infraCluster.SetName("test-aks")
+	infraCluster.SetNamespace("default")
+	infraCluster.SetAnnotations(map[string]string{
+		AnnotationAzureClusterIdentityName:      identityName,
+		AnnotationAzureClusterIdentityNamespace: identityNamespace,
+	})
+
+	kubeClient := fakeclient.NewClientBuilder().
+		WithScheme(scheme.Scheme).
+		WithRuntimeObjects(cluster, identity).
+		Build()
+
+	scope, err := NewScope(ctx, ScopeParams{
+		Client:       kubeClient,
+		Cluster:      cluster,
+		InfraCluster: infraCluster,
+		ClusterZoneAzureConfig: ClusterZoneAzureConfig{
+			SubscriptionID: "sub",
+			ClientID:       fakeClientID,
+			TenantID:       fakeTenantID,
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := scope.InfraClusterIdentity(ctx)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got.Name != identityName || got.Namespace != identityNamespace {
+		t.Errorf("InfraClusterIdentity() = %s/%s, want %s/%s", got.Namespace, got.Name, identityNamespace, identityName)
+	}
+	if got.Spec.ClientID != identityClientID || got.Spec.TenantID != identityTenantID {
+		t.Errorf("InfraClusterIdentity() client/tenant = %s/%s, want %s/%s", got.Spec.ClientID, got.Spec.TenantID, identityClientID, identityTenantID)
+	}
+}
+
 func TestSetUnstructuredCondition(t *testing.T) {
 	t.Run("adds condition to the unstructured object", func(t *testing.T) {
 		g := NewWithT(t)
