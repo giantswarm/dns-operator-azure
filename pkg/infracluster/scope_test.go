@@ -17,7 +17,9 @@ import (
 	"sigs.k8s.io/cluster-api/api/core/v1beta1"
 	clusterv1beta1 "sigs.k8s.io/cluster-api/api/core/v1beta1"
 	capi "sigs.k8s.io/cluster-api/api/core/v1beta2"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	fakeclient "sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 const (
@@ -395,6 +397,68 @@ func Test_InfraClusterIdentity_ASOManagedCluster(t *testing.T) {
 	}
 	if got.Spec.ClientID != identityClientID || got.Spec.TenantID != identityTenantID {
 		t.Errorf("InfraClusterIdentity() client/tenant = %s/%s, want %s/%s", got.Spec.ClientID, got.Spec.TenantID, identityClientID, identityTenantID)
+	}
+}
+
+func Test_CommonPatcher_PatchObject_ASOManagedClusterPersistsFinalizer(t *testing.T) {
+	ctx := context.TODO()
+
+	const finalizer = "dns-operator-azure.giantswarm.io/azurecluster"
+
+	schemeBuilder := runtime.SchemeBuilder{
+		capi.AddToScheme,
+		infrav1.AddToScheme,
+	}
+	if err := schemeBuilder.AddToScheme(scheme.Scheme); err != nil {
+		t.Fatal(err)
+	}
+
+	infraCluster := &unstructured.Unstructured{}
+	infraCluster.SetGroupVersionKind(infrav1.GroupVersion.WithKind(infrav1.AzureASOManagedClusterKind))
+	infraCluster.SetName("test-aks")
+	infraCluster.SetNamespace("default")
+
+	kubeClient := fakeclient.NewClientBuilder().
+		WithScheme(scheme.Scheme).
+		WithObjects(infraCluster).
+		Build()
+
+	// Fetch a fresh copy, as the controller does before mutating.
+	fetched := &unstructured.Unstructured{}
+	fetched.SetGroupVersionKind(infrav1.GroupVersion.WithKind(infrav1.AzureASOManagedClusterKind))
+	if err := kubeClient.Get(ctx, client.ObjectKey{Name: "test-aks", Namespace: "default"}, fetched); err != nil {
+		t.Fatal(err)
+	}
+
+	patcher, err := NewCommonPatcher(ctx, CommonPatcherParams{
+		Cluster: &capi.Cluster{
+			ObjectMeta: metav1.ObjectMeta{Name: "test-aks", Namespace: "default"},
+			Spec: capi.ClusterSpec{
+				ControlPlaneEndpoint: capi.APIEndpoint{
+					Host: "test-aks-abcd1234.hcp.westeurope.azmk8s.io",
+					Port: 443,
+				},
+			},
+		},
+		InfraCluster: fetched,
+		K8sClient:    kubeClient,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	controllerutil.AddFinalizer(fetched, finalizer)
+	if err := patcher.PatchObject(ctx); err != nil {
+		t.Fatalf("PatchObject() error = %v", err)
+	}
+
+	got := &unstructured.Unstructured{}
+	got.SetGroupVersionKind(infrav1.GroupVersion.WithKind(infrav1.AzureASOManagedClusterKind))
+	if err := kubeClient.Get(ctx, client.ObjectKey{Name: "test-aks", Namespace: "default"}, got); err != nil {
+		t.Fatal(err)
+	}
+	if !controllerutil.ContainsFinalizer(got, finalizer) {
+		t.Errorf("finalizer %q was not persisted on the AzureASOManagedCluster", finalizer)
 	}
 }
 
