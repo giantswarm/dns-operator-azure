@@ -1,1 +1,4 @@
 CVE-2026-39883 until=2026-10-10 # golang/go.opentelemetry.io/otel/sdk@v1.40.0
+CVE-2026-26958 until=2026-08-08 # filippo.io/edwards25519@v1.1.0
+CVE-2024-51744 until=2026-08-08 # github.com/golang-jwt/jwt/v4@v4.5.0
+CVE-2025-30204 until=2026-08-08 # github.com/golang-jwt/jwt/v4@v4.5.0
