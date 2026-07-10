@@ -18,6 +18,33 @@ supports both CAPZ and non-CAPZ workload clusters.
 - When the management cluster is fully private, WCs cannot access the MC endpoints by default. We use private links and 
   private endpoints here again so that monitoring clients in WCs can access the ingress endpoints in MC. See the whole flow in https://github.com/giantswarm/azure-private-endpoint-operator/blob/main/README.md
 
+### AKS (`AzureASOManagedCluster`) workload clusters
+
+We also manage AKS workload clusters that are provisioned via Cluster API using the Azure Service Operator
+(`AzureASOManagedCluster` infrastructure clusters). For these clusters `dns-operator-azure`:
+
+- Creates the public DNS zone `<wc_name>.<base_domain>` in a `<wc_name>` resource group (managed by `dns-operator-azure`, like for non-CAPZ clusters). The zone is created in the Azure subscription referenced by the `giantswarm.io/azure-subscription-id` annotation on the `Cluster` object.
+- Creates the `NS` delegation record for the cluster zone in the base domain.
+- Creates the wildcard `*` `CNAME` record pointing to `ingress.<wc_name>.<base_domain>` (overridable via the `network.giantswarm.io/wildcard-cname-target` annotation).
+
+It intentionally does **not** create `api`/`apiserver` records: AKS exposes the API server through an Azure-provided
+FQDN whose TLS certificate only matches that FQDN, so a record under our own domain would cause a certificate mismatch.
+Clients must use the AKS-provided API FQDN directly. Ingress records are left to `external-dns` running inside the AKS cluster.
+
+Authentication to Azure works differently than for CAPZ `AzureCluster`s, which carry the subscription ID on the
+`AzureCluster` spec and reference an `AzureClusterIdentity` from there. AKS clusters have no such spec, so both pieces
+are provided via annotations:
+
+- The Azure subscription ID comes from the `giantswarm.io/azure-subscription-id` annotation on the `Cluster` object.
+- The `AzureClusterIdentity` to authenticate with (typically an Azure Workload Identity) comes from the
+  `azure.giantswarm.io/azure-cluster-identity` and `azure.giantswarm.io/azure-cluster-identity-namespace` annotations
+  on the `AzureASOManagedCluster` object.
+
+Note that the referenced identity must have an Azure RBAC role assignment granting it access to the subscription named
+in the annotation, since the identity and the subscription are configured independently.
+
+Only public AKS clusters are supported for now.
+
 ### Non-CAPZ workload clusters
 
 We manage non-CAPZ workload clusters in CAPZ MCs too. We call this concept as `multi-provider` setup. In this case, 

@@ -210,18 +210,23 @@ func (r *ClusterReconciler) reconcileNormal(ctx context.Context, clusterScope *i
 		return reconcile.Result{}, microerror.Mask(err)
 	}
 
-	err = infracluster.SetUnstructuredCondition(infraCluster, clusterv1beta1.Condition{
-		Type:   "GSDNSZoneReady",
-		Status: corev1.ConditionTrue,
-		// Reason and Message will be required in CAPI v1beta2.
-		Reason:  "GSDNSZonesCreated",
-		Message: "GiantSwarm DNS Zones have been created",
-	})
-	if err != nil {
-		return reconcile.Result{}, err
-	}
-	if err := clusterScope.Client.Status().Update(ctx, infraCluster); err != nil {
-		return reconcile.Result{}, err
+	// AKS (AzureASOManagedCluster) infra clusters have their status managed by
+	// CAPZ/ASO and their schema has no conditions field, so we don't set the
+	// GSDNSZoneReady condition on them.
+	if !clusterScope.IsASOManagedCluster() {
+		err = infracluster.SetUnstructuredCondition(infraCluster, clusterv1beta1.Condition{
+			Type:   "GSDNSZoneReady",
+			Status: corev1.ConditionTrue,
+			// Reason and Message will be required in CAPI v1beta2.
+			Reason:  "GSDNSZonesCreated",
+			Message: "GiantSwarm DNS Zones have been created",
+		})
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+		if err := clusterScope.Client.Status().Update(ctx, infraCluster); err != nil {
+			return reconcile.Result{}, err
+		}
 	}
 	if err := clusterScope.Patcher.PatchObject(ctx); err != nil {
 		return reconcile.Result{}, err

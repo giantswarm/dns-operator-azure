@@ -930,3 +930,98 @@ func TestService_getIngressARecord(t *testing.T) {
 		})
 	}
 }
+
+// TestService_getDesiredARecords_ASOManagedCluster verifies that no A records
+// are managed for AKS (AzureASOManagedCluster) clusters. Their API server is
+// reachable through an Azure-provided FQDN whose certificate would not match a
+// record under our own domain, and ingress records are handled by external-dns
+// running inside the cluster.
+func TestService_getDesiredARecords_ASOManagedCluster(t *testing.T) {
+	ctx := context.TODO()
+
+	schemeBuilder := runtime.SchemeBuilder{
+		capi.AddToScheme,
+		infrav1.AddToScheme,
+	}
+	if err := schemeBuilder.AddToScheme(scheme.Scheme); err != nil {
+		t.Fatal(err)
+	}
+
+	cluster := &capi.Cluster{
+		ObjectMeta: v1.ObjectMeta{
+			Name:      "test-aks",
+			Namespace: "default",
+		},
+		Spec: capi.ClusterSpec{
+			ControlPlaneEndpoint: capi.APIEndpoint{
+				Host: "test-aks-abcd1234.hcp.westeurope.azmk8s.io",
+				Port: 443,
+			},
+			InfrastructureRef: capi.ContractVersionedObjectReference{
+				APIGroup: "infrastructure.cluster.x-k8s.io",
+				Kind:     infrav1.AzureASOManagedClusterKind,
+				Name:     "test-aks",
+			},
+		},
+	}
+
+	infraCluster := &unstructured.Unstructured{}
+	infraCluster.SetGroupVersionKind(infrav1.GroupVersion.WithKind(infrav1.AzureASOManagedClusterKind))
+	infraCluster.SetName("test-aks")
+	infraCluster.SetNamespace("default")
+
+	kubeClient := fakeclient.NewClientBuilder().
+		WithScheme(scheme.Scheme).
+		WithObjects(cluster).
+		Build()
+
+	infraClusterScope, err := infracluster.NewScope(ctx, infracluster.ScopeParams{
+		Client:       kubeClient,
+		Cluster:      cluster,
+		InfraCluster: infraCluster,
+		// Provide explicit Azure config so the scope does not attempt to resolve
+		// credentials from a management cluster AzureCluster.
+		ClusterZoneAzureConfig: infracluster.ClusterZoneAzureConfig{
+			SubscriptionID: fakeSubscriptionID,
+			ClientID:       fakeClientID,
+			TenantID:       fakeTenantID,
+			Location:       "westeurope",
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !infraClusterScope.IsASOManagedCluster() {
+		t.Fatalf("expected infra cluster to be recognized as an ASO managed cluster")
+	}
+
+	dnsScope, err := scope.NewDNSScope(ctx, scope.DNSScopeParams{
+		BaseZoneCredentials: scope.BaseZoneCredentials{
+			ClientID:       uuid.New().String(),
+			ClientSecret:   uuid.New().String(),
+			TenantID:       uuid.New().String(),
+			SubscriptionID: uuid.New().String(),
+		},
+		BaseDomain:              "basedomain.io",
+		BaseDomainResourceGroup: "basedomain_resource_group",
+		ClusterScope:            infraClusterScope,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	dnsService, err := New(*dnsScope, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := dnsService.getDesiredARecords(ctx)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != nil {
+		gotJSON, _ := json.Marshal(got)
+		t.Errorf("getDesiredARecords() for AKS cluster = %s, want no records", gotJSON)
+	}
+}

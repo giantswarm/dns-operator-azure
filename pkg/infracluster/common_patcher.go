@@ -58,8 +58,16 @@ func (s *CommonPatcher) ClusterName() string {
 }
 
 func (s *CommonPatcher) PatchObject(ctx context.Context) error {
-	if err := s.k8sClient.Status().Update(ctx, s.InfraCluster); err != nil {
-		return err
+	// For AKS (AzureASOManagedCluster) clusters we do not own the infra cluster
+	// status - it is managed by CAPZ/ASO and its schema has no conditions field.
+	// We only persist metadata (e.g. our finalizer). Calling Status().Update()
+	// here would fail schema validation and, because the status subresource
+	// response carries the server-side metadata (without our just-added
+	// finalizer), it would also clobber the finalizer before Update() persists it.
+	if !isASOManagedCluster(s.InfraCluster) {
+		if err := s.k8sClient.Status().Update(ctx, s.InfraCluster); err != nil {
+			return err
+		}
 	}
 	return s.k8sClient.Update(ctx, s.InfraCluster)
 }
