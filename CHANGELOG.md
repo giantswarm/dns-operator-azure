@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.1] - 2026-07-10
+
 ### Changed
 
 - CI: offload the Aliyun (China) image push to a parallel `sync-china-registry` job via `split-china-push`.
@@ -220,7 +222,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - First release
 
-[Unreleased]: https://github.com/giantswarm/dns-operator-azure/compare/v2.6.0...HEAD
+[Unreleased]: https://github.com/giantswarm/dns-operator-azure/compare/v2.6.1...HEAD
+[2.6.1]: https://github.com/giantswarm/dns-operator-azure/compare/v2.6.0...v2.6.1
 [2.6.0]: https://github.com/giantswarm/dns-operator-azure/compare/v2.5.0...v2.6.0
 [2.5.0]: https://github.com/giantswarm/dns-operator-azure/compare/v2.4.0...v2.5.0
 [2.4.0]: https://github.com/giantswarm/dns-operator-azure/compare/v2.3.3...v2.4.0
