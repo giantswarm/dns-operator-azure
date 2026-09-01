@@ -1,6 +1,6 @@
 module github.com/giantswarm/dns-operator-azure/v3
 
-go 1.25.0
+go 1.26.0
 
 require (
 	github.com/Azure/aad-pod-identity v1.8.17
@@ -19,7 +19,7 @@ require (
 	github.com/onsi/gomega v1.43.0
 	github.com/prometheus/client_golang v1.23.2
 	go.uber.org/zap v1.28.0
-	golang.org/x/exp v0.0.0-20260611194520-c48552f49976
+	golang.org/x/exp v0.0.0-20260824195058-e88cd73687aa
 	k8s.io/api v0.34.3
 	k8s.io/apimachinery v0.34.3
 	k8s.io/client-go v0.34.3
@@ -115,7 +115,7 @@ require (
 	go.yaml.in/yaml/v2 v2.4.3 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/crypto v0.53.0 // indirect
-	golang.org/x/mod v0.38.0 // indirect
+	golang.org/x/mod v0.39.0 // indirect
 	golang.org/x/net v0.56.0 // indirect
 	golang.org/x/oauth2 v0.34.0 // indirect
 	golang.org/x/sync v0.22.0 // indirect
