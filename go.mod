@@ -25,8 +25,8 @@ require (
 	k8s.io/client-go v0.34.3
 	k8s.io/kubectl v0.33.6
 	k8s.io/utils v0.0.0-20250604170112-4c0f3b243397
-	sigs.k8s.io/cluster-api v1.12.5
-	sigs.k8s.io/cluster-api-provider-azure v1.23.0
+	sigs.k8s.io/cluster-api v1.14.1
+	sigs.k8s.io/cluster-api-provider-azure v1.27.0
 	sigs.k8s.io/controller-runtime v0.22.5
 )
 
