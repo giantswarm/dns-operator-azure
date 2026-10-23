@@ -19,7 +19,7 @@ require (
 	github.com/onsi/gomega v1.44.0
 	github.com/prometheus/client_golang v1.25.0
 	go.uber.org/zap v1.28.0
-	golang.org/x/exp v0.0.0-20260611194520-c48552f49976
+	golang.org/x/exp v0.0.0-20261014143641-f0251eb4aa3e
 	k8s.io/api v0.36.3
 	k8s.io/apimachinery v0.36.3
 	k8s.io/client-go v0.36.3
@@ -113,10 +113,10 @@ require (
 	go.yaml.in/yaml/v2 v2.4.4 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/crypto v0.57.0 // indirect
-	golang.org/x/mod v0.41.0 // indirect
+	golang.org/x/mod v0.42.0 // indirect
 	golang.org/x/net v0.59.0 // indirect
 	golang.org/x/oauth2 v0.37.0 // indirect
-	golang.org/x/sync v0.23.0 // indirect
+	golang.org/x/sync v0.24.0 // indirect
 	golang.org/x/sys v0.48.0 // indirect
 	golang.org/x/term v0.46.0 // indirect
 	golang.org/x/text v0.42.0 // indirect
