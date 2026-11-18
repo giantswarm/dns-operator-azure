@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- Remove the Kyverno PolicyException and the `kyvernoPolicyExceptions` values. It excepted `disallow-host-ports` and `disallow-host-namespaces`, but the operator hasn't used the host network since 2.1.0, so it no longer fails them.
+
 ## [2.6.2] - 2026-11-17
 
 ### Fixed

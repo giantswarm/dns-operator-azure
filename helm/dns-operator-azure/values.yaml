@@ -28,11 +28,6 @@ managementCluster:
 verticalPodAutoscaler:
   enabled: false
 
-# Enable Kyverno PolicyException
-kyvernoPolicyExceptions:
-  enabled: true
-  namespace: giantswarm
-
 # necessary for RBACs
 secondaryProviders:
 # e.g.
