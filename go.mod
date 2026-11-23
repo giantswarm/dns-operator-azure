@@ -3,7 +3,6 @@ module github.com/giantswarm/dns-operator-azure/v3
 go 1.26.0
 
 require (
-	github.com/Azure/aad-pod-identity v1.8.17
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.24.0
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.15.0
 	github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/dns/armdns v1.2.0
