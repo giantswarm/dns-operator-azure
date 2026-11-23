@@ -22,12 +22,9 @@ import (
 	"os"
 	"time"
 
-	aadpodv1 "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	"go.uber.org/zap/zapcore"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	infrav1 "sigs.k8s.io/cluster-api-provider-azure/api/v1beta1"
 	capi "sigs.k8s.io/cluster-api/api/core/v1beta2"
@@ -71,17 +68,6 @@ func init() {
 	_ = capi.AddToScheme(scheme)
 	_ = infrav1.AddToScheme(scheme)
 	// +kubebuilder:scaffold:scheme
-
-	// Add aadpodidentity v1 to the scheme.
-	scheme.AddKnownTypes(schema.GroupVersion{Group: aadpodv1.GroupName, Version: "v1"},
-		&aadpodv1.AzureIdentity{},
-		&aadpodv1.AzureIdentityList{},
-		&aadpodv1.AzureIdentityBinding{},
-		&aadpodv1.AzureIdentityBindingList{},
-		&aadpodv1.AzurePodIdentityException{},
-		&aadpodv1.AzurePodIdentityExceptionList{},
-	)
-	metav1.AddToGroupVersion(scheme, aadpodv1.SchemeGroupVersion)
 }
 
 func main() {
