@@ -19,10 +19,10 @@ require (
 	github.com/prometheus/client_golang v1.25.0
 	go.uber.org/zap v1.28.0
 	golang.org/x/exp v0.0.0-20261124000051-d6646c509b6d
-	k8s.io/api v0.37.2
-	k8s.io/apimachinery v0.37.2
-	k8s.io/client-go v0.37.2
-	k8s.io/kubectl v0.37.2
+	k8s.io/api v0.37.3
+	k8s.io/apimachinery v0.37.3
+	k8s.io/client-go v0.37.3
+	k8s.io/kubectl v0.37.3
 	k8s.io/utils v0.0.0-20261023123148-ca04ba58ecab
 	sigs.k8s.io/cluster-api v1.14.4
 	sigs.k8s.io/cluster-api-provider-azure v1.28.1
@@ -142,8 +142,8 @@ require (
 	k8s.io/apiserver v0.37.0 // indirect
 	k8s.io/cloud-provider v0.34.0 // indirect
 	k8s.io/cluster-bootstrap v0.36.3 // indirect
-	k8s.io/component-base v0.37.2 // indirect
-	k8s.io/component-helpers v0.37.2 // indirect
+	k8s.io/component-base v0.37.3 // indirect
+	k8s.io/component-helpers v0.37.3 // indirect
 	k8s.io/klog/v2 v2.140.0 // indirect
 	k8s.io/kube-openapi v0.0.0-20260721132016-d427ff9ee9ad // indirect
 	sigs.k8s.io/cloud-provider-azure v1.34.3 // indirect
